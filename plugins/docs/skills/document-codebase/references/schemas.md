@@ -194,7 +194,18 @@ claim makes the whole fragment untrustworthy, however many verified ones surroun
 | `contains` | the method is on that class in the extracted detail |
 | `imports` | the edge is in the graph, at the cited line |
 | `inherits` | the base resolved to the named file |
-| `calls` | the cited line holds a call to that name **and** the name is bound by an import from the callee's file |
+| `calls` | the cited line holds a call to that name **and** the name is bound by an import from the callee's file — or, for a call through an object, the evidence proves the object's class (below) |
+
+**A call through an object** — `session.request()`, `self.store.save()` — needs the object's class proved,
+because the import binds the class, never the variable. Write the object as `method:<callee>:<Class>.<name>`
+and add to `evidence`, beside the call line, **every** line that binds the receiver: in the enclosing function
+for a local, anywhere in the class for `self.<attr>`. Each must state that class: `x = C(...)` or
+`x = mod.C(...)`; `with C(...) as x`, when `C.__enter__` returns `self`; an annotation `x: C`, a parameter's
+included; or `x = f(...)` / `x = self.f(...)` where `f`'s `-> C` is cited too, by its `def` line. A binding
+left out, or one whose class the source does not state, leaves the claim `needs_context`; a binding to another
+class `rejected`. Claim the class the source declares: when `get_adapter() -> BaseAdapter` is the proof,
+`BaseAdapter.send` verifies and `HTTPAdapter.send` is `unsupported`, since which subclass runs is decided at
+run time.
 | `responsibility` | never; it is recorded as `supported_inference` |
 
 `evidence.source_hash` is optional — the file's hash from the index is used when it is absent. Either way, a
@@ -413,9 +424,10 @@ which flow; neither says which *version* was accepted, so editing a validated fl
 carry it into the diagram under a report that never saw it.
 
 **A flow with a broken step is refused whole**, not trimmed to the part that held: half a traced request,
-rendered as a traced request, is worse than none. Note what this rule costs on ordinary object-oriented
-code — a call through `self.service.record(...)` is not name-bound by an import, so it cannot be read at its
-call site and never becomes a step. `absent` is the common answer, and an honest one.
+rendered as a traced request, is worse than none. On ordinary object-oriented code most steps are calls
+through an object — `self.service.record(...)` — and one becomes a step only once its claim proves the
+object's class (see `claims.jsonl` above). Prove it before settling for `absent`; write `absent` when the
+class is decided at run time or the source never states it.
 
 ## `operations-analysis.json` — operations_version 1
 

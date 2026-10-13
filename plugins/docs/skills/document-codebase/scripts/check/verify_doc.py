@@ -29,8 +29,11 @@ Claim kinds and how each is decided:
     imports     the edge is in the dependency graph, at the cited line
     inherits    the base resolved to the named file
     calls       the cited line really holds a call to that name, *and* the name is
-                bound by an import from the file the callee lives in. Python only:
-                elsewhere there is no tree to check and the claim stays a candidate.
+                bound by an import from the file the callee lives in -- or, for a
+                call through an object (`x.m()`, `self.x.m()`), the evidence also
+                cites every line binding that object and each one states the class
+                the claim names. Python only: elsewhere there is no tree to check
+                and the claim stays a candidate.
     responsibility  an inference; recorded as supported_inference, never as fact
 
 Statuses out: verified, supported_inference, candidate, unsupported, needs_context,
@@ -375,7 +378,7 @@ class Verifier(object):
                 near_miss = near_miss or name
                 continue
             # Direct: `from callee import wanted` bound the name itself.
-            if base is None and wanted in bindings:
+            if isinstance(func, ast.Name) and wanted in bindings:
                 if self.shadowed_at(tree, wanted, node.lineno):
                     return "rejected", ("%s:%d calls %r, but that name is rebound in the "
                                         "scope around it -- a parameter, a local, or a "
@@ -391,6 +394,12 @@ class Verifier(object):
                                         % (caller_path, node.lineno, wanted, base, base,
                                            obj[1]))
                 return "verified", None
+            # Through an object: `session.request()`, `self.store.save()`. The import
+            # cannot bind the receiver, so the claim has to prove what the receiver is.
+            receiver = self.receiver_of(func) if isinstance(func, ast.Attribute) else None
+            if receiver is not None and obj[0] == "method" and bindings and not (
+                    receiver[0] == "local" and receiver[1] in self.imported_names(tree)):
+                return self.verify_receiver(tree, node, receiver, lines, bindings, obj)
             if not bindings:
                 # No direct edge at all. The call could still reach that file through a
                 # re-export, which this script cannot see -- so ask, rather than deny.
@@ -412,6 +421,265 @@ class Verifier(object):
                                    "call. Static analysis cannot name the target, and no "
                                    "further context will change that" % caller_path)
         return "rejected", "there is no call at %s:%s" % (caller_path, sorted(lines))
+
+    # -- calls through an object ----------------------------------------------------
+
+    @staticmethod
+    def receiver_of(func):
+        """`x.m()` -> ('local', 'x'); `self.x.m()` -> ('attribute', 'x'); else None."""
+        value = func.value
+        if isinstance(value, ast.Name) and value.id != "self":
+            return ("local", value.id)
+        if isinstance(value, ast.Attribute) and isinstance(value.value, ast.Name) \
+                and value.value.id == "self":
+            return ("attribute", value.attr)
+        return None
+
+    @staticmethod
+    def imported_names(tree):
+        names = set()
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                for alias in node.names:
+                    names.add(alias.asname or alias.name.split(".")[0])
+        return names
+
+    @staticmethod
+    def enclosing(tree, line, kinds):
+        """The innermost node of one of `kinds` whose span holds `line`."""
+        best = None
+        for node in ast.walk(tree):
+            if isinstance(node, kinds) and node.lineno <= line <= node.end_lineno:
+                if best is None or node.lineno >= best.lineno:
+                    best = node
+        return best
+
+    @staticmethod
+    def own_nodes(scope):
+        """Every node in `scope` that belongs to it rather than to a nested scope."""
+        stack = list(ast.iter_child_nodes(scope))
+        while stack:
+            node = stack.pop()
+            yield node
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda,
+                                 ast.ClassDef, ast.ListComp, ast.SetComp, ast.DictComp,
+                                 ast.GeneratorExp)):
+                continue
+            stack.extend(ast.iter_child_nodes(node))
+
+    def receiver_bindings(self, scope, receiver):
+        """Every place the receiver is bound, as (line, how, node).
+
+        `how` is "value" (an expression assigned to it), "enter" (a `with ... as`),
+        "annotation" (a declared type), or "unknown" (bound in a way whose type cannot
+        be read: unpacking, a loop, `except ... as`, an augmented assignment).
+        """
+        kind, name = receiver
+        found = []
+
+        def is_target(node):
+            if kind == "local":
+                return isinstance(node, ast.Name) and node.id == name
+            return (isinstance(node, ast.Attribute) and node.attr == name
+                    and isinstance(node.value, ast.Name) and node.value.id == "self")
+
+        def mentions(target):
+            return any(is_target(leaf) for leaf in ast.walk(target))
+
+        if kind == "local":
+            arguments = getattr(scope, "args", None)
+            if arguments is not None:
+                every = (list(getattr(arguments, "posonlyargs", [])) + list(arguments.args)
+                         + list(arguments.kwonlyargs)
+                         + [a for a in (arguments.vararg, arguments.kwarg) if a])
+                for argument in every:
+                    if argument.arg == name:
+                        found.append((argument.lineno, "annotation", argument.annotation))
+            nodes = self.own_nodes(scope)
+        else:
+            # An attribute lives on the instance, so every method of the class may set it.
+            nodes = (n for n in ast.walk(scope))
+
+        for node in nodes:
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if is_target(target):
+                        found.append((node.lineno, "value", node.value))
+                    elif mentions(target):
+                        found.append((node.lineno, "unknown", None))
+            elif isinstance(node, ast.AnnAssign):
+                if is_target(node.target) or (kind == "attribute" and node in scope.body
+                                              and isinstance(node.target, ast.Name)
+                                              and node.target.id == name):
+                    found.append((node.lineno, "annotation", node.annotation))
+            elif isinstance(node, ast.NamedExpr) and is_target(node.target):
+                found.append((node.lineno, "value", node.value))
+            elif isinstance(node, (ast.With, ast.AsyncWith)):
+                for item in node.items:
+                    if item.optional_vars is None:
+                        continue
+                    if is_target(item.optional_vars):
+                        found.append((item.context_expr.lineno, "enter", item.context_expr))
+                    elif mentions(item.optional_vars):
+                        found.append((node.lineno, "unknown", None))
+            elif isinstance(node, (ast.AugAssign, ast.For, ast.AsyncFor)):
+                if mentions(node.target):
+                    found.append((node.lineno, "unknown", None))
+            elif isinstance(node, ast.ExceptHandler) and kind == "local" \
+                    and node.name == name:
+                found.append((node.lineno, "unknown", None))
+            elif isinstance(node, (ast.Global, ast.Nonlocal)) and kind == "local" \
+                    and name in node.names:
+                found.append((node.lineno, "unknown", None))
+        return found
+
+    @staticmethod
+    def class_named(tree, name):
+        for node in getattr(tree, "body", ()):
+            if isinstance(node, ast.ClassDef) and node.name == name:
+                return node
+        return None
+
+    def class_ref(self, node, bindings, callee_tree):
+        """The callee-file class an expression names, or None.
+
+        `C` and `mod.C` count when the caller's import from the callee file bound
+        that name, and the callee file really defines `C` at its top level.
+        """
+        if isinstance(node, ast.Constant) and isinstance(node.value, str) \
+                and node.value.isidentifier():
+            name = node.value if node.value in bindings else None
+        elif isinstance(node, ast.Name):
+            name = node.id if node.id in bindings else None
+        elif isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) \
+                and node.value.id in bindings:
+            name = node.attr
+        else:
+            name = None
+        if name is None or self.class_named(callee_tree, name) is None:
+            return None
+        return name
+
+    def type_of(self, tree, how, node, call_line, lines, bindings, callee_tree):
+        """(class name, None) for a binding whose type the source states, else
+        (None, the reason it cannot be read)."""
+        if node is None:
+            return None, "it is bound in a way whose type the source does not state"
+        if how == "annotation":
+            found = self.class_ref(node, bindings, callee_tree)
+            return (found, None) if found else (None, "its annotation does not name a "
+                                                      "class imported from the callee file")
+        if not isinstance(node, ast.Call):
+            return None, "it is assigned something other than a call"
+        found = self.class_ref(node.func, bindings, callee_tree)
+        if found is not None:
+            if how == "enter" and not self.enter_returns_self(callee_tree, found):
+                return None, ("`with %s(...) as` binds what %s.__enter__ returns, and "
+                              "that method does not plainly `return self`" % (found, found))
+            return found, None
+        # A factory in this file whose return annotation names the class.
+        func = node.func
+        definition = None
+        if isinstance(func, ast.Name):
+            definition = next((d for d in tree.body if isinstance(
+                d, (ast.FunctionDef, ast.AsyncFunctionDef)) and d.name == func.id), None)
+        elif isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name) \
+                and func.value.id == "self":
+            owner = self.enclosing(tree, call_line, (ast.ClassDef,))
+            if owner is not None:
+                definition = next((d for d in owner.body if isinstance(
+                    d, (ast.FunctionDef, ast.AsyncFunctionDef)) and d.name == func.attr), None)
+        if definition is None or definition.returns is None:
+            return None, "it is assigned the result of a call that names no class"
+        if definition.lineno not in lines:
+            return None, ("it is assigned the result of %s(), whose return annotation "
+                          "is the proof -- cite line %d" % (definition.name,
+                                                            definition.lineno))
+        if how == "enter":
+            return None, "a factory's result entered with `with` is not followed"
+        found = self.class_ref(definition.returns, bindings, callee_tree)
+        return (found, None) if found else (None, "%s() is not annotated to return a "
+                                                  "class imported from the callee file"
+                                            % definition.name)
+
+    def subclasses(self, callee_tree, name):
+        """Classes in the callee file that inherit from `name`, directly or not."""
+        parents = {}
+        for node in getattr(callee_tree, "body", ()):
+            if isinstance(node, ast.ClassDef):
+                parents[node.name] = {b.id if isinstance(b, ast.Name) else
+                                      getattr(b, "attr", None) for b in node.bases}
+        found, grew = set(), True
+        while grew:
+            grew = False
+            for child, bases in parents.items():
+                if child not in found and (name in bases or bases & found):
+                    found.add(child)
+                    grew = True
+        return found
+
+    def enter_returns_self(self, callee_tree, name):
+        cls = self.class_named(callee_tree, name)
+        enter = next((d for d in cls.body if isinstance(d, ast.FunctionDef)
+                      and d.name == "__enter__"), None) if cls else None
+        if enter is None:
+            return False
+        returns = [n for n in ast.walk(enter) if isinstance(n, ast.Return)]
+        return bool(returns) and all(isinstance(r.value, ast.Name) and r.value.id == "self"
+                                     for r in returns)
+
+    def verify_receiver(self, tree, call, receiver, lines, bindings, obj):
+        """A call through an object is verified when the claim proves the object's class.
+
+        The proof is every line that binds the receiver -- in the enclosing function for
+        a local, anywhere in the class for `self.<attr>` -- cited in the evidence, each
+        one stating the same class: constructed from it, entered from it, annotated as
+        it, or returned by a cited factory annotated as it. One uncited or unreadable
+        binding leaves the call undecided rather than false; a binding to another class
+        contradicts the claim.
+        """
+        kind, name = receiver
+        shown = name if kind == "local" else "self." + name
+        wanted_class = obj[2].split(".")[0]
+        callee_tree = self.tree(obj[1])
+        if callee_tree is None:
+            return "needs_context", "%s did not parse; its classes cannot be read" % obj[1]
+        if kind == "local":
+            scope = self.enclosing(tree, call.lineno,
+                                   (ast.FunctionDef, ast.AsyncFunctionDef)) or tree
+        else:
+            scope = self.enclosing(tree, call.lineno, (ast.ClassDef,))
+            if scope is None:
+                return "needs_context", ("%s is used outside a class, so there is no class "
+                                         "whose methods set it" % shown)
+        found = self.receiver_bindings(scope, receiver)
+        if not found:
+            return "needs_context", ("%r is called through %s, which nothing in the "
+                                     "enclosing %s binds; cite where its class is stated"
+                                     % (call.func.attr, shown,
+                                        "class" if kind == "attribute" else "function"))
+        uncited = sorted({line for line, _, _ in found if line not in lines})
+        if uncited:
+            return "needs_context", ("%s is bound at line(s) %s; cite every binding so its "
+                                     "class can be checked" % (shown, uncited))
+        classes = set()
+        for line, how, node in found:
+            found_class, reason = self.type_of(tree, how, node, call.lineno, lines,
+                                               bindings, callee_tree)
+            if found_class is None:
+                return "needs_context", "%s at line %d: %s" % (shown, line, reason)
+            classes.add(found_class)
+        if len(classes) == 1 and wanted_class in self.subclasses(callee_tree,
+                                                                next(iter(classes))):
+            declared = next(iter(classes))
+            return "unsupported", ("%s is declared a %s; whether the %s subclass is the one "
+                                   "that runs is decided at run time. Claim %s.%s instead"
+                                   % (shown, declared, wanted_class, declared,
+                                      call.func.attr))
+        if classes != {wanted_class}:
+            return "rejected", ("%s is a %s, not a %s"
+                                % (shown, " or ".join(sorted(classes)), wanted_class))
+        return "verified", None
 
     # -- driver ----------------------------------------------------------------
 
