@@ -117,6 +117,28 @@ def main():
         check("a budget naming a module the index does not hold is refused",
               code == 2, output)
 
+        # `@overload` stubs give one name several definitions. Each used to become its
+        # own row under the same id, and verify_doc.py rejected every copy as V008.
+        overloads = os.path.join(tmp, "overloads")
+        os.makedirs(overloads)
+        with open(os.path.join(overloads, "conv.py"), "w", encoding="utf-8") as fh:
+            fh.write("from typing import overload\n\n\n@overload\ndef conv(x: int) -> int: ...\n"
+                     "\n\n@overload\ndef conv(x: str) -> str: ...\n\n\ndef conv(x):\n"
+                     "    return x\n")
+        o_index = os.path.join(tmp, "overloads.json")
+        run("scan_repo.py", "--root", overloads, "--out", o_index, "--detail")
+        o_units = os.path.join(tmp, "overloads-units.txt")
+        with open(o_units, "w", encoding="utf-8") as fh:
+            fh.write("conv.py\n")
+        o_out = os.path.join(tmp, "overloads.jsonl")
+        run("derive_claims.py", "--index", o_index, "--units", o_units, "--out", o_out)
+        ids = [row["id"] for row in rows_of(o_out)]
+        check("an overloaded name is claimed once", ids.count("claim:defines:conv.py:conv") == 1,
+              repr(ids))
+        code, output = run("verify_doc.py", "--claims", o_out, "--index", o_index,
+                           "--root", overloads, "--out-dir", os.path.join(tmp, "o-verified"))
+        check("and that claim verifies", code == 0, output)
+
         again = os.path.join(tmp, "again.jsonl")
         run("derive_claims.py", "--index", index_path, "--units", units, "--out", again)
         with open(out, "rb") as fh:
