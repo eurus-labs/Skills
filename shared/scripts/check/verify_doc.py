@@ -26,7 +26,8 @@ Claim kinds and how each is decided:
     imports     the edge is in the dependency graph, at the cited line
     inherits    the base resolved to the named file
     calls       the cited line really holds a call to that name, *and* the name is
-                bound by an import from the file the callee lives in -- or, for a
+                bound by an import from the file the callee lives in (or defined
+                by the caller's own file, for a call within it) -- or, for a
                 call through an object (`x.m()`, `self.x.m()`), the evidence also
                 cites every line binding that object and each one states the class
                 the claim names. Python only: elsewhere there is no tree to check
@@ -353,6 +354,11 @@ class Verifier(object):
 
         bindings = {b for edge in self.edges.get((caller_path, obj[1]), ())
                     for b in edge.get("bindings", ())}
+        # A file never imports itself: within one file, what binds a name is its own
+        # top-level definition.
+        same_file = obj[1] == caller_path
+        if same_file:
+            bindings = self.top_level_definitions(tree)
 
         near_miss, computed = None, False
         for node in ast.walk(tree):
@@ -374,6 +380,11 @@ class Verifier(object):
             if name != wanted:
                 near_miss = near_miss or name
                 continue
+            # Within one file: `helper()`, `self.second()`, `Local.build()`.
+            if same_file:
+                verdict = self.verify_same_file(tree, node, func, wanted, bindings, obj)
+                if verdict is not None:
+                    return verdict
             # Direct: `from callee import wanted` bound the name itself.
             if isinstance(func, ast.Name) and wanted in bindings:
                 if self.shadowed_at(tree, wanted, node.lineno):
@@ -403,6 +414,10 @@ class Verifier(object):
                 return "needs_context", ("%s calls %r at that line, but imports nothing "
                                          "from %s; if it arrives by re-export, supply "
                                          "the chain" % (caller_path, wanted, obj[1]))
+            if same_file:
+                return "rejected", ("%s calls %r at that line, which is not a top-level "
+                                    "definition, a method on self, or a method through a "
+                                    "class or object of this file" % (caller_path, wanted))
             # The file *is* imported, and this is not one of the names it brought in.
             # The call at that line is to something else -- a local definition, or an
             # import from somewhere else entirely.
@@ -418,6 +433,99 @@ class Verifier(object):
                                    "call. Static analysis cannot name the target, and no "
                                    "further context will change that" % caller_path)
         return "rejected", "there is no call at %s:%s" % (caller_path, sorted(lines))
+
+    # -- calls within one file ------------------------------------------------------
+
+    @staticmethod
+    def top_level_definitions(tree):
+        return {node.name for node in tree.body
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))}
+
+    @staticmethod
+    def bound_at_top_level(tree, name):
+        """How many module-level statements bind `name` -- a def, a class, an import or
+        an assignment. More than one means the call site may see any of them."""
+        count = 0
+        for node in tree.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                count += node.name == name
+            elif isinstance(node, (ast.Import, ast.ImportFrom)):
+                count += any((a.asname or a.name.split(".")[0]) == name for a in node.names)
+            elif isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+                targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                count += any(isinstance(leaf, ast.Name) and leaf.id == name
+                             for t in targets for leaf in ast.walk(t))
+        return count
+
+    def verify_same_file(self, tree, call, func, wanted, defined, obj):
+        """A call to something the caller's own file defines. None when the call has a
+        shape this does not decide, so the object-receiver check can take it."""
+        caller_path = obj[1]
+        if isinstance(func, ast.Name):
+            if obj[0] != "symbol" or obj[2] != wanted or wanted not in defined:
+                return None
+            if self.bound_at_top_level(tree, wanted) > 1:
+                return "needs_context", ("%r is bound more than once at the top of %s, so "
+                                         "which one this call reaches depends on order"
+                                         % (wanted, caller_path))
+            if self.shadowed_at(tree, wanted, call.lineno):
+                return "rejected", ("%s:%d calls %r, but that name is rebound in the scope "
+                                    "around it -- a parameter, a local, or a narrower "
+                                    "import" % (caller_path, call.lineno, wanted))
+            return "verified", None
+        if not isinstance(func.value, ast.Name) or obj[0] != "method":
+            return None
+        claimed_class = obj[2].split(".")[0]
+        base = func.value.id
+        if base == "self":
+            return self.verify_self_call(tree, call, wanted, claimed_class, caller_path)
+        if base in defined and self.class_named(tree, base) is not None:
+            # `Local.build()`: the class is named at the call.
+            if self.shadowed_at(tree, base, call.lineno):
+                return "rejected", ("%s:%d calls %r through %r, but %r is rebound in the "
+                                    "scope around it" % (caller_path, call.lineno, wanted,
+                                                         base, base))
+            if base != claimed_class:
+                return "rejected", ("%s:%d calls %s.%s, not %s.%s"
+                                    % (caller_path, call.lineno, base, wanted,
+                                       claimed_class, wanted))
+            return "verified", None
+        if base in defined:
+            return "rejected", ("%s:%d calls %r through %r, a function of this file, not "
+                                "an object of %s" % (caller_path, call.lineno, wanted,
+                                                     base, claimed_class))
+        return None
+
+    def verify_self_call(self, tree, call, wanted, claimed_class, caller_path):
+        """`self.m()` reaches the enclosing class's own `m`, or the one it inherits from a
+        base in the same file when it does not define `m` itself. As with a declared
+        type, this is the target the source names; a subclass overriding `m` is a
+        run-time choice the claim does not make."""
+        function = self.enclosing(tree, call.lineno, (ast.FunctionDef, ast.AsyncFunctionDef))
+        owner = self.enclosing(tree, call.lineno, (ast.ClassDef,))
+        positional = (list(getattr(function.args, "posonlyargs", []))
+                      + list(function.args.args)) if function is not None else []
+        if owner is None or function not in owner.body or not positional \
+                or positional[0].arg != "self":
+            return "needs_context", ("%s:%d calls self.%s outside a method whose first "
+                                     "parameter is self" % (caller_path, call.lineno, wanted))
+
+        def defines(cls):
+            return any(isinstance(d, (ast.FunctionDef, ast.AsyncFunctionDef))
+                       and d.name == wanted for d in cls.body)
+
+        if owner.name == claimed_class:
+            if defines(owner):
+                return "verified", None
+            return "needs_context", ("%s does not define %s itself; claim the base class "
+                                     "it inherits it from" % (owner.name, wanted))
+        bases = {b.id for b in owner.bases if isinstance(b, ast.Name)}
+        claimed = self.class_named(tree, claimed_class)
+        if claimed_class in bases and claimed is not None and defines(claimed) \
+                and not defines(owner):
+            return "verified", None
+        return "rejected", ("self at %s:%d is a %s, which does not reach %s.%s"
+                            % (caller_path, call.lineno, owner.name, claimed_class, wanted))
 
     # -- calls through an object ----------------------------------------------------
 

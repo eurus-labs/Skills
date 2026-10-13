@@ -271,6 +271,44 @@ CALLER_LINES = [
     "",
     "    def run(self):",                            # 53
     "        return self.store.save()",              # 54
+    "",
+    "",
+    "def helper():",                                 # 57
+    "    return 1",                                  # 58
+    "",
+    "",
+    "def uses_helper():",                            # 61
+    "    return helper()",                           # 62
+    "",
+    "",
+    "class Local:",                                  # 65
+    "    def first(self):",                          # 66
+    "        return self.second()",                  # 67
+    "",
+    "    def second(self):",                         # 69
+    "        return Local.build()",                  # 70
+    "",
+    "    @staticmethod",                             # 72
+    "    def build():",                              # 73
+    "        return helper.__name__",                # 74
+    "",
+    "",
+    "class Child(Local):",                           # 77
+    "    def go(self):",                             # 78
+    "        return self.second()",                  # 79
+    "",
+    "",
+    "def local_receiver():",                         # 82
+    "    x = Local()",                               # 83
+    "    return x.first()",                          # 84
+    "",
+    "",
+    "def shadows_helper(helper):",                   # 87
+    "    return helper()",                           # 88
+    "",
+    "",
+    "def through_function():",                      # 91
+    "    return helper.first()",                     # 92
 ]
 
 
@@ -350,9 +388,57 @@ def receiver_calls(tmp):
     # because only the method name was compared.
     expect("r:attribute-to-function", "rejected",
            "a method call is not credited to an imported function of the same name")
+    same_file_calls(tmp, root, index)
     check("an undecided receiver is offered for retry",
           any(f["retryable"] for f in findings if f["claim_id"] == "r:constructed-unproved"),
           "%r" % [f for f in findings if f["claim_id"] == "r:constructed-unproved"])
+
+
+def same_file_calls(tmp, root, index):
+    """A file never imports itself, so a call to its own function or method is bound by
+    the definition, not by an import -- and used to be undecidable."""
+    def at(cid, obj, *lines):
+        row = claim(cid, "calls", "module:caller.py", obj)
+        row["evidence"] = [{"path": "caller.py", "line_start": n, "line_end": n}
+                           for n in lines]
+        return row
+
+    claims = [
+        at("s:function", "symbol:caller.py:helper", 62),
+        at("s:function-shadowed", "symbol:caller.py:helper", 88),
+        at("s:self", "method:caller.py:Local.second", 67),
+        at("s:self-wrong-class", "method:caller.py:Child.second", 67),
+        at("s:class-qualified", "method:caller.py:Local.build", 70),
+        at("s:class-qualified-wrong", "method:caller.py:Child.build", 70),
+        at("s:inherited", "method:caller.py:Local.second", 79),
+        at("s:inherited-not-defined-here", "method:caller.py:Child.second", 79),
+        at("s:local-receiver", "method:caller.py:Local.first", 83, 84),
+        at("s:local-receiver-unproved", "method:caller.py:Local.first", 84),
+        at("s:through-function", "method:caller.py:Local.first", 92),
+    ]
+    code, status, _, _, stderr = run(tmp, root, index, claims, name="same-file")
+    check("same-file verification runs", code in (0, 1), "exit %d: %s" % (code, stderr))
+
+    def expect(cid, wanted, what):
+        check(what, status.get(cid) == wanted, "%s: %r" % (cid, status.get(cid)))
+
+    expect("s:function", "verified", "a call to a function defined in the same file verifies")
+    expect("s:function-shadowed", "rejected",
+           "a parameter shadowing that function is not credited to it")
+    expect("s:self", "verified", "self.m() verifies against the enclosing class")
+    expect("s:self-wrong-class", "rejected", "self.m() is not credited to another class")
+    expect("s:class-qualified", "verified", "C.m() verifies against a class of the file")
+    expect("s:class-qualified-wrong", "rejected", "C.m() is not credited to another class")
+    expect("s:inherited", "verified",
+           "self.m() verifies against the same-file base that defines m")
+    expect("s:inherited-not-defined-here", "needs_context",
+           "a class that inherits m is asked to name the base that defines it")
+    expect("s:local-receiver", "verified",
+           "an object of a same-file class verifies with its binding cited")
+    expect("s:local-receiver-unproved", "needs_context",
+           "and stays undecided without it")
+    expect("s:through-function", "rejected",
+           "a call through a same-file function name is not a method call")
 
 
 def main():

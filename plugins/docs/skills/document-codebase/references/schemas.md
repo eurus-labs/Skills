@@ -194,7 +194,13 @@ claim makes the whole fragment untrustworthy, however many verified ones surroun
 | `contains` | the method is on that class in the extracted detail |
 | `imports` | the edge is in the graph, at the cited line |
 | `inherits` | the base resolved to the named file |
-| `calls` | the cited line holds a call to that name **and** the name is bound by an import from the callee's file — or, for a call through an object, the evidence proves the object's class (below) |
+| `calls` | the cited line holds a call to that name **and** the name is bound by an import from the callee's file — or by the caller's own file, for a call within it — or, for a call through an object, the evidence proves the object's class (below) |
+
+**A call within one file** binds by definition, since a file never imports itself. `helper()` verifies against
+`symbol:<file>:helper` when `helper` is defined once at the top of the file and nothing around the call
+rebinds it; `self.second()` against the enclosing class's own `second`, or the same-file base it inherits
+`second` from; `Local.build()` against class `Local` in that file. As with a declared type, that is the target
+the source names — a subclass overriding the method is a run-time choice the claim does not make.
 
 **A call through an object** — `session.request()`, `self.store.save()` — needs the object's class proved,
 because the import binds the class, never the variable. Write the object as `method:<callee>:<Class>.<name>`
