@@ -23,7 +23,8 @@ cannot be undone by a later commit — get these wrong and the history is perman
   silently overrides them.
 - Use any identity other than the current user's name and GitHub no-reply address
   (`<id>+<login>@users.noreply.github.com`) for author *or* committer. Never use a private email.
-- Amend a published commit. Always create a new one.
+- Amend or rewrite a commit on `dev`, `main`, or in a merged PR. Always create a new one. Rebasing your own
+  unmerged branch and pushing with `--force-with-lease` is expected.
 
 ## ALWAYS
 
