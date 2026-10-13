@@ -195,6 +195,7 @@ claim makes the whole fragment untrustworthy, however many verified ones surroun
 | `imports` | the edge is in the graph, at the cited line |
 | `inherits` | the base resolved to the named file |
 | `calls` | the cited line holds a call to that name **and** the name is bound by an import from the callee's file — or by the caller's own file, for a call within it — or, for a call through an object, the evidence proves the object's class (below) |
+| `responsibility` | never; it is recorded as `supported_inference` |
 
 **A call within one file** binds by definition, since a file never imports itself. `helper()` verifies against
 `symbol:<file>:helper` when `helper` is defined once at the top of the file and nothing around the call
@@ -212,7 +213,6 @@ left out, or one whose class the source does not state, leaves the claim `needs_
 class `rejected`. Claim the class the source declares: when `get_adapter() -> BaseAdapter` is the proof,
 `BaseAdapter.send` verifies and `HTTPAdapter.send` is `unsupported`, since which subclass runs is decided at
 run time.
-| `responsibility` | never; it is recorded as `supported_inference` |
 
 `evidence.source_hash` is optional — the file's hash from the index is used when it is absent. Either way, a
 file that has changed since the scan makes the citation uncheckable, not false: status `needs_context`,
