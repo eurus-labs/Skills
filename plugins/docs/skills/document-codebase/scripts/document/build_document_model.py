@@ -694,10 +694,12 @@ def traced_flows_page(flows):
                       if isinstance(u, dict) and u.get("reason")]
         if unresolved:
             # Where the trace stopped, on the page rather than in a report nobody opens.
-            # A chain that quietly ends reads as a chain that ended in the code.
+            # A chain that quietly ends reads as a chain that ended in the code. The
+            # reason is the analysis's account of what it could not trace, never an
+            # observation, so the page says so -- check_prose.py holds it to that.
             blocks.append(prose(
                 "block:flow-%s-unresolved" % stem,
-                "The trace does not continue past this point: %s"
+                "The trace stops here; what follows was not observed at a call site: %s"
                 % " ".join(unresolved)))
     if not blocks:
         return [absence("block:flows-none",
