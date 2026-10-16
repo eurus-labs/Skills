@@ -190,6 +190,20 @@ def main():
               and not os.path.exists(os.path.join(out_dir, "conventions.rst")),
               repr(doc["authored_pages"]))
 
+        # --- The overview answers "what is this" before it counts files.
+        overview = next(p for p in doc["pages"] if p["id"] == "overview")
+        ids = [b["id"] for b in overview["blocks"]]
+        check("the overview opens on the components, not a file count",
+              ids[:1] == ["block:product-components-intro"], repr(ids))
+        led = next(b for b in overview["blocks"]
+                   if b["id"] == "block:product-component-component-pipeline")
+        check("and each component line rests on its statement",
+              led["analysis_refs"] == ["s-interaction"] and "The pipeline" in led["text"],
+              repr(led))
+        content = [i for i in ids if not i.endswith("-next")]
+        check("the scope comes last, after the modules",
+              content[-1] == "block:product-scope", repr(ids))
+
         # --- C6's synthesis reaches a reader for the first time.
         components = read(os.path.join(out_dir, "components.rst"))
         check("the components page names the components, not the directories",
