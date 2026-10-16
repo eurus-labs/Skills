@@ -58,7 +58,7 @@ more expensively.
 ## Scope budget
 
 Model calls scale with the number of scopes dispatched, not with repository size. The default is the top ~25
-modules by fan-in plus every entry point; everything else gets one line in a grouped list. Raising that is a
+modules by connections (fan-in plus fan-out) plus every entry point; everything else gets one line in a grouped list. Raising that is a
 deliberate choice with a cost, and the cutoff used belongs in the document so a reader knows what was and was
 not examined closely.
 

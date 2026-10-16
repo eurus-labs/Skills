@@ -29,7 +29,7 @@ copilot plugin install docs@CopilotBox
 ## Skills
 
 - **`document-codebase`** — parses the repository with `scan_repo.py` (Python via `ast`, other languages by
-  import regex), ranks modules by fan-in, sends each one to the model in a bounded context packet with its
+  import regex), ranks modules by how connected they are (imported by plus imports), sends each one to the model in a bounded context packet with its
   real importers supplied, verifies every claim that comes back, and renders a multi-page RST or MyST document
   under `docs/`. Fires on a request for written documentation — "document this repo", "write architecture
   docs", "write a user manual", "fill in our documentation template", "check our docs against this
@@ -68,7 +68,7 @@ invocation. Each component answers one kind of question and hands the next a fil
 | `survey` | `scan_repo.py` | Extracts the index: symbols, imports, classes, edges, a hash per file, the revision scanned |
 | | `validate_index.py` | Re-derives what can be re-derived and reports findings; catches an index gone stale |
 | | `annotate_import_usage.py` | Optional Ruff F401 pass, report-only, marking bindings nothing reads |
-| | `select_units.py` | Picks the modules worth a model call, and says when fan-in is a bad way to pick them |
+| | `select_units.py` | Picks the modules worth a model call, and says when the ranking is a bad way to pick them |
 | `analyze` | `derive_claims.py` | Writes the structural claims the index already holds, so no model budget is spent copying a table |
 | | `query_graph.py` | Builds one bounded context packet per scope, partitioning rather than truncating |
 | `check` | `validate_analysis.py` | Cannot ask whether a reading is right, so asks whether one was made: evidence, anchoring, repetition |
