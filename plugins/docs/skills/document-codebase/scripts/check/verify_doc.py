@@ -198,7 +198,7 @@ class Verifier(object):
                     targets = [inner.target]
                 elif isinstance(inner, (ast.For, ast.AsyncFor)):
                     targets = [inner.target]
-                elif isinstance(inner, ast.With):
+                elif isinstance(inner, (ast.With, ast.AsyncWith)):
                     targets = [i.optional_vars for i in inner.items if i.optional_vars]
                 for target in targets:
                     for leaf in ast.walk(target):
@@ -397,20 +397,24 @@ class Verifier(object):
                                         % (caller_path, node.lineno, wanted, obj[1]))
                 return "verified", None
             # Qualified: `import callee as base` bound the module the call goes through.
-            if base is not None and base in bindings:
-                if self.shadowed_at(tree, base, node.lineno):
-                    return "rejected", ("%s:%d calls %r through %r, but %r is rebound in "
-                                        "the scope around it, so it is not the module "
-                                        "imported from %s"
-                                        % (caller_path, node.lineno, wanted, base, base,
-                                           obj[1]))
+            # When `base` is rebound around the call it is a local object, not the
+            # module, and the receiver check below decides it.
+            shadowed_base = base is not None and base in bindings \
+                and self.shadowed_at(tree, base, node.lineno)
+            if base is not None and base in bindings and not shadowed_base:
                 return "verified", None
             # Through an object: `session.request()`, `self.store.save()`. The import
             # cannot bind the receiver, so the claim has to prove what the receiver is.
             receiver = self.receiver_of(func) if isinstance(func, ast.Attribute) else None
-            if receiver is not None and obj[0] == "method" and bindings and not (
-                    receiver[0] == "local" and receiver[1] in self.imported_names(tree)):
+            if receiver is not None and obj[0] == "method" and bindings \
+                    and not self.receiver_is_import(tree, node, receiver):
                 return self.verify_receiver(tree, node, receiver, lines, bindings, obj)
+            if shadowed_base:
+                return "rejected", ("%s:%d calls %r through %r, but %r is rebound in "
+                                    "the scope around it, so it is not the module "
+                                    "imported from %s"
+                                    % (caller_path, node.lineno, wanted, base, base,
+                                       obj[1]))
             if not bindings:
                 # No direct edge at all. The call could still reach that file through a
                 # re-export, which this script cannot see -- so ask, rather than deny.
@@ -448,16 +452,28 @@ class Verifier(object):
     def bound_at_top_level(tree, name):
         """How many module-level statements bind `name` -- a def, a class, an import or
         an assignment. More than one means the call site may see any of them."""
+        # Module scope includes the bodies of module-level `if`, `try`, `with` and loops:
+        # a conditional `helper = other` still rebinds the global the call reaches.
         count = 0
-        for node in tree.body:
+
+        def names(target):
+            return any(isinstance(leaf, ast.Name) and leaf.id == name
+                       for leaf in ast.walk(target))
+        for node in Verifier.own_nodes(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 count += node.name == name
             elif isinstance(node, (ast.Import, ast.ImportFrom)):
                 count += any((a.asname or a.name.split(".")[0]) == name for a in node.names)
-            elif isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
-                targets = node.targets if isinstance(node, ast.Assign) else [node.target]
-                count += any(isinstance(leaf, ast.Name) and leaf.id == name
-                             for t in targets for leaf in ast.walk(t))
+            elif isinstance(node, ast.Assign):
+                count += any(names(t) for t in node.targets)
+            elif isinstance(node, (ast.AnnAssign, ast.AugAssign, ast.For, ast.AsyncFor,
+                                   ast.NamedExpr)):
+                count += names(node.target)
+            elif isinstance(node, (ast.With, ast.AsyncWith)):
+                count += any(item.optional_vars is not None and names(item.optional_vars)
+                             for item in node.items)
+            elif isinstance(node, ast.ExceptHandler):
+                count += node.name == name
         return count
 
     def verify_same_file(self, tree, call, func, wanted, defined, obj):
@@ -488,11 +504,9 @@ class Verifier(object):
                 return "rejected", ("%s:%d calls %r through %r, but %r is rebound in the "
                                     "scope around it" % (caller_path, call.lineno, wanted,
                                                          base, base))
-            if base != claimed_class:
-                return "rejected", ("%s:%d calls %s.%s, not %s.%s"
-                                    % (caller_path, call.lineno, base, wanted,
-                                       claimed_class, wanted))
-            return "verified", None
+            return self.resolved_verdict(tree, base, wanted, claimed_class,
+                                         "%s:%d calls %s.%s" % (caller_path, call.lineno,
+                                                                base, wanted))
         if base in defined:
             return "rejected", ("%s:%d calls %r through %r, a function of this file, not "
                                 "an object of %s" % (caller_path, call.lineno, wanted,
@@ -513,22 +527,112 @@ class Verifier(object):
             return "needs_context", ("%s:%d calls self.%s outside a method whose first "
                                      "parameter is self" % (caller_path, call.lineno, wanted))
 
-        def defines(cls):
-            return any(isinstance(d, (ast.FunctionDef, ast.AsyncFunctionDef))
-                       and d.name == wanted for d in cls.body)
+        # An instance attribute of the same name wins over the method on lookup, so
+        # `self.m = callback` anywhere in the class makes `self.m()` a run-time choice.
+        for node in ast.walk(owner):
+            targets = (node.targets if isinstance(node, ast.Assign) else
+                       [node.target] if isinstance(node, (ast.AnnAssign, ast.AugAssign))
+                       else [])
+            if any(isinstance(t, ast.Attribute) and t.attr == wanted
+                   and isinstance(t.value, ast.Name) and t.value.id == "self"
+                   for t in targets):
+                return "needs_context", ("%s assigns self.%s at line %d, which shadows the "
+                                         "method, so what self.%s() calls is decided at "
+                                         "run time" % (owner.name, wanted, node.lineno, wanted))
+        return self.resolved_verdict(tree, owner.name, wanted, claimed_class,
+                                     "self at %s:%d is a %s" % (caller_path, call.lineno,
+                                                                owner.name))
 
-        if owner.name == claimed_class:
-            if defines(owner):
+    # -- method resolution ----------------------------------------------------------
+
+    @staticmethod
+    def mro(tree, name):
+        """The C3 linearisation of class `name` within one file, or None when a base is
+        not a class of that file -- its methods, and so the order, cannot be read here."""
+        classes = {n.name: n for n in getattr(tree, "body", ()) if isinstance(n, ast.ClassDef)}
+
+        def linear(current, seen):
+            cls = classes.get(current)
+            if cls is None or current in seen:
+                return None
+            parents = []
+            for base in cls.bases:
+                if isinstance(base, ast.Name) and base.id == "object":
+                    continue
+                if not (isinstance(base, ast.Name) and base.id in classes):
+                    return None
+                parents.append(base.id)
+            sequences = []
+            for parent in parents:
+                line = linear(parent, seen | {current})
+                if line is None:
+                    return None
+                sequences.append(line)
+            sequences.append(list(parents))
+            result = [current]
+            while any(sequences):
+                for sequence in sequences:
+                    if not sequence:
+                        continue
+                    head = sequence[0]
+                    if not any(head in other[1:] for other in sequences):
+                        break
+                else:
+                    return None         # no consistent order: Python would refuse it too
+                result.append(head)
+                sequences = [[c for c in seq if c != head] for seq in sequences]
+            return result
+        return linear(name, frozenset())
+
+    def resolve_method(self, tree, class_name, method):
+        """Where `class_name.method` is defined, following the class's MRO in its file.
+
+        Returns ("found", class), ("missing", reason) or ("unknown", reason). A class
+        that defines the name itself answers at once; otherwise every base has to be a
+        class of the same file, because a base the file does not hold may define it.
+        """
+        classes = {n.name: n for n in getattr(tree, "body", ()) if isinstance(n, ast.ClassDef)}
+
+        def defines(cls):
+            for node in cls.body:
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) \
+                        and node.name == method:
+                    return True
+                targets = (node.targets if isinstance(node, ast.Assign) else
+                           [node.target] if isinstance(node, ast.AnnAssign) else [])
+                if any(isinstance(t, ast.Name) and t.id == method for t in targets):
+                    return True
+            return False
+
+        if class_name not in classes:
+            return "unknown", "%s is not a class of this file" % class_name
+        if defines(classes[class_name]):
+            return "found", class_name
+        order = self.mro(tree, class_name)
+        if order is None:
+            return "unknown", ("%s does not define %s, and a base it inherits from is not "
+                               "a class of this file" % (class_name, method))
+        for name in order:
+            if defines(classes[name]):
+                return "found", name
+        if any(isinstance(d, (ast.FunctionDef, ast.AsyncFunctionDef))
+               and d.name in ("__getattr__", "__getattribute__")
+               for name in order for d in classes[name].body):
+            return "unknown", "%s answers attribute lookups at run time" % class_name
+        return "missing", "no class in %s's MRO defines %s" % (class_name, method)
+
+    def resolved_verdict(self, tree, class_name, method, claimed_class, shown):
+        """The verdict for a call whose receiver's class is known: the claim names the
+        class the method resolves to, or it does not."""
+        state, found = self.resolve_method(tree, class_name, method)
+        if state == "found":
+            if found == claimed_class:
                 return "verified", None
-            return "needs_context", ("%s does not define %s itself; claim the base class "
-                                     "it inherits it from" % (owner.name, wanted))
-        bases = {b.id for b in owner.bases if isinstance(b, ast.Name)}
-        claimed = self.class_named(tree, claimed_class)
-        if claimed_class in bases and claimed is not None and defines(claimed) \
-                and not defines(owner):
-            return "verified", None
-        return "rejected", ("self at %s:%d is a %s, which does not reach %s.%s"
-                            % (caller_path, call.lineno, owner.name, claimed_class, wanted))
+            return "rejected", ("%s, so %s() resolves to %s.%s, not %s.%s"
+                                % (shown, method, found, method, claimed_class, method))
+        if state == "missing":
+            return "rejected", "%s, and %s" % (shown, found)
+        return "needs_context", "%s, and %s" % (shown, found)
 
     # -- calls through an object ----------------------------------------------------
 
@@ -543,14 +647,28 @@ class Verifier(object):
             return ("attribute", value.attr)
         return None
 
-    @staticmethod
-    def imported_names(tree):
-        names = set()
-        for node in ast.walk(tree):
-            if isinstance(node, (ast.Import, ast.ImportFrom)):
-                for alias in node.names:
-                    names.add(alias.asname or alias.name.split(".")[0])
-        return names
+    def receiver_is_import(self, tree, call, receiver):
+        """Whether the receiver at this call site is a module brought in by an import.
+
+        Decided where the call is, not across the file: `import other as s` at the top
+        does not make `s = Store()` inside a function an import, and an import in a
+        sibling function says nothing here at all.
+        """
+        kind, name = receiver
+        if kind != "local":
+            return False
+
+        def imports(nodes):
+            return any(isinstance(node, (ast.Import, ast.ImportFrom))
+                       and any((a.asname or a.name.split(".")[0]) == name for a in node.names)
+                       for node in nodes)
+        scope = self.enclosing(tree, call.lineno, (ast.FunctionDef, ast.AsyncFunctionDef))
+        if scope is not None:
+            if imports(self.own_nodes(scope)):
+                return True
+            if self.receiver_bindings(scope, receiver):
+                return False
+        return imports(self.own_nodes(tree))
 
     @staticmethod
     def enclosing(tree, line, kinds):
@@ -620,6 +738,10 @@ class Verifier(object):
                                               and isinstance(node.target, ast.Name)
                                               and node.target.id == name):
                     found.append((node.lineno, "annotation", node.annotation))
+                    # `s: Store = Other()` declares one class and builds another; both
+                    # are bindings, and they have to agree.
+                    if node.value is not None:
+                        found.append((node.lineno, "value", node.value))
             elif isinstance(node, ast.NamedExpr) and is_target(node.target):
                 found.append((node.lineno, "value", node.value))
             elif isinstance(node, (ast.With, ast.AsyncWith)):
@@ -627,7 +749,8 @@ class Verifier(object):
                     if item.optional_vars is None:
                         continue
                     if is_target(item.optional_vars):
-                        found.append((item.context_expr.lineno, "enter", item.context_expr))
+                        how = "aenter" if isinstance(node, ast.AsyncWith) else "enter"
+                        found.append((item.context_expr.lineno, how, item.context_expr))
                     elif mentions(item.optional_vars):
                         found.append((node.lineno, "unknown", None))
             elif isinstance(node, (ast.AugAssign, ast.For, ast.AsyncFor)):
@@ -668,22 +791,44 @@ class Verifier(object):
             return None
         return name
 
-    def type_of(self, tree, how, node, call_line, lines, bindings, callee_tree):
+    @staticmethod
+    def name_used(node):
+        """The name an expression looks up first: `C` in `C`, `mod` in `mod.C`."""
+        if isinstance(node, ast.Name):
+            return node.id
+        if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+            return node.value.id
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return node.value
+        return None
+
+    def type_of(self, tree, how, node, line, call_line, lines, bindings, callee_tree):
         """(class name, None) for a binding whose type the source states, else
         (None, the reason it cannot be read)."""
         if node is None:
             return None, "it is bound in a way whose type the source does not state"
         if how == "annotation":
+            used = self.name_used(node)
+            if used and self.shadowed_at(tree, used, line):
+                return None, "%r in its annotation is rebound in the scope around it" % used
             found = self.class_ref(node, bindings, callee_tree)
             return (found, None) if found else (None, "its annotation does not name a "
                                                       "class imported from the callee file")
         if not isinstance(node, ast.Call):
             return None, "it is assigned something other than a call"
+        used = self.name_used(node.func)
+        if used and used != "self" and self.shadowed_at(tree, used, line):
+            # `def f(Store): s = Store()` calls the parameter, whatever the import says.
+            return None, ("%r is rebound in the scope around the binding -- a parameter, a "
+                          "local, or a narrower import -- so it is not the imported class"
+                          % used)
         found = self.class_ref(node.func, bindings, callee_tree)
         if found is not None:
-            if how == "enter" and not self.enter_returns_self(callee_tree, found):
-                return None, ("`with %s(...) as` binds what %s.__enter__ returns, and "
-                              "that method does not plainly `return self`" % (found, found))
+            dunder = "__aenter__" if how == "aenter" else "__enter__"
+            if how in ("enter", "aenter") \
+                    and not self.enter_returns_self(callee_tree, found, dunder):
+                return None, ("`with %s(...) as` binds what %s.%s returns, and that method "
+                              "does not plainly `return self`" % (found, found, dunder))
             return found, None
         # A factory in this file whose return annotation names the class.
         func = node.func
@@ -703,7 +848,7 @@ class Verifier(object):
             return None, ("it is assigned the result of %s(), whose return annotation "
                           "is the proof -- cite line %d" % (definition.name,
                                                             definition.lineno))
-        if how == "enter":
+        if how in ("enter", "aenter"):
             return None, "a factory's result entered with `with` is not followed"
         found = self.class_ref(definition.returns, bindings, callee_tree)
         return (found, None) if found else (None, "%s() is not annotated to return a "
@@ -726,10 +871,11 @@ class Verifier(object):
                     grew = True
         return found
 
-    def enter_returns_self(self, callee_tree, name):
+    def enter_returns_self(self, callee_tree, name, dunder="__enter__"):
         cls = self.class_named(callee_tree, name)
-        enter = next((d for d in cls.body if isinstance(d, ast.FunctionDef)
-                      and d.name == "__enter__"), None) if cls else None
+        enter = next((d for d in cls.body if isinstance(d, (ast.FunctionDef,
+                                                             ast.AsyncFunctionDef))
+                      and d.name == dunder), None) if cls else None
         if enter is None:
             return False
         returns = [n for n in ast.walk(enter) if isinstance(n, ast.Return)]
@@ -772,7 +918,7 @@ class Verifier(object):
                                      "class can be checked" % (shown, uncited))
         classes = set()
         for line, how, node in found:
-            found_class, reason = self.type_of(tree, how, node, call.lineno, lines,
+            found_class, reason = self.type_of(tree, how, node, line, call.lineno, lines,
                                                bindings, callee_tree)
             if found_class is None:
                 return "needs_context", "%s at line %d: %s" % (shown, line, reason)
@@ -784,10 +930,13 @@ class Verifier(object):
                                    "that runs is decided at run time. Claim %s.%s instead"
                                    % (shown, declared, wanted_class, declared,
                                       call.func.attr))
-        if classes != {wanted_class}:
-            return "rejected", ("%s is a %s, not a %s"
+        if len(classes) > 1:
+            return "rejected", ("%s is a %s, not only a %s"
                                 % (shown, " or ".join(sorted(classes)), wanted_class))
-        return "verified", None
+        # The class is proved; the method still has to be one it has.
+        return self.resolved_verdict(callee_tree, next(iter(classes)), call.func.attr,
+                                     wanted_class, "%s is a %s" % (shown,
+                                                                  next(iter(classes))))
 
     # -- driver ----------------------------------------------------------------
 

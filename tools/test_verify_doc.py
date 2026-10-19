@@ -191,6 +191,9 @@ class Store:
     def __enter__(self):
         return self
 
+    async def __aenter__(self):
+        return self
+
     def __exit__(self, *exc):
         return False
 
@@ -207,8 +210,19 @@ class Other:
     def __enter__(self):
         return None
 
+    async def __aenter__(self):
+        return self
+
     def save(self):
         return 3
+
+
+class AsyncOnly:
+    async def __aenter__(self):
+        return self
+
+    def save(self):
+        return 4
 
 
 def save():
@@ -217,7 +231,7 @@ def save():
 
 # Line numbers are load-bearing in receiver_calls() below, so keep this file stable.
 CALLER_LINES = [
-    "from store import Store, Cache, Other, save",   # 1
+    "from store import Store, Cache, Other, save, AsyncOnly",  # 1
     "import store",                                  # 2
     "",
     "",
@@ -309,7 +323,94 @@ CALLER_LINES = [
     "",
     "def through_function():",                      # 91
     "    return helper.first()",                     # 92
+    # Below here, lines are found by content with line_of(), not by number.
+    "",
+    "",
+    "def missing_method():",
+    "    s = Store()",
+    "    return s.missing()",
+    "",
+    "",
+    "import store as s",
+    "",
+    "",
+    "def local_beats_import():",
+    "    s = Store()",
+    "    return s.save()  # local-beats-import",
+    "",
+    "",
+    "def annotated_mismatch():",
+    "    s: Store = Other()",
+    "    return s.save()  # annotated-mismatch",
+    "",
+    "",
+    "def shadowed_constructor(Store):",
+    "    s = Store()  # shadowed-binding",
+    "    return s.save()  # shadowed-call",
+    "",
+    "",
+    "async def entered_async():",
+    "    async with AsyncOnly() as s:",
+    "        return s.save()  # entered-async",
+    "",
+    "",
+    "def twice():",
+    "    return 2",
+    "",
+    "",
+    "if helper():",
+    "    twice = helper",
+    "",
+    "",
+    "def calls_twice():",
+    "    return twice()",
+    "",
+    "",
+    "class A:",
+    "    def m(self):",
+    "        return 1",
+    "",
+    "",
+    "class B:",
+    "    def m(self):",
+    "        return 2",
+    "",
+    "",
+    "class C(A, B):",
+    "    def go(self):",
+    "        return self.m()  # mro-c",
+    "",
+    "",
+    "class D(A):",
+    "    pass",
+    "",
+    "",
+    "class E(D):",
+    "    def go(self):",
+    "        return self.m()  # mro-e",
+    "",
+    "",
+    "class F:",
+    "    def __init__(self):",
+    "        self.m = helper",
+    "",
+    "    def m(self):",
+    "        return 3",
+    "",
+    "    def go(self):",
+    "        return self.m()  # rebound-self",
+    "",
+    "",
+    "def qualified_missing():",
+    "    return Local.missing()",
 ]
+
+
+def line_of(text):
+    """The 1-based line of the one fixture line containing `text`."""
+    hits = [n for n, line in enumerate(CALLER_LINES, 1) if text in line]
+    assert len(hits) == 1, (text, hits)
+    return hits[0]
 
 
 def receiver_calls(tmp):
@@ -389,9 +490,85 @@ def receiver_calls(tmp):
     expect("r:attribute-to-function", "rejected",
            "a method call is not credited to an imported function of the same name")
     same_file_calls(tmp, root, index)
+    review_findings(tmp, root, index)
     check("an undecided receiver is offered for retry",
           any(f["retryable"] for f in findings if f["claim_id"] == "r:constructed-unproved"),
           "%r" % [f for f in findings if f["claim_id"] == "r:constructed-unproved"])
+
+
+def review_findings(tmp, root, index):
+    """Each case a review found the verifier calling wrongly, as the review stated it."""
+    def at(cid, obj, *texts):
+        row = claim(cid, "calls", "module:caller.py", obj)
+        row["evidence"] = [{"path": "caller.py", "line_start": n, "line_end": n}
+                           for n in sorted(line_of(t) for t in texts)]
+        return row
+
+    def after(header, offset):
+        return line_of(header) + offset
+
+    def rows(cid, obj, *lines):
+        row = claim(cid, "calls", "module:caller.py", obj)
+        row["evidence"] = [{"path": "caller.py", "line_start": n, "line_end": n}
+                           for n in sorted(lines)]
+        return row
+
+    store, local = "method:store.py:", "method:caller.py:"
+    claims = [
+        # A proved class still has to have the method.
+        rows("f:missing-method", store + "Store.missing",
+             after("def missing_method", 1), after("def missing_method", 2)),
+        # A module-level `import ... as s` elsewhere does not make a local `s` an import.
+        rows("f:local-beats-import", store + "Store.save",
+             after("def local_beats_import", 1), after("def local_beats_import", 2)),
+        # The value assigned is a binding too, and it disagrees with the annotation.
+        at("f:annotated-mismatch", store + "Store.save", "s: Store = Other()",
+           "annotated-mismatch"),
+        # A parameter named like the class is not the class.
+        at("f:shadowed-constructor", store + "Store.save", "shadowed-binding",
+           "shadowed-call"),
+        # `async with` binds what __aenter__ returns.
+        at("f:entered-async", store + "AsyncOnly.save", "async with AsyncOnly() as s",
+           "entered-async"),
+        # A conditional module-level rebinding is a second binding of the name.
+        at("f:conditional-rebind", "symbol:caller.py:twice", "    return twice()"),
+        # self.m() follows the MRO: C(A, B) reaches A.m, not B.m...
+        at("f:mro-wrong-base", local + "B.m", "mro-c"),
+        at("f:mro-first-base", local + "A.m", "mro-c"),
+        # ...and reaches A.m through an intermediate base.
+        at("f:mro-intermediate", local + "A.m", "mro-e"),
+        # An instance attribute of the same name shadows the method.
+        at("f:rebound-self", local + "F.m", "rebound-self"),
+        # C.m() through a class still needs the class to have m.
+        at("f:qualified-missing", local + "Local.missing", "return Local.missing()"),
+        # `async with ... as s` rebinds `s`, so it is not the module imported as `s`.
+        at("f:async-not-module", "symbol:store.py:save", "entered-async"),
+    ]
+    code, status, _, _, stderr = run(tmp, root, index, claims, name="review-findings")
+    check("review-finding verification runs", code in (0, 1), "exit %d: %s" % (code, stderr))
+
+    def expect(cid, wanted, what):
+        check(what, status.get(cid) == wanted, "%s: %r" % (cid, status.get(cid)))
+
+    expect("f:missing-method", "rejected", "a proved class without the method is rejected")
+    expect("f:local-beats-import", "verified",
+           "a local binding wins over an unrelated import of the same name")
+    expect("f:annotated-mismatch", "rejected",
+           "an annotation and an assigned value that disagree are rejected")
+    expect("f:shadowed-constructor", "needs_context",
+           "a parameter shadowing the class proves nothing about the receiver")
+    expect("f:entered-async", "verified", "`async with` verifies through __aenter__")
+    expect("f:conditional-rebind", "needs_context",
+           "a module-level conditional rebinding leaves the call undecided")
+    expect("f:mro-wrong-base", "rejected", "self.m() is not credited to the later base")
+    expect("f:mro-first-base", "verified", "self.m() verifies against the first base in MRO")
+    expect("f:mro-intermediate", "verified",
+           "self.m() verifies through an intermediate base")
+    expect("f:rebound-self", "needs_context",
+           "self.m() is undecided when self.m is assigned in the class")
+    expect("f:qualified-missing", "rejected", "C.m() is rejected when C has no m")
+    expect("f:async-not-module", "rejected",
+           "a name rebound by `async with` is not the module imported under it")
 
 
 def same_file_calls(tmp, root, index):
@@ -431,8 +608,8 @@ def same_file_calls(tmp, root, index):
     expect("s:class-qualified-wrong", "rejected", "C.m() is not credited to another class")
     expect("s:inherited", "verified",
            "self.m() verifies against the same-file base that defines m")
-    expect("s:inherited-not-defined-here", "needs_context",
-           "a class that inherits m is asked to name the base that defines it")
+    expect("s:inherited-not-defined-here", "rejected",
+           "a claim naming the subclass of an inherited m is told which base defines it")
     expect("s:local-receiver", "verified",
            "an object of a same-file class verifies with its binding cited")
     expect("s:local-receiver-unproved", "needs_context",
