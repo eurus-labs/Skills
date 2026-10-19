@@ -1,0 +1,22 @@
+{
+  "name": "implementation",
+  "description": "Design a software solution and implementation plan without touching code, or implement a feature, bug fix, or refactor and verify it against the original request \u2014 two independently usable skills with acceptance criteria fixed before coding, design patterns used only for a concrete problem, and evidence reported for every check.",
+  "version": "0.1.0",
+  "keywords": [
+    "implementation",
+    "design",
+    "planning",
+    "bug-fix",
+    "refactoring",
+    "verification"
+  ],
+  "author": {
+    "name": "Eurus7895"
+  },
+  "repository": "https://github.com/Eurus7895/Skills",
+  "license": "MIT",
+  "skills": [
+    "./skills/design-solution/",
+    "./skills/implement/"
+  ]
+}
