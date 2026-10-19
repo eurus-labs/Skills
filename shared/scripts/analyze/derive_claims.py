@@ -80,7 +80,16 @@ def claims_for(index, units):
                     "object": "class:%s:%s" % (target, name.rsplit(".", 1)[-1]),
                     "evidence": [{"path": path, "line_start": line, "line_end": line}],
                     "index_hash": index_hash})
-    return rows
+    # One claim per id. `@overload` stubs give a name several definitions and a module
+    # can be imported by two statements; each is the same fact, and repeating the id
+    # makes verify_doc.py reject all of them as duplicates (V008). The first -- the
+    # earliest line -- stands for the rest.
+    unique, seen = [], set()
+    for row in rows:
+        if row["id"] not in seen:
+            seen.add(row["id"])
+            unique.append(row)
+    return unique
 
 
 def main():

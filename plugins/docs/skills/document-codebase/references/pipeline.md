@@ -231,7 +231,7 @@ same reason `decision_for` refuses it: the units may now be different.
 withhold it.
 
 **The driver decides nothing.** Every stage is a script that was already the authority on its own question,
-invoked with the paths its component fixes. Where a genuine choice exists — the fan-in cutoff, the preset,
+invoked with the paths its component fixes. Where a genuine choice exists — the selection cutoff, the preset,
 whether Ruff runs — it is a flag with a default, not a rule hidden in the driver.
 
 ## What each component runs
@@ -282,7 +282,7 @@ the prose check and the gate. A run without them is a visibly thinner document, 
 | `--build` | all | `.docs-build` | where intermediates go; relative paths here and in `--docs`, `--staging` and `--review` resolve against `--root` |
 | `--docs` | `render`, `publish` | `docs` | existing/target documentation tree; render reads it, publish replaces it |
 | `--staging` | `render`, `review`, `publish` | `.docs-build/rendered-docs` | isolated rendered draft |
-| `--top` | `survey` | `25` | the fan-in cutoff for `units.txt` |
+| `--top` | `survey` | `25` | the cutoff for `units.txt`, by connections (fan-in plus fan-out) |
 | `--policy` | `survey` | `optional` | `disabled` drops the Ruff stage entirely |
 | `--force` | `analyze` | off | re-derive `claims.jsonl` over hand-written claims |
 | `--preset` | `document` | `auto` | `auto` builds the recorded choice, or records the survey's recommendation as provisional; a name builds that preset and records it when nothing is recorded |

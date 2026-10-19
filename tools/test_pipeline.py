@@ -67,7 +67,32 @@ def units_tests(tmp):
     check("select_units adds the entry point despite fan-in 0",
           "src/pipeline/entry.py" in selected, str(selected))
     check("select_units names why each unit is in the list",
-          "entry_point" in text and "fan_in" in text, text)
+          "entry_point" in text and "connected" in text, text)
+
+    # The orchestrator case, shaped like requests: `session.py` imports four modules and
+    # one module imports it; `compat.py` is imported by four and imports nothing; `flags.py`
+    # is imported by two. By fan-in alone a cutoff of 2 took compat and flags and dropped
+    # the module the request path runs through.
+    def mod(path):
+        return {"path": path, "lang": "python", "symbols": [{"name": "x", "line": 1}]}
+    names = ["pkg/api.py", "pkg/session.py", "pkg/compat.py", "pkg/flags.py",
+             "pkg/models.py", "pkg/adapter.py", "pkg/hooks.py"]
+    edges = [("pkg/api.py", "pkg/session.py"),
+             ("pkg/session.py", "pkg/models.py"), ("pkg/session.py", "pkg/adapter.py"),
+             ("pkg/session.py", "pkg/hooks.py"), ("pkg/session.py", "pkg/compat.py"),
+             ("pkg/models.py", "pkg/compat.py"), ("pkg/adapter.py", "pkg/compat.py"),
+             ("pkg/hooks.py", "pkg/compat.py"),
+             ("pkg/models.py", "pkg/flags.py"), ("pkg/adapter.py", "pkg/flags.py")]
+    synthetic = {"schema_version": 3, "files": [mod(n) for n in names],
+                 "edges": [{"from": a, "to": b, "line": 1} for a, b in edges],
+                 "entry_points": []}
+    shaped = os.path.join(tmp, "orchestrator.json")
+    with open(shaped, "w", encoding="utf-8") as fh:
+        json.dump(synthetic, fh)
+    code, text = run("select_units.py", "--index", shaped, "--out", out, "--top", "2")
+    chosen = [l.strip() for l in open(out, encoding="utf-8") if l.strip()]
+    check("a module the system runs through outranks a leaf helper at a tight cutoff",
+          code == 0 and chosen == ["pkg/compat.py", "pkg/session.py"], str(chosen) + text)
 
     # A cutoff of zero still keeps the entry points: they are added, not ranked.
     code, _ = run("select_units.py", "--index", index_path, "--out", out, "--top", "0")

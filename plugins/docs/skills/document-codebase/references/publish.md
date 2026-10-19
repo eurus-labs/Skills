@@ -98,7 +98,7 @@ grouping is the tree; `not_applicable` means there was no partition to compare a
 **The flow and operations figures are counts, not percentages** — one flow traced and one refused is not
 "50% documented". Naming nothing and giving no reason holds the run back; `absent` with a reason does not.
 
-Then state, from the artefacts rather than memory: files scanned and skipped, the fan-in cutoff,
+Then state, from the artefacts rather than memory: files scanned and skipped, the selection cutoff,
 `analysis_mode` and the counts behind it, claims verified, what is candidate or unsupported and why, what was
 traced and what was not, whether a diagram was generated, whether the build check passed or was skipped, and
 that `.docs-build/` can be deleted.

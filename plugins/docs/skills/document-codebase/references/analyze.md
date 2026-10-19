@@ -21,7 +21,8 @@ carries understanding.**
 
 **Do not hand-write a `defines`, `imports`, `inherits` or `contains` claim.** This component already derived
 every one of them, so writing them out spends budget copying a table and buys a chance of copying it wrong.
-**A `calls` claim is the one kind still worth writing by hand**: it needs a call site you actually read.
+**A `calls` claim is the one kind still worth writing by hand**: it needs a call site you actually read. For a
+call through an object, cite the lines that bind the object too — see [`schemas.md`](schemas.md#claimsjsonl).
 Append those to `.docs-build/claims.jsonl` — and note that re-running `analyze` rewrites that file, which is
 why it refuses to when hand-written claims are in it.
 

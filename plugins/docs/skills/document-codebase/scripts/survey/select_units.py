@@ -2,14 +2,22 @@
 # GENERATED FILE -- DO NOT EDIT.
 # Source: shared/scripts/survey/select_units.py
 # Regenerate: python3 tools/materialize.py
-"""Choose the modules this run describes in full, by how much of the repository leans on them.
+"""Choose the modules this run describes in full, by how connected each one is.
 
     python3 scripts/select_units.py --index .docs-build/structure.json \\
         --out .docs-build/units.txt --top 25
 
-Every module named here costs a model call, and the ones worth that call are the ones
-other modules depend on. Rank by fan-in, keep the top N, and add every entry point --
-a way into the system earns a paragraph whether or not anything imports it.
+Every module named here costs a model call, and the ones worth that call are the ones the
+rest of the system is wired through. Rank by connections -- how many other modules import
+this one (fan-in) plus how many it imports (fan-out) -- keep the top N, and add every entry
+point: a way into the system earns a paragraph whether or not anything imports it.
+
+**Why not fan-in alone.** Fan-in finds the foundations -- compatibility shims, shared
+types, helpers -- and ranks the modules that drive the system last, because an
+orchestrator imports a great deal and is imported by almost nothing. On requests it put
+`compat.py` first and `sessions.py`, `adapters.py` and `api.py` near the bottom, so a
+tighter budget documented the helpers and dropped the request path. Counting both
+directions keeps the foundations and brings the orchestrators up beside them.
 
 `units.txt` is a contract: `derive_claims.py` claims exactly these modules, `assemble.py`
 fails on any of them that came back without a row, and `quality_docs.py` measures coverage
@@ -36,8 +44,9 @@ def fail(message, code=2):
     return code
 
 
-def production_fan_in(index):
-    """How many non-test modules import each module.
+def production_degree(index):
+    """`(fan_in, fan_out)`: for each module, how many distinct non-test modules import it
+    and how many it imports.
 
     The scanner's own `fan_in` counts every incoming edge, tests included, which is the
     right factual measure and the wrong ranking. A well-tested helper is imported by
@@ -46,31 +55,47 @@ def production_fan_in(index):
     system is built on. Dropping test files from the selection without dropping their
     edges fixes half of it and leaves the half that decides the order.
 
-    Falls back to the scanner's map when an index carries no edges, so an older or
+    Modules are counted, not import statements: two `from x import` lines in one file
+    are one dependency, and counting them twice ranks a file by how its imports are
+    formatted.
+
+    Falls back to the scanner's maps when an index carries no edges, so an older or
     edge-less index ranks as it always did rather than flatly at zero.
     """
     edges = index.get("edges")
     if not edges:
-        return index.get("fan_in") or {}
+        return dict(index.get("fan_in") or {}), dict(index.get("fan_out") or {})
     tests = {record["path"] for record in index.get("files", ())
              if record.get("is_test")}
-    counted = {}
+    importers, imported = {}, {}
     for edge in edges:
-        if edge.get("from") in tests:
+        source, target = edge.get("from"), edge.get("to")
+        if not target or source == target or source in tests or target in tests:
             continue
-        target = edge.get("to")
-        if target:
-            counted[target] = counted.get(target, 0) + 1
-    return counted
+        importers.setdefault(target, set()).add(source)
+        imported.setdefault(source, set()).add(target)
+    return ({path: len(found) for path, found in importers.items()},
+            {path: len(found) for path, found in imported.items()})
+
+
+def connections(index):
+    """Every module's `(fan_in, fan_out)`, and the ordering both the selection and the
+    overview use: most connections first, then most depended upon, then by path."""
+    fan_in, fan_out = production_degree(index)
+
+    def key(path):
+        return (-(fan_in.get(path, 0) + fan_out.get(path, 0)), -fan_in.get(path, 0), path)
+    return fan_in, fan_out, key
 
 
 def select(index, top):
     """The paths to describe in full, and why each one is in the list.
 
-    Returns `(paths, reasons, ranked)` -- `reasons` maps a path to `fan_in`,
-    `entry_point` or both, and `ranked` is the fan-in ordering the cutoff was taken from.
+    Returns `(paths, reasons, ranked)` -- `reasons` maps a path to `connected`,
+    `entry_point` or both, and `ranked` is the `(path, connections)` ordering the cutoff
+    was taken from.
     """
-    fan_in = production_fan_in(index)
+    fan_in, fan_out, order = connections(index)
     # Not tests. A test file is evidence that the code works, not a part of the system a
     # reader is being introduced to: documenting it spends the budget describing scaffolding
     # and puts `test_parser.py` in a module reference beside the parser. The scanner already
@@ -93,12 +118,12 @@ def select(index, top):
     # present with 0. Ranking only its keys would drop those modules from the cutoff
     # entirely, and a repository of independent programs -- which has no keys at all --
     # would select nothing and be reported as having no module to describe.
-    ranked = sorted(((path, fan_in.get(path, 0)) for path in known),
-                    key=lambda kv: (-kv[1], kv[0]))
+    ranked = [(path, fan_in.get(path, 0) + fan_out.get(path, 0))
+              for path in sorted(known, key=order)]
 
     reasons = {}
     for path, _count in ranked[:top]:
-        reasons.setdefault(path, []).append("fan_in")
+        reasons.setdefault(path, []).append("connected")
     # `known` is already restricted to files that define something, so an entry point
     # that defines nothing is skipped here too rather than added back.
     for entry in index.get("entry_points", ()):
@@ -112,8 +137,8 @@ def warnings_for(index, ranked, selected):
     """The ways this selection is weaker than its size suggests."""
     notes = []
     if ranked and ranked[0][1] == 0:
-        notes.append("no module in this repository is imported by another, so the fan-in "
-                     "ranking carries no information -- the cutoff below is arbitrary. "
+        notes.append("no module in this repository imports or is imported by another, so "
+                     "the ranking carries no information -- the cutoff below is arbitrary. "
                      "Choose the units by hand and say in the document that you did.")
     entries = [e.get("path") if isinstance(e, dict) else e
                for e in index.get("entry_points", ())]
@@ -148,7 +173,7 @@ def main():
     parser.add_argument("--index", required=True, help="path to structure.json")
     parser.add_argument("--out", default=".docs-build/units.txt")
     parser.add_argument("--top", type=int, default=25,
-                        help="how many modules to keep by fan-in (default 25)")
+                        help="how many modules to keep by connections (default 25)")
     args = parser.parse_args()
 
     if args.top < 0:
@@ -173,13 +198,15 @@ def main():
     with open(args.out, "w", encoding="utf-8") as fh:
         fh.write("\n".join(paths) + "\n")
 
-    # The same count the ranking used, or the column would explain a different order
+    # The same counts the ranking used, or the columns would explain a different order
     # than the one on the page.
-    fan_in = production_fan_in(index)
-    for path in paths:
-        print("%-4d %-12s %s" % (fan_in.get(path, 0), "+".join(reasons[path]), path))
-    print("wrote %d unit(s) to %s -- top %d by fan-in plus every entry point"
-          % (len(paths), args.out, args.top))
+    fan_in, fan_out, order = connections(index)
+    print("in   out  %-22s path" % "why")
+    for path in sorted(paths, key=order):
+        print("%-4d %-4d %-22s %s" % (fan_in.get(path, 0), fan_out.get(path, 0),
+                                      "+".join(reasons[path]), path))
+    print("wrote %d unit(s) to %s -- top %d by connections (fan-in + fan-out) plus every "
+          "entry point" % (len(paths), args.out, args.top))
     for note in warnings_for(index, ranked, paths):
         print("WARN  %s" % note)
     overrun = budget_note(paths, args.top)

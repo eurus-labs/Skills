@@ -137,6 +137,14 @@ def main():
         code, plain_rst = render(plain_doc, "plain-rst")
         code, traced_rst = render(traced_doc, "traced-rst")
 
+        # The unresolved note is the model's account of where the trace stops, so the
+        # prose check holds it to a hedge. The page used to frame it with no hedge at
+        # all, and every flow that said where it stopped failed the skill's own gate.
+        code, out, err = run("check_prose.py", traced_doc, "--flows", flows_path)
+        check("a flow's unresolved note passes the prose check",
+              not any(f.get("code") == "P004" and "unresolved" in str(f.get("subject"))
+                      for f in json.loads(out).get("findings", ())), (out + err)[-600:])
+
         # The fallback is a table of verified calls with no order to them -- which is
         # exactly why the flow analysis is worth having. It lists the same two calls and
         # cannot say that one leads to the other, or what starts either.

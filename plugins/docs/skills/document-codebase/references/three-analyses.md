@@ -17,9 +17,11 @@ status because it is the part that says what breaks what, and **a rationale of `
 
 **`flow-analysis.json`** — **a step is a call `check` verified at its call site, and nothing else.** An import
 edge is the weaker claim that two files reference each other, not that the request passes through here. Steps
-must join up on the same *entity*, because the order is the entire claim. **Expect `absent`**: a call through
-`self.service.record(...)` is not name-bound by an import, so it cannot be read at its call site. Write
-`absent` with a reason rather than something flow-shaped; an empty list saying nothing fails the gate.
+must join up on the same *entity*, because the order is the entire claim. **Most real steps go through an
+object** — `session.request(...)`, `self.service.record(...)` — and verify only when the `calls` claim also
+cites the lines that bind that object and state its class; see
+[`schemas.md`](schemas.md#claimsjsonl). Where the class is decided at run time or never stated, write `absent`
+with a reason rather than something flow-shaped; an empty list saying nothing fails the gate.
 
 **`operations-analysis.json`** — install, build, test, configure, run, deploy, release and observe. **Quote
 commands from the file**: a `command` or a requirement `value` must appear character for character in the
