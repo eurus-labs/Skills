@@ -757,13 +757,18 @@ def component_summary(architecture, analysis):
     the run's own synthesis of what the modules add up to, so they are the answer the
     page has; each line carries the statement it rests on, hedged as that statement was.
     """
+    # A grouping the analysis itself marks `unknown` is not one the page may present;
+    # an `inferred` one is presented as inferred. The status is the component's, apart
+    # from whatever its supporting statement says.
     components = [c for c in (architecture or {}).get("components", ()) or ()
-                  if isinstance(c, dict) and c.get("modules")]
+                  if isinstance(c, dict) and c.get("modules")
+                  and c.get("status") in ("declared", "observed", "inferred")]
     if not components:
         return []
     by_id = getattr(analysis, "by_id", {}) or {}
     blocks = [prose("block:product-components-intro",
-                    "It is built as %d component(s):" % len(components))]
+                    "The architecture analysis groups it into %d component(s):"
+                    % len(components))]
     for component in components:
         statements = [by_id[i] for i in component.get("statement_ids", ()) or ()
                       if i in by_id and by_id[i].get("status") in STATEMENT_PROSE_STATUSES]
@@ -772,6 +777,7 @@ def component_summary(architecture, analysis):
         stem = re.sub(r"[^a-z0-9]+", "-", str(component.get("id", "")).lower()).strip("-")
         members = ", ".join(os.path.basename(m) for m in sorted(component["modules"]))
         text = "%s (%s)" % (component.get("name") or component.get("id"), members)
+        text = hedged(text, component.get("status"))
         if lead is not None:
             text += " -- " + sentence(lead)
         blocks.append(prose("block:product-component-%s" % stem, text,
