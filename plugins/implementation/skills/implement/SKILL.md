@@ -142,10 +142,17 @@ tests prove every behavior correct.
 4. Read the code the request touches, its callers, the interfaces it implements, and its existing tests. Find
    the nearest precedent for this kind of change and use it as the template.
 5. Look for the project's own verification skill: a `verify-*` folder under `.github/skills/`,
-   `.claude/skills/`, or `.agents/skills/`, or a feature map at `verify-*/references/features/`. If one exists, read its
-   `SKILL.md` and the feature files for every area the change touches. Its proof bar and those files' entry
-   points join the verification plan; their `Expected behavior` entries tagged `[confirmed: …]` are
-   acceptance criteria the change must not break unless the request changes them.
+   `.claude/skills/`, or `.agents/skills/`, with its feature map at `verify-*/references/features/`.
+   - **It exists:** read its `SKILL.md` and the feature files for every area the change touches. Its proof bar
+     and those files' entry points join the verification plan; their `Expected behavior` entries tagged
+     `[confirmed: …]` are acceptance criteria the change must not break unless the request changes them.
+   - **It does not exist:** before writing the contract, recommend setting it up first with
+     `setup-verification` — say in one line what it adds (a feature map, a fresh-build check, evidence
+     capture) and that it writes a skill folder into the repository and asks a few questions about expected
+     behavior. If the user agrees, run `setup-verification`, then resume here with the skill it created. If
+     the user declines, or no one can be asked (CI, a subagent, a non-interactive run), continue with the
+     project's own tests and checks, and record `no project verification skill` under **Limitations**. Ask
+     once per repository per session; do not ask again after a decline.
 
 ### 2. Select the workflow
 
@@ -230,9 +237,7 @@ behavior that must not change, and a negative or failure case where the request 
 
 Write the handoff (Output format). Separate what passed, what failed, and what was not run. If the user wants
 an independent review, `review-code` from the `code-review` plugin can be suggested by name; do not wait on it
-or report it as done. If the change has runtime behavior that the project's tests cannot show and the
-project has no verification skill, say so under **Limitations** and name `setup-verification` as the way to
-add one; do not run it unasked.
+or report it as done.
 
 ## Bundled resources
 

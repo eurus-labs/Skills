@@ -10,6 +10,18 @@ copilot plugin marketplace add eurus-labs/Skills
 copilot plugin install implementation@CopilotBox
 ```
 
+## Start here
+
+Run `setup-verification` once per repository, before the first `implement`:
+
+> *"Set up verification for this repo"*
+
+It writes a `verify-<app>` skill into the repository — the feature map, a fresh-build check, change-to-area
+mapping, and evidence capture — so every later `implement` verifies against the running app and against
+confirmed behavior, not only against tests that may mirror the code. If a repository has no such skill,
+`implement` recommends this step first and asks before running it; when you decline, or no one can be asked,
+it continues with the project's own tests and says so in its report.
+
 ## Skills
 
 - **`design-solution`** — an implementation-ready design and plan, grounded in the current code: goal, scope,
@@ -19,7 +31,8 @@ copilot plugin install implementation@CopilotBox
 - **`implement`** — the code change itself: inspect, make the design decisions the task needs, implement,
   verify against the original request, and repair. Builds from a supplied design or fixes review findings
   when given them. Fires on "implement this", "fix this bug", "refactor X", "design and implement",
-  "fix these review comments". Uses the repository's own verification skill when there is one.
+  "fix these review comments". Uses the repository's own verification skill, and recommends
+  `setup-verification` first when there is none.
 - **`setup-verification`** — writes a project-local `verify-<app>` skill into your repository with five
   capabilities: a feature map (one file per area, with the source paths it owns); a small CLI
   (`doctor`, `start`, `stop`) that proves the build is fresh; `affected <base>`, which maps a diff to the
@@ -57,7 +70,8 @@ generated feature map carries its source — `[confirmed: spec …]`, `[confirme
 checked against its target — what the function is for, from its spec, docstring, docs, name, and callers.
 Code or a passing test that contradicts the target is recorded as a suspected bug, with both sides cited;
 a test written to match the bug counts as evidence for it, not as confirmation. `implement` keeps the map
-current when a change alters an area it describes, and never promotes `[observed]` to confirmed because the code now does it.
+current when a change alters an area it describes, and never promotes `[observed]` to confirmed because the
+code now does it.
 
 ## Notes
 
@@ -67,8 +81,9 @@ current when a change alters an area it describes, and never promotes `[observed
   or push unless asked, and asks before anything acting outside the working tree
   (database migrations, deploys, publishes). `design-solution` writes nothing except a design file you ask for.
   `setup-verification` writes only the verification skill folder (including an executable `scripts/verify`),
-  runs your project's own build, start, and test commands during its survey and trial run, installs nothing, and proposes — never makes — an
-  `AGENTS.md` pointer to the new skill and a `.gitignore` entry for the `.verify/` evidence directory.
-- Neither skill depends on the other loading. A design from `design-solution` is an input to `implement`,
+  runs your project's own build, start, and test commands during its survey and trial run, installs nothing,
+  and proposes — never makes — an `AGENTS.md` pointer to the new skill and a `.gitignore` entry for the
+  `.verify/` evidence directory.
+- No skill depends on another loading. A design from `design-solution` is an input to `implement`,
   which re-checks its assumptions against the code.
 - No bundled scripts or reference files: every required rule is in each skill's `SKILL.md`.
