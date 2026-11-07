@@ -13,9 +13,9 @@ skill gives any agent five capabilities:
 | Capability | What it answers | Where it lives |
 | ---------- | --------------- | -------------- |
 | Feature map | What exists, how a user reaches it, what is correct | `verify-<app>/references/features/` |
-| CLI | Is the build fresh; start and stop it | `scripts/verify doctor`, `start`, `stop` |
-| Change check | Which feature areas does this diff touch | `scripts/verify affected <base>` |
-| Evidence | What did the app actually do | `scripts/verify capture`, `report` |
+| CLI | Is the build fresh; start and stop it | `verify doctor`, `start`, `stop` |
+| Change check | Which feature areas does this change touch | `verify affected <base>` |
+| Evidence | What did the app actually do | `verify capture`, `report` |
 | Review against the goal | Does the evidence meet the request and the confirmed behavior | the generated `SKILL.md` |
 
 `implement` uses this skill when it exists; humans can use the feature map as a regression checklist.
@@ -59,8 +59,9 @@ criterion.
    Only `[confirmed: …]` entries are pass criteria. Never fix a suspected bug here; report it.
 3. **The CLI wraps before it builds.** Each `verify-<app>/scripts/verify` subcommand calls the repository's
    own commands and tools already in its manifests (`make` targets, package scripts, the test runner, `curl`,
-   Playwright or Cypress if present) wherever they cover the job, and implements only what is missing. Write it in the
-   standard library of the project's main language, or POSIX `sh`; never add a dependency or install anything.
+   Playwright or Cypress if present) wherever they cover the job, and implements only what is missing. Write it
+   in the standard library of the project's main language, or POSIX `sh`; never add a dependency or install
+   anything.
    Keep it readable: no minified or generated code.
 4. **Never write secrets.** Record how a user authenticates (a login command, an env var name, a test account
    the project documents) — never a token, password, or copied credential store. `capture` must not save
@@ -97,13 +98,17 @@ Evidence is written at run time to `.verify/<run-id>/` at the repository root, n
 ### The CLI contract
 
 Every subcommand prints plain text, exits `0` on success and non-zero with a one-line reason on failure.
+Generated instructions run every command from the repository root and call the CLI by its path from there,
+set once as `V=<skills-dir>/verify-<app>/scripts/verify` — for example
+`V=.github/skills/verify-shop/scripts/verify` — never by its path inside the skill folder alone, which
+resolves against the repository root and finds nothing.
 
 | Command | Does | Typical wrapping |
 | ------- | ---- | ---------------- |
-| `doctor` | Checks required tools exist, the build matches the working tree (rebuild, or compare a build stamp to `git rev-parse HEAD`), the port is free or owned by this app, the evidence directory is writable | `make build`, `npm run build`, a version flag or health endpoint |
+| `doctor` | Checks required tools exist, the build matches the working tree — rebuild whenever `git status --porcelain` shows a change, or compare a stamp of `git rev-parse HEAD` **plus** a hash of `git diff HEAD` and untracked files; a commit ID alone never proves a dirty tree is built, the port is free or owned by this app, the evidence directory is writable | `make build`, `npm run build`, a version flag or health endpoint |
 | `start` | Starts the app in local or sandbox mode; waits until a readiness check passes; records the PID in `.verify/app.pid` | `make dev`, `docker compose up -d`, `npm start` |
 | `stop` | Stops only what `start` started | the PID file, `docker compose down` |
-| `affected [<base>]` | Maps `git diff --name-only <base>` (default: the merge base with the default branch) through each area's `owns:` globs; prints the feature files, then changed paths no area owns as `unmapped:` | `git diff` |
+| `affected [<base>]` | Maps the union of `git diff --name-only <base>` (default: the merge base with the default branch; includes uncommitted edits) and `git ls-files --others --exclude-standard` (new untracked files) through each area's `owns:` globs; prints the feature files, then changed paths no area owns as `unmapped:` | `git diff`, `git ls-files` |
 | `capture <label> -- <command…>` | Runs the command; saves stdout, stderr, exit code, git SHA, and timestamp to `.verify/<run-id>/<label>.*`; `--screenshot <url>` uses the browser tool the repository already has | the command itself |
 | `report` | Prints the current run's captures as a table: label, command, exit code, file paths | — |
 
@@ -120,14 +125,15 @@ description: Verify behavior of <app> after a change or for a regression sweep �
 # Verify <app>
 
 ## Procedure
-1. `scripts/verify doctor` — stop on any failure; evidence from a stale build does not count.
-2. `scripts/verify affected <base>` — read every listed feature file. Report `unmapped:` paths as a map gap.
-3. `scripts/verify start`.
+Run everything from the repository root, with `V=.github/skills/verify-<app>/scripts/verify`.
+1. `$V doctor` — stop on any failure; evidence from a stale build does not count.
+2. `$V affected <base>` — read every listed feature file. Report `unmapped:` paths as a map gap.
+3. `$V start`.
 4. For each affected area, drive every entry point the change can affect, through the path a real user or
    client takes — success, cancel, error, empty, and persistence paths — wrapping each check in
-   `scripts/verify capture <label> -- …`. Check side effects, not only output: files, rows, HTTP calls, a
+   `$V capture <label> -- …`. Check side effects, not only output: files, rows, HTTP calls, a
    restart or reload round trip.
-5. `scripts/verify stop`, then `scripts/verify report`.
+5. `$V stop`, then `$V report`.
 6. Review against the goal (below).
 
 ## Driving it
@@ -172,7 +178,7 @@ Each feature file uses exactly these seven sections:
 - Cart page → "Apply code" → enter code → Apply.
 
 ## Driving it
-- `scripts/verify capture apply -- curl -s -X POST localhost:8000/api/cart/coupon -d '{"code":"SAVE10"}'`
+- `$V capture apply -- curl -s -X POST localhost:8000/api/cart/coupon -d '{"code":"SAVE10"}'`
   → expect 200 and the new total.
 
 ## Expected behavior
@@ -264,9 +270,9 @@ None. The CLI contract and the templates for the generated files are in [Output 
 ## Conventions
 
 - **Side effects.** Writes the verification skill folder, including an executable
-  `verify-<app>/scripts/verify`, in the user's repository. During the survey and trial run, runs the project's own build, start, and test commands
-  and the generated CLI, which write build output and `.verify/`, start local servers, and may reach the
-  network as the project itself does; stops what it started. Installs nothing.
+  `verify-<app>/scripts/verify`, in the user's repository. During the survey and trial run, runs the project's
+  own build, start, and test commands and the generated CLI, which write build output and `.verify/`, start
+  local servers, and may reach the network as the project itself does; stops what it started. Installs nothing.
 - Keep feature files behavior-level: user-visible actions, selectors, endpoints, and outcomes — not
   descriptions of the implementation.
 - Paths and commands in generated files are relative to the repository root; no absolute or machine-specific
