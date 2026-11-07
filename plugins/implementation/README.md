@@ -1,7 +1,7 @@
 # implementation
 
-Design a change to a repository, or make it and prove it works. Two skills, each usable on its own: the
-boundary between them is the deliverable you ask for, not whether design thinking happens.
+Design a change to a repository, make it and prove it works, or teach agents how to prove changes in your
+specific app. Three skills, each usable on its own: the boundary between them is the deliverable you ask for.
 
 ## Install
 
@@ -19,7 +19,11 @@ copilot plugin install implementation@CopilotBox
 - **`implement`** — the code change itself: inspect, make the design decisions the task needs, implement,
   verify against the original request, and repair. Builds from a supplied design or fixes review findings
   when given them. Fires on "implement this", "fix this bug", "refactor X", "design and implement",
-  "fix these review comments".
+  "fix these review comments". Uses the repository's own verification skill when there is one.
+- **`setup-verification`** — writes a project-local `verify-<app>` skill into your repository: how to build
+  fresh, drive the app (CLI, API, or UI) with tools it already has, what counts as proof, and a feature map
+  with one file per feature area. Asks you for the business rules the code cannot settle, then trial-runs a
+  real flow. Fires on "set up verification for this repo", "make a verify skill", "create a feature map".
 
 | You ask for | Skill |
 | ----------- | ----- |
@@ -28,6 +32,7 @@ copilot plugin install implementation@CopilotBox
 | Design **and** implementation | `implement` |
 | A supplied design or plan built | `implement` |
 | Review findings fixed | `implement` |
+| A repository's own verification skill and feature map | `setup-verification` |
 | A review of changes | `review-code`, in the `code-review` plugin |
 
 ## Verification and status
@@ -41,6 +46,14 @@ and never replaces it. Acceptance criteria are fixed before coding, and the hand
 - `implemented, checks failing` — a failure caused by the change remains after repair; the output is shown.
 - `blocked` — essential information or access is missing.
 
+## Observed is not correct
+
+Code and a running app show what the system does, not what it should do. Every expected behavior in a
+generated feature map carries its source — `[confirmed: spec …]`, `[confirmed: user, <date>]`,
+`[confirmed: test …]`, or `[observed]` — and only confirmed entries are pass criteria. Behavior that looks
+wrong is recorded as an open question, never as expected. `implement` keeps the map current when a change
+alters an area it describes, and never promotes `[observed]` to confirmed because the code now does it.
+
 ## Notes
 
 - **Side effects:** `implement` edits files in your repository and runs your project's own tests, linters,
@@ -48,6 +61,9 @@ and never replaces it. Acceptance criteria are fixed before coding, and the hand
   a tool just to run a check, adds a project dependency only when your request requires one, does not commit
   or push unless asked, and asks before anything acting outside the working tree
   (database migrations, deploys, publishes). `design-solution` writes nothing except a design file you ask for.
+  `setup-verification` writes only the verification skill folder, runs your project's own build, start, and
+  test commands during its survey and trial run, installs nothing, and proposes — never makes — an
+  `AGENTS.md` pointer to the new skill.
 - Neither skill depends on the other loading. A design from `design-solution` is an input to `implement`,
   which re-checks its assumptions against the code.
 - No bundled scripts or reference files: every required rule is in each skill's `SKILL.md`.

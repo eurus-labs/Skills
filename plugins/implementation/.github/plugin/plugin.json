@@ -1,14 +1,15 @@
 {
   "name": "implementation",
-  "description": "Design a software solution and implementation plan without touching code, or implement a feature, bug fix, or refactor and verify it against the original request \u2014 two independently usable skills with acceptance criteria fixed before coding, design patterns used only for a concrete problem, and evidence reported for every check.",
-  "version": "0.1.0",
+  "description": "Design a software solution and implementation plan without touching code, implement a feature, bug fix, or refactor and verify it against the original request, or set up a repository's own verification skill and feature map \u2014 acceptance criteria fixed before coding, design patterns used only for a concrete problem, confirmed behavior kept apart from merely observed behavior, and evidence reported for every check.",
+  "version": "0.2.0",
   "keywords": [
     "implementation",
     "design",
     "planning",
     "bug-fix",
     "refactoring",
-    "verification"
+    "verification",
+    "feature-map"
   ],
   "author": {
     "name": "Eurus7895"
@@ -17,6 +18,7 @@
   "license": "MIT",
   "skills": [
     "./skills/design-solution/",
-    "./skills/implement/"
+    "./skills/implement/",
+    "./skills/setup-verification/"
   ]
 }
