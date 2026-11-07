@@ -20,10 +20,13 @@ copilot plugin install implementation@CopilotBox
   verify against the original request, and repair. Builds from a supplied design or fixes review findings
   when given them. Fires on "implement this", "fix this bug", "refactor X", "design and implement",
   "fix these review comments". Uses the repository's own verification skill when there is one.
-- **`setup-verification`** — writes a project-local `verify-<app>` skill into your repository: how to build
-  fresh, drive the app (CLI, API, or UI) with tools it already has, what counts as proof, and a feature map
-  with one file per feature area. Asks you for the business rules the code cannot settle, then trial-runs a
-  real flow. Fires on "set up verification for this repo", "make a verify skill", "create a feature map".
+- **`setup-verification`** — writes a project-local `verify-<app>` skill into your repository with five
+  capabilities: a feature map (one file per area, with the source paths it owns); a small CLI
+  (`doctor`, `start`, `stop`) that proves the build is fresh; `affected <base>`, which maps a diff to the
+  feature areas it touches; `capture` and `report` for evidence; and a review of that evidence against the
+  goal, one verdict per criterion. The CLI wraps the commands and tools your repository already has. Asks you
+  for the business rules the code cannot settle, then trial-runs every command. Fires on "set up verification
+  for this repo", "make a verify skill", "create a feature map".
 
 | You ask for | Skill |
 | ----------- | ----- |
@@ -50,9 +53,11 @@ and never replaces it. Acceptance criteria are fixed before coding, and the hand
 
 Code and a running app show what the system does, not what it should do. Every expected behavior in a
 generated feature map carries its source — `[confirmed: spec …]`, `[confirmed: user, <date>]`,
-`[confirmed: test …]`, or `[observed]` — and only confirmed entries are pass criteria. Behavior that looks
-wrong is recorded as an open question, never as expected. `implement` keeps the map current when a change
-alters an area it describes, and never promotes `[observed]` to confirmed because the code now does it.
+`[confirmed: test …]`, or `[observed]` — and only confirmed entries are pass criteria. Each behavior is
+checked against its target — what the function is for, from its spec, docstring, docs, name, and callers.
+Code or a passing test that contradicts the target is recorded as a suspected bug, with both sides cited;
+a test written to match the bug counts as evidence for it, not as confirmation. `implement` keeps the map
+current when a change alters an area it describes, and never promotes `[observed]` to confirmed because the code now does it.
 
 ## Notes
 
@@ -61,9 +66,9 @@ alters an area it describes, and never promotes `[observed]` to confirmed becaus
   a tool just to run a check, adds a project dependency only when your request requires one, does not commit
   or push unless asked, and asks before anything acting outside the working tree
   (database migrations, deploys, publishes). `design-solution` writes nothing except a design file you ask for.
-  `setup-verification` writes only the verification skill folder, runs your project's own build, start, and
-  test commands during its survey and trial run, installs nothing, and proposes — never makes — an
-  `AGENTS.md` pointer to the new skill.
+  `setup-verification` writes only the verification skill folder (including an executable `scripts/verify`),
+  runs your project's own build, start, and test commands during its survey and trial run, installs nothing, and proposes — never makes — an
+  `AGENTS.md` pointer to the new skill and a `.gitignore` entry for the `.verify/` evidence directory.
 - Neither skill depends on the other loading. A design from `design-solution` is an input to `implement`,
   which re-checks its assumptions against the code.
 - No bundled scripts or reference files: every required rule is in each skill's `SKILL.md`.

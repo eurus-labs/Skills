@@ -49,7 +49,9 @@ by verification evidence, not by the code compiling.
 5. **Verification is mandatory and is yours.** Run it even when a review plugin exists; an independent review
    adds to it and never replaces it. Do not hand verification to a skill that may not load.
 6. **Evidence must be able to fail.** A test that would also pass on the unchanged code, or that recomputes the
-   expected value with the same logic as the implementation, does not establish the requested behavior.
+   expected value with the same logic as the implementation, does not establish the requested behavior. Nor
+   does a test that agrees with the code but contradicts the function's target — its docstring, documented
+   contract, or the request: that is evidence of a bug, reported under **Limitations** if out of scope.
 7. **Never edit an existing test to make it pass** unless it is demonstrably wrong against the request — then
    record it under **Contract changes**.
 8. **Report status honestly.** `implemented and verified` only with evidence for every criterion and every
@@ -203,9 +205,10 @@ behavior that must not change, and a negative or failure case where the request 
 2. **Select checks by affected behavior, concrete regression risks, and project requirements**: the tests for
    each criterion, the tests covering every touched module, and the gates the project requires before a change
    is done (full suite, lint, type check, build). Add checks for callers of any changed signature or format.
-   When the project has a verification skill, follow its freshness check and proof bar and drive the affected
-   feature files' entry points. A result that conflicts with an `[observed]` entry is reported under
-   **Limitations**, not counted as a pass or a failure.
+   When the project has a verification skill, follow its procedure: run its `doctor` and `affected` commands,
+   drive the entry points of every affected feature file under its `capture` command, and add its
+   review-against-the-goal rows to the **Verification** table. A result that conflicts with an `[observed]`
+   entry is reported under **Limitations**, not counted as a pass or a failure.
 3. **For bug fixes, reproduce the original failure and confirm the correction** when feasible: the
    reproduction fails before the fix and passes after.
 4. **Check relevant negative cases and failure behavior**: invalid, empty, or boundary input; missing
