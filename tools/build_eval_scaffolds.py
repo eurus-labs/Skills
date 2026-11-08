@@ -14,6 +14,7 @@ Each file is written with a quoted heredoc, so nothing in it is expanded, and th
 is plain text a reviewer can read.
 """
 
+import base64
 import os
 import sys
 
@@ -34,6 +35,8 @@ SCAFFOLDS = {
         ("fixtures/03-weak-suite", ("README.md",)),
     "plugins/docs/evals/behavior/architecture-overview-of-layered-repo":
         ("tests/contracts/layered-repo", ()),
+    "plugins/presentation/evals/behavior/workflow-slide-from-wordy-slide":
+        ("fixtures/09-wordy-process-slide", ("README.md",)),
 }
 
 # eval case directory -> a git repository built from two snapshots, for skills that work on a change.
@@ -69,8 +72,8 @@ SKIP_DIRS = {"__pycache__", ".pytest_cache", ".git"}
 
 
 def fixture_files(source, exclude=()):
-    """Every file of the fixture but those in `exclude`, as (relative path, text), in a
-    stable order."""
+    """Every file of the fixture but those in `exclude`, as (relative path, content), in a
+    stable order. Content is text, or bytes for a file that is not UTF-8, such as a .pptx."""
     files = []
     for dirpath, dirnames, filenames in os.walk(source):
         dirnames[:] = sorted(d for d in dirnames if d not in SKIP_DIRS)
@@ -81,13 +84,30 @@ def fixture_files(source, exclude=()):
             rel = os.path.relpath(path, source).replace(os.sep, "/")
             if rel in exclude:
                 continue
-            with open(path, encoding="utf-8") as fh:
-                files.append((rel, fh.read()))
+            with open(path, "rb") as fh:
+                data = fh.read()
+            try:
+                data = data.decode("utf-8")
+            except UnicodeDecodeError:
+                pass
+            files.append((rel, data))
     return files
 
 
 def _write(lines, source_rel, exclude=()):
     for rel, text in fixture_files(os.path.join(REPO, source_rel), exclude):
+        if isinstance(text, bytes):
+            # Binary: base64 in a quoted heredoc, wrapped so the script stays reviewable as text.
+            if "'" in rel:
+                raise SystemExit("%s/%s: a quote in a path would break the script" % (source_rel, rel))
+            parent = os.path.dirname(rel)
+            if parent:
+                lines.append("mkdir -p '%s'" % parent)
+            encoded = base64.b64encode(text).decode("ascii")
+            lines.append("base64 -d > '%s' <<'%s'" % (rel, MARKER))
+            lines.extend(encoded[i:i + 76] for i in range(0, len(encoded), 76))
+            lines.append(MARKER)
+            continue
         if MARKER in text:
             raise SystemExit("%s/%s contains the heredoc marker %s" % (source_rel, rel, MARKER))
         if text and not text.endswith("\n"):

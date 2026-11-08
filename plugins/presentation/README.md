@@ -37,6 +37,31 @@ copilot plugin install presentation@eurus-labs
 - **Optional:** LibreOffice (`soffice`) and Poppler (`pdftoppm`), to render the slide and check it visually.
   Without them, the skill says the slide was not rendered.
 
+## Evals
+
+`evals/` holds a [`claude plugin eval`](https://code.claude.com/docs/en/plugin-evals) suite:
+
+- **`trigger/`:** 9 cases. Four requests the skill must fire on, one of them in Vietnamese, and five
+  near-misses it must stay quiet on: a whole pitch deck, a typo fix, a data chart, codebase docs, and a file
+  conversion.
+- **`behavior/`:** 1 case on `fixtures/09`, graded against `fixtures/EXPECTED.md`. Slide 2 of a three-slide
+  deck must become a visual flow, with:
+  - the rest of the deck, the speaker's note, and the user's file left intact;
+  - no invented numbers;
+  - no guessed expansion of an acronym.
+
+Run from the repository root, with Claude Code 2.1.269 or later:
+
+```bash
+claude plugin eval plugins/presentation --tag trigger --ablation none --no-publish --max-cost-usd 3
+claude plugin eval plugins/presentation --tag behavior --no-publish --max-cost-usd 5 \
+  --scaffold --allow-tools Bash Write Edit
+```
+
+The behavior case needs python-pptx and Pillow where the eval runs. Without them, the skill stops with the
+install command, and the case measures that rather than the slide. The graders state what is planted, so like
+`fixtures/EXPECTED.md` they are an answer key: keep this directory out of a fixture demo session.
+
 ## Notes
 
 - **Side effects:** the skill never writes to your file. It writes a copy, its build script, renders, and
