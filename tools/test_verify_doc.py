@@ -571,6 +571,438 @@ def review_findings(tmp, root, index):
            "a name rebound by `async with` is not the module imported under it")
 
 
+EDGE_STORE = """\
+class Store:
+    def save(self):
+        return 1
+
+
+class Other:
+    def save(self):
+        return 2
+
+
+class Alias:
+    def save(self):
+        return 3
+
+
+class Hooked:
+    def __init__(self, callback):
+        self.save = callback
+
+    def save(self):
+        return 4
+
+
+class Holder:
+    def save(self):
+        return 5
+
+    def helper(self, cb):
+        class Inner:
+            def __init__(self):
+                self.save = cb
+        return Inner
+"""
+
+EDGE_LOCAL = """\
+class Store:
+    def save(self):
+        return 1
+
+
+class Other:
+    def save(self):
+        return 2
+
+
+Store = Other
+
+
+def run():
+    return Store.save()
+
+
+class Base:
+    def __init__(self, callback):
+        self.hook = callback
+
+    def hook(self):
+        return 1
+
+
+class Child(Base):
+    def go(self):
+        return self.hook()
+
+
+def factory():
+    class Nested:
+        def __init__(self, callback):
+            self.ping = callback
+
+        def ping(self):
+            return 1
+
+        def go(self):
+            return self.ping()
+    return Nested
+"""
+
+EDGE_CALLER_LINES = [
+    "from store import Store as Alias",     # 1
+    "from store import Store, Hooked, Holder",  # 2
+    "",
+    "",
+    "def aliased():",                       # 5
+    "    s = Alias()",                      # 6
+    "    return s.save()",                  # 7
+    "",
+    "",
+    "def hooked(cb):",                      # 10
+    "    h = Hooked(cb)",                   # 11
+    "    return h.save()",                  # 12
+    "",
+    "",
+    "def mutated():",                       # 15
+    "    s = Store()",                      # 16
+    "    s.value = 1",                      # 17
+    "    return s.save()",                  # 18
+    "",
+    "",
+    "def unpacked():",                      # 21
+    "    s = Store()",                      # 22
+    "    s, t = Alias(), 1",                # 23
+    "    return s.save()",                  # 24
+    "",
+    "",
+    "def overridden(cb):",                  # 27
+    "    s = Store()",                      # 28
+    "    s.save = cb",                      # 29
+    "    return s.save()",                  # 30
+    "",
+    "",
+    "def looped(cb):",                      # 33
+    "    s = Store()",                      # 34
+    "    for s.save in [cb]:",              # 35
+    "        return s.save()",              # 36
+    "",
+    "",
+    "def entered(ctx):",                    # 39
+    "    s = Store()",                      # 40
+    "    with ctx as s.save:",              # 41
+    "        return s.save()",              # 42
+    "",
+    "",
+    "def held():",                          # 45
+    "    h = Holder()",                     # 46
+    "    return h.save()",                  # 47
+    "",
+    "",
+    "def reclassed():",                     # 50
+    "    s = Store()",                      # 51
+    "    s.__class__ = Hooked",             # 52
+    "    return s.save()",                  # 53
+    "",
+    "",
+    "def redicted(cb):",                    # 56
+    "    s = Store()",                      # 57
+    "    s.__dict__ = {'save': cb}",        # 58
+    "    return s.save()",                  # 59
+]
+
+EDGE_STATIC_CLOSURE = """\
+class Store:
+    def __init__(self, cb):
+        class Setup:
+            @staticmethod
+            def apply():
+                self.save = cb
+        Setup.apply()
+
+    def save(self):
+        return 1
+
+    def run(self):
+        return self.save()
+"""
+
+EDGE_ANNOTATED = """\
+class Store:
+    @staticmethod
+    def save():
+        return 1
+
+
+Store: type
+
+
+def run():
+    return Store.save()
+"""
+
+EDGE_CLASS_BODY = """\
+class Store:
+    def __init__(self, cb):
+        class Setup:
+            self.save = cb
+
+    def save(self):
+        return 1
+
+    def run(self):
+        return self.save()
+"""
+
+EDGE_ALIAS_ELSEWHERE = """\
+from other import Store as Alias
+
+
+def unrelated():
+    from store import Store as Alias
+    return Alias
+
+
+def build():
+    s = Alias()
+    return s.save()
+"""
+
+EDGE_OTHER = """\
+class Store:
+    def save(self):
+        return 9
+
+
+class Other:
+    def save(self):
+        return 8
+"""
+
+EDGE_FACTORY = """\
+from store import Store
+
+
+def make() -> Store:
+    return Store()
+
+
+def use():
+    from other import Other as Store
+    s = make()
+    return s.save()
+"""
+
+EDGE_DUAL = """\
+from store import Store as Alias
+from other import Store as Alias
+
+
+def dual():
+    s = Alias()
+    return s.save()
+"""
+
+EDGE_CONFIG = """\
+class Store:
+    @staticmethod
+    def save():
+        return 1
+
+
+Store.timeout = 30
+
+
+def run():
+    return Store.save()
+"""
+
+EDGE_NESTED = """\
+class Store:
+    def save(self):
+        return 1
+
+
+def factory(cb):
+    class Store:
+        def __init__(self):
+            self.save = cb
+
+        def save(self):
+            return 2
+
+        def go(self):
+            return self.save()
+    return Store
+
+
+def other_factory():
+    class Store:
+        def save(self):
+            return 3
+
+        def go(self):
+            return self.save()
+    return Store
+"""
+
+EDGE_SCOPED = """\
+from store import Store
+
+
+def other():
+    from elsewhere import Other as Store
+    return Store
+
+
+def build():
+    s = Store()
+    return s.save()
+"""
+
+
+def receiver_edge_cases(tmp):
+    """Four receiver cases a review of the release found the verifier deciding wrongly:
+    three verified a call that reaches another target, one could never be decided."""
+    root = os.path.join(tmp, "edges")
+    os.makedirs(root)
+    write(root, "store.py", EDGE_STORE)
+    write(root, "local.py", EDGE_LOCAL)
+    write(root, "caller.py", "\n".join(EDGE_CALLER_LINES) + "\n")
+    write(root, "config.py", EDGE_CONFIG)
+    write(root, "nested.py", EDGE_NESTED)
+    write(root, "scoped.py", EDGE_SCOPED)
+    write(root, "other.py", EDGE_OTHER)
+    write(root, "factory.py", EDGE_FACTORY)
+    write(root, "dual.py", EDGE_DUAL)
+    write(root, "annotated.py", EDGE_ANNOTATED)
+    write(root, "classbody.py", EDGE_CLASS_BODY)
+    write(root, "elsewhere.py", EDGE_ALIAS_ELSEWHERE)
+    write(root, "closure.py", EDGE_STATIC_CLOSURE)
+    index = os.path.join(tmp, "edges.json")
+    proc = subprocess.run([sys.executable, SCANNER, "--root", root, "--out", index,
+                           "--detail"], capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise RuntimeError("edge fixture scan failed: %s" % proc.stderr)
+
+    def at(cid, subject_file, obj, *lines):
+        row = claim(cid, "calls", "module:" + subject_file, obj)
+        row["evidence"] = [{"path": subject_file, "line_start": n, "line_end": n}
+                           for n in lines]
+        return row
+
+    claims = [
+        # `Store = Other` at module level: `Store.save()` reaches Other.save.
+        at("e:module-rebind", "local.py", "method:local.py:Store.save", 15),
+        # `self.hook = callback` in a base shadows the method for the subclass too.
+        at("e:base-instance-shadow", "local.py", "method:local.py:Base.hook", 28),
+        # A class nested in a function still shadows its own method.
+        at("e:nested-instance-shadow", "local.py", "method:local.py:Nested.ping", 40),
+        # `from store import Store as Alias`: Alias() builds a Store, whatever else
+        # store.py happens to call Alias.
+        at("e:alias", "caller.py", "method:store.py:Store.save", 1, 6, 7),
+        at("e:alias-same-named", "caller.py", "method:store.py:Alias.save", 1, 6, 7),
+        # `self.save = callback` in __init__ shadows the method on every instance.
+        at("e:instance-shadow", "caller.py", "method:store.py:Hooked.save", 11, 12),
+        # `s.value = 1` mutates s; it does not rebind it.
+        at("e:mutation", "caller.py", "method:store.py:Store.save", 16, 17, 18),
+        # ...but unpacking into s does rebind it.
+        at("e:unpacked", "caller.py", "method:store.py:Store.save", 22, 23, 24),
+        # Second review round: what the first round's fixes got wrong.
+        # `s.save = cb` replaces the very method being called.
+        at("e:method-overridden", "caller.py", "method:store.py:Store.save", 28, 29, 30),
+        # `Store.timeout = 30` configures the class; it does not rebind the name.
+        at("e:class-attribute", "config.py", "method:config.py:Store.save", 11),
+        # A nested class named like a top-level one is checked as itself.
+        at("e:nested-same-name", "nested.py", "method:nested.py:Store.save", 15),
+        # ...and is not credited to it even when it shadows nothing.
+        at("e:nested-namesake", "nested.py", "method:nested.py:Store.save", 25),
+        # An import inside an unrelated function does not change what `Store` is here.
+        at("e:alias-other-scope", "scoped.py", "method:store.py:Store.save", 10, 11),
+        # Third review round.
+        # A loop or `with` target can replace the method as surely as `=` can.
+        at("e:loop-override", "caller.py", "method:store.py:Store.save", 34, 35, 36),
+        at("e:with-override", "caller.py", "method:store.py:Store.save", 40, 41, 42),
+        # A factory's return annotation is read where the factory is defined.
+        at("e:factory-scope", "factory.py", "method:store.py:Store.save", 4, 10, 11),
+        # `self` in a nested class's method is a different object.
+        at("e:nested-self", "caller.py", "method:store.py:Holder.save", 46, 47),
+        # The same alias imported from two modules is not one class.
+        at("e:alias-two-modules", "dual.py", "method:store.py:Store.save", 1, 2, 6, 7),
+        # Fourth review round.
+        # `Store: type` declares; it binds nothing.
+        at("e:bare-annotation", "annotated.py", "method:annotated.py:Store.save", 11),
+        # A nested class *body* runs in the method, so its `self` is the outer one.
+        at("e:class-body-self", "classbody.py", "method:classbody.py:Store.save", 10),
+        # The alias visible here comes from other.py, not the claimed store.py.
+        at("e:alias-wrong-module", "elsewhere.py", "method:store.py:Store.save", 1, 10, 11),
+        # Assigning __class__ changes which class's methods the object has.
+        at("e:class-reassigned", "caller.py", "method:store.py:Store.save", 51, 52, 53),
+        # Fifth review round.
+        # Replacing __dict__ replaces every instance attribute, the method included.
+        at("e:dict-replaced", "caller.py", "method:store.py:Store.save", 57, 58, 59),
+        # A nested static method binds no self, so `self` in it is the outer one.
+        at("e:static-closure", "closure.py", "method:closure.py:Store.save", 13),
+    ]
+    code, status, _, _, stderr = run(tmp, root, index, claims, name="edges")
+    check("receiver edge-case verification runs", code in (0, 1),
+          "exit %d: %s" % (code, stderr))
+
+    def expect(cid, wanted, what):
+        check(what, status.get(cid) == wanted, "%s: %r" % (cid, status.get(cid)))
+
+    expect("e:module-rebind", "needs_context",
+           "C.m() is undecided when C is rebound at module level")
+    expect("e:base-instance-shadow", "needs_context",
+           "self.m() is undecided when a same-file base assigns self.m")
+    expect("e:nested-instance-shadow", "needs_context",
+           "self.m() is undecided when a nested class assigns self.m")
+    expect("e:alias", "verified",
+           "an object built through an import alias verifies against the original class")
+    expect("e:alias-same-named", "rejected",
+           "an import alias is not credited to an unrelated class of that name")
+    expect("e:instance-shadow", "needs_context",
+           "obj.m() is undecided when the class assigns self.m")
+    expect("e:mutation", "verified",
+           "assigning an attribute of the receiver does not rebind it")
+    expect("e:unpacked", "needs_context",
+           "unpacking into the receiver still rebinds it")
+    expect("e:method-overridden", "needs_context",
+           "assigning the called method on the receiver leaves the call undecided")
+    expect("e:class-attribute", "verified",
+           "setting a class attribute at module level does not rebind the class")
+    expect("e:nested-same-name", "needs_context",
+           "a nested class that assigns self.m is not checked as the top-level namesake")
+    expect("e:nested-namesake", "needs_context",
+           "self.m() in a nested class is not credited to a top-level class of its name")
+    expect("e:alias-other-scope", "verified",
+           "an import in an unrelated function does not affect the binding's class")
+    expect("e:loop-override", "needs_context",
+           "a loop target that replaces the called method leaves the call undecided")
+    expect("e:with-override", "needs_context",
+           "a `with` target that replaces the called method leaves the call undecided")
+    expect("e:factory-scope", "verified",
+           "a factory's annotation is not read with the caller's local imports")
+    expect("e:nested-self", "verified",
+           "self.m assigned in a nested class does not shadow the outer class's m")
+    expect("e:alias-two-modules", "needs_context",
+           "an alias imported from two modules is not credited to either")
+    expect("e:bare-annotation", "verified",
+           "a value-less annotation of a class name does not rebind it")
+    expect("e:class-body-self", "needs_context",
+           "a nested class body writing the outer self.m shadows the method")
+    check("an alias imported from another module is not credited to the callee",
+          status.get("e:alias-wrong-module") in ("needs_context", "rejected"),
+          "e:alias-wrong-module: %r" % status.get("e:alias-wrong-module"))
+    expect("e:class-reassigned", "needs_context",
+           "assigning the receiver's __class__ leaves the call undecided")
+    expect("e:dict-replaced", "needs_context",
+           "replacing the receiver's __dict__ leaves the call undecided")
+    expect("e:static-closure", "needs_context",
+           "a nested static method writing the outer self.m shadows the method")
+
+
 def same_file_calls(tmp, root, index):
     """A file never imports itself, so a call to its own function or method is bound by
     the definition, not by an import -- and used to be undecidable."""
@@ -851,6 +1283,7 @@ def main():
               "exit %d" % proc.returncode)
 
         receiver_calls(tmp)
+        receiver_edge_cases(tmp)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
