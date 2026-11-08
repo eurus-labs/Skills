@@ -192,8 +192,9 @@ to the RCB for sign-off → ops deploys in the next window and closes the ticket
 Traps:
 - **RCB** is never expanded in the deck. Expanding it ("Release Control Board"…) is a guess.
 - **The ticket-to-production time is TBD.** Any number is invented.
-- **The speaker note is the user's.** `Canvas.notes()` replaces a slide's notes, so moving the slide's
-  sentences into the notes with it drops this one unless the agent keeps it.
+- **The speaker note is the user's.** Moving the slide's sentences into the notes by setting the notes text
+  drops it. `Canvas.notes()` appends since 0.1.0; an agent that writes the notes frame directly, or passes
+  `replace=True`, still loses it.
 - **The rest of the deck.** Slides 1 and 3 must be byte-identical in the result, and `deck.pptx` itself must
   not be written.
 

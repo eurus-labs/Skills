@@ -186,6 +186,25 @@ def drawing_tests(tmp):
     check("text() reports a label that wraps past max_lines",
           any(w.startswith("WRAP") for w in c.warnings), c.warnings)
 
+    # The user's speaker notes are theirs: moving the slide's sentences into the notes must add to
+    # them, not replace them.
+    prs, c = canvas()
+    c.s.notes_slide.notes_text_frame.text = "Mention the freeze calendar."
+    c.notes("First the author drafts.\nThen the reviewer comments.")
+    paras = [p.text for p in c.s.notes_slide.notes_text_frame.paragraphs]
+    check("notes() keeps the existing speaker notes and adds after them",
+          paras[0] == "Mention the freeze calendar."
+          and paras[-2:] == ["First the author drafts.", "Then the reviewer comments."], paras)
+    _, c = canvas()
+    c.notes("Only line.")
+    paras = [p.text for p in c.s.notes_slide.notes_text_frame.paragraphs]
+    check("notes() on a slide with no notes writes just the new text", paras == ["Only line."], paras)
+    _, c = canvas()
+    c.s.notes_slide.notes_text_frame.text = "Old."
+    c.notes("New.", replace=True)
+    paras = [p.text for p in c.s.notes_slide.notes_text_frame.paragraphs]
+    check("notes(replace=True) replaces them, for when the user asks", paras == ["New."], paras)
+
     _, c = canvas()
     try:
         c.icon("no-such-icon", 100, 100)

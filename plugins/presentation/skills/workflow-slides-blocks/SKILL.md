@@ -64,7 +64,9 @@ requirement check.
 4. **Keep the user's terms** — product names, abbreviations, internal acronyms — exactly as given. Flag an
    abbreviation you cannot expand; do not expand it by guessing.
 5. **One message per slide.** If the content carries two, propose splitting it.
-6. **Fix every warning `Canvas.check()` reports** before saving, and never shrink text below 11 pt to do it.
+6. **Keep the slide's existing speaker notes.** `c.notes()` adds the moved sentences after them; pass
+   `replace=True` only when the user asks for their notes to go.
+7. **Fix every warning `Canvas.check()` reports** before saving, and never shrink text below 11 pt to do it.
 
 ## Output format
 
@@ -165,7 +167,7 @@ Say in the reply which set was used.
 
    For a new deck, start from `Presentation()` and set `slide_width` and `slide_height` to 16:9.
 5. **Fix every warning** `c.check()` prints — `WRAP`, `OVERFLOW`, `CROSS`, `OVERLAP` — by shortening words
-   first, then moving or widening; never below 11 pt (hard rule 6). Do not pass `track=False` for free text
+   first, then moving or widening; never below 11 pt (hard rule 7). Do not pass `track=False` for free text
    such as an arrow's label; only text inside a shape is untracked, so `check()` sees every label.
 6. **Validate**: `python3 scripts/check_pptx.py deck-refined.pptx --original deck.pptx` must print
    `package OK`, and `changed slides:` must list only the target slide (hard rule 2).

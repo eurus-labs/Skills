@@ -220,7 +220,16 @@ class Canvas:
         for i, ic in enumerate(icons): self.icon(ic, x + i * 48, y + 20, 38)
         self.text(x + 48 * len(icons), y, 1200, 40, [t], size=16, bold=True, color=INK, anchor=MSO_ANCHOR.MIDDLE, max_lines=1)
 
-    def notes(self, t): self.s.notes_slide.notes_text_frame.text = t
+    def notes(self, t, replace=False):
+        """Add `t` to the slide's speaker notes, after any already there; they are the user's.
+        replace=True only when the user asked for their notes to be replaced."""
+        tf = self.s.notes_slide.notes_text_frame
+        if replace or not tf.text.strip():
+            tf.text = t
+            return
+        tf.add_paragraph()  # a blank line between their notes and the moved text
+        for line in t.split("\n"):
+            tf.add_paragraph().text = line
 
     # ---------- QA ----------
     def check(self):
