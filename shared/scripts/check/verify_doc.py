@@ -456,13 +456,8 @@ class Verifier(object):
         def names(target):
             # `Store.timeout = 30` loads Store to set an attribute; only a name, or a
             # name inside tuple, list or starred unpacking, is rebound.
-            if isinstance(target, ast.Name):
-                return target.id == name
-            if isinstance(target, (ast.Tuple, ast.List)):
-                return any(names(element) for element in target.elts)
-            if isinstance(target, ast.Starred):
-                return names(target.value)
-            return False
+            return any(isinstance(leaf, ast.Name) and leaf.id == name
+                       for leaf in Verifier.bound_leaves(target))
         for node in Verifier.own_nodes(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 count += node.name == name
@@ -706,6 +701,57 @@ class Verifier(object):
                 continue
             stack.extend(ast.iter_child_nodes(node))
 
+    @staticmethod
+    def binding_targets(node):
+        """The target expressions a statement binds: `=`, annotated and augmented
+        assignment, the walrus, a `for` target, and a `with ... as` target."""
+        if isinstance(node, ast.Assign):
+            return list(node.targets)
+        if isinstance(node, (ast.AnnAssign, ast.AugAssign, ast.NamedExpr,
+                             ast.For, ast.AsyncFor)):
+            return [node.target]
+        if isinstance(node, (ast.With, ast.AsyncWith)):
+            return [item.optional_vars for item in node.items
+                    if item.optional_vars is not None]
+        return []
+
+    @staticmethod
+    def bound_leaves(target):
+        """What a target actually writes: names, attributes and subscripts, through
+        tuple, list and starred unpacking -- not the names loaded along the way."""
+        if isinstance(target, (ast.Tuple, ast.List)):
+            for element in target.elts:
+                for leaf in Verifier.bound_leaves(element):
+                    yield leaf
+        elif isinstance(target, ast.Starred):
+            for leaf in Verifier.bound_leaves(target.value):
+                yield leaf
+        else:
+            yield target
+
+    @staticmethod
+    def class_nodes(cls):
+        """Every node of a class whose `self` is that class's instance: its methods and
+        their closures, but not the bodies of classes nested inside it."""
+        stack = list(ast.iter_child_nodes(cls))
+        while stack:
+            node = stack.pop()
+            yield node
+            if isinstance(node, ast.ClassDef):
+                continue
+            stack.extend(ast.iter_child_nodes(node))
+
+    def writes_attribute(self, nodes, owner, attr):
+        """The line of the first statement in `nodes` that writes `<owner>.<attr>`,
+        where `owner(expr)` says whether an expression is the object; else None."""
+        for node in nodes:
+            for target in self.binding_targets(node):
+                for leaf in self.bound_leaves(target):
+                    if isinstance(leaf, ast.Attribute) and leaf.attr == attr \
+                            and owner(leaf.value):
+                        return node.lineno
+        return None
+
     def receiver_bindings(self, scope, receiver):
         """Every place the receiver is bound, as (line, how, node).
 
@@ -725,13 +771,7 @@ class Verifier(object):
         def mentions(target):
             # A binding target, not any name inside it: `s.value = 1` and `s[0] = 1`
             # load `s` to mutate it, but `s, t = ...` and `*s, = ...` rebind it.
-            if is_target(target):
-                return True
-            if isinstance(target, (ast.Tuple, ast.List)):
-                return any(mentions(element) for element in target.elts)
-            if isinstance(target, ast.Starred):
-                return mentions(target.value)
-            return False
+            return any(is_target(leaf) for leaf in self.bound_leaves(target))
 
         if kind == "local":
             arguments = getattr(scope, "args", None)
@@ -744,8 +784,9 @@ class Verifier(object):
                         found.append((argument.lineno, "annotation", argument.annotation))
             nodes = self.own_nodes(scope)
         else:
-            # An attribute lives on the instance, so every method of the class may set it.
-            nodes = (n for n in ast.walk(scope))
+            # An attribute lives on the instance, so every method of the class may set it
+            # -- but a nested class's methods set attributes on their own instances.
+            nodes = self.class_nodes(scope)
 
         for node in nodes:
             if isinstance(node, ast.Assign):
@@ -804,12 +845,15 @@ class Verifier(object):
             scopes += [node for node in ast.walk(tree)
                        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
                        and node.lineno <= line <= node.end_lineno]
-        originals = {alias.name for scope in scopes for node in self.own_nodes(scope)
+        # Keyed by module as well as name: `Store as A` from two modules is two
+        # different classes, even though both are called Store.
+        originals = {(node.module, node.level, alias.name)
+                     for scope in scopes for node in self.own_nodes(scope)
                      if isinstance(node, ast.ImportFrom)
                      for alias in node.names if (alias.asname or alias.name) == local}
         if not originals:
             return local
-        return originals.pop() if len(originals) == 1 else None
+        return originals.pop()[2] if len(originals) == 1 else None
 
     def class_ref(self, node, bindings, callee_tree, tree=None, line=None):
         """The callee-file class an expression names, or None.
@@ -894,7 +938,8 @@ class Verifier(object):
                                                             definition.lineno))
         if how in ("enter", "aenter"):
             return None, "a factory's result entered with `with` is not followed"
-        found = self.class_ref(definition.returns, bindings, callee_tree, tree, line)
+        found = self.class_ref(definition.returns, bindings, callee_tree, tree,
+                               definition.lineno)
         return (found, None) if found else (None, "%s() is not annotated to return a "
                                                   "class imported from the callee file"
                                             % definition.name)
@@ -937,18 +982,16 @@ class Verifier(object):
         else:
             order = self.mro(tree, class_name) or [class_name]
             lookup = {}
+
+        def is_self(expr):
+            return isinstance(expr, ast.Name) and expr.id == "self"
         for name in order:
             cls = lookup.get(name) or self.class_named(tree, name)
             if cls is None:
                 continue
-            for node in ast.walk(cls):
-                targets = (node.targets if isinstance(node, ast.Assign) else
-                           [node.target] if isinstance(node, (ast.AnnAssign, ast.AugAssign))
-                           else [])
-                if any(isinstance(t, ast.Attribute) and t.attr == attr
-                       and isinstance(t.value, ast.Name) and t.value.id == "self"
-                       for t in targets):
-                    return name, node.lineno
+            line = self.writes_attribute(self.class_nodes(cls), is_self, attr)
+            if line is not None:
+                return name, line
         return None
 
     def method_override(self, scope, receiver, method):
@@ -962,17 +1005,8 @@ class Verifier(object):
                 return isinstance(node, ast.Name) and node.id == name
             return (isinstance(node, ast.Attribute) and node.attr == name
                     and isinstance(node.value, ast.Name) and node.value.id == "self")
-        nodes = self.own_nodes(scope) if kind == "local" else ast.walk(scope)
-        for node in nodes:
-            targets = (node.targets if isinstance(node, ast.Assign) else
-                       [node.target] if isinstance(node, (ast.AnnAssign, ast.AugAssign))
-                       else [])
-            for target in targets:
-                for leaf in ast.walk(target):
-                    if isinstance(leaf, ast.Attribute) and leaf.attr == method \
-                            and is_receiver(leaf.value):
-                        return node.lineno
-        return None
+        nodes = self.own_nodes(scope) if kind == "local" else self.class_nodes(scope)
+        return self.writes_attribute(nodes, is_receiver, method)
 
     def verify_receiver(self, tree, call, receiver, lines, bindings, obj):
         """A call through an object is verified when the claim proves the object's class.

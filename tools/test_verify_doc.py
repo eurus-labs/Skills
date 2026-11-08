@@ -593,6 +593,17 @@ class Hooked:
 
     def save(self):
         return 4
+
+
+class Holder:
+    def save(self):
+        return 5
+
+    def helper(self, cb):
+        class Inner:
+            def __init__(self):
+                self.save = cb
+        return Inner
 """
 
 EDGE_LOCAL = """\
@@ -641,7 +652,7 @@ def factory():
 
 EDGE_CALLER_LINES = [
     "from store import Store as Alias",     # 1
-    "from store import Store, Hooked",      # 2
+    "from store import Store, Hooked, Holder",  # 2
     "",
     "",
     "def aliased():",                       # 5
@@ -670,7 +681,59 @@ EDGE_CALLER_LINES = [
     "    s = Store()",                      # 28
     "    s.save = cb",                      # 29
     "    return s.save()",                  # 30
+    "",
+    "",
+    "def looped(cb):",                      # 33
+    "    s = Store()",                      # 34
+    "    for s.save in [cb]:",              # 35
+    "        return s.save()",              # 36
+    "",
+    "",
+    "def entered(ctx):",                    # 39
+    "    s = Store()",                      # 40
+    "    with ctx as s.save:",              # 41
+    "        return s.save()",              # 42
+    "",
+    "",
+    "def held():",                          # 45
+    "    h = Holder()",                     # 46
+    "    return h.save()",                  # 47
 ]
+
+EDGE_OTHER = """\
+class Store:
+    def save(self):
+        return 9
+
+
+class Other:
+    def save(self):
+        return 8
+"""
+
+EDGE_FACTORY = """\
+from store import Store
+
+
+def make() -> Store:
+    return Store()
+
+
+def use():
+    from other import Other as Store
+    s = make()
+    return s.save()
+"""
+
+EDGE_DUAL = """\
+from store import Store as Alias
+from other import Store as Alias
+
+
+def dual():
+    s = Alias()
+    return s.save()
+"""
 
 EDGE_CONFIG = """\
 class Store:
@@ -741,6 +804,9 @@ def receiver_edge_cases(tmp):
     write(root, "config.py", EDGE_CONFIG)
     write(root, "nested.py", EDGE_NESTED)
     write(root, "scoped.py", EDGE_SCOPED)
+    write(root, "other.py", EDGE_OTHER)
+    write(root, "factory.py", EDGE_FACTORY)
+    write(root, "dual.py", EDGE_DUAL)
     index = os.path.join(tmp, "edges.json")
     proc = subprocess.run([sys.executable, SCANNER, "--root", root, "--out", index,
                            "--detail"], capture_output=True, text=True)
@@ -781,6 +847,16 @@ def receiver_edge_cases(tmp):
         at("e:nested-namesake", "nested.py", "method:nested.py:Store.save", 25),
         # An import inside an unrelated function does not change what `Store` is here.
         at("e:alias-other-scope", "scoped.py", "method:store.py:Store.save", 10, 11),
+        # Third review round.
+        # A loop or `with` target can replace the method as surely as `=` can.
+        at("e:loop-override", "caller.py", "method:store.py:Store.save", 34, 35, 36),
+        at("e:with-override", "caller.py", "method:store.py:Store.save", 40, 41, 42),
+        # A factory's return annotation is read where the factory is defined.
+        at("e:factory-scope", "factory.py", "method:store.py:Store.save", 4, 10, 11),
+        # `self` in a nested class's method is a different object.
+        at("e:nested-self", "caller.py", "method:store.py:Holder.save", 46, 47),
+        # The same alias imported from two modules is not one class.
+        at("e:alias-two-modules", "dual.py", "method:store.py:Store.save", 1, 2, 6, 7),
     ]
     code, status, _, _, stderr = run(tmp, root, index, claims, name="edges")
     check("receiver edge-case verification runs", code in (0, 1),
@@ -815,6 +891,16 @@ def receiver_edge_cases(tmp):
            "self.m() in a nested class is not credited to a top-level class of its name")
     expect("e:alias-other-scope", "verified",
            "an import in an unrelated function does not affect the binding's class")
+    expect("e:loop-override", "needs_context",
+           "a loop target that replaces the called method leaves the call undecided")
+    expect("e:with-override", "needs_context",
+           "a `with` target that replaces the called method leaves the call undecided")
+    expect("e:factory-scope", "verified",
+           "a factory's annotation is not read with the caller's local imports")
+    expect("e:nested-self", "verified",
+           "self.m assigned in a nested class does not shadow the outer class's m")
+    expect("e:alias-two-modules", "needs_context",
+           "an alias imported from two modules is not credited to either")
 
 
 def same_file_calls(tmp, root, index):
