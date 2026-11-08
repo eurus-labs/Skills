@@ -571,6 +571,131 @@ def review_findings(tmp, root, index):
            "a name rebound by `async with` is not the module imported under it")
 
 
+EDGE_STORE = """\
+class Store:
+    def save(self):
+        return 1
+
+
+class Other:
+    def save(self):
+        return 2
+
+
+class Alias:
+    def save(self):
+        return 3
+
+
+class Hooked:
+    def __init__(self, callback):
+        self.save = callback
+
+    def save(self):
+        return 4
+"""
+
+EDGE_LOCAL = """\
+class Store:
+    def save(self):
+        return 1
+
+
+class Other:
+    def save(self):
+        return 2
+
+
+Store = Other
+
+
+def run():
+    return Store.save()
+"""
+
+EDGE_CALLER_LINES = [
+    "from store import Store as Alias",     # 1
+    "from store import Store, Hooked",      # 2
+    "",
+    "",
+    "def aliased():",                       # 5
+    "    s = Alias()",                      # 6
+    "    return s.save()",                  # 7
+    "",
+    "",
+    "def hooked(cb):",                      # 10
+    "    h = Hooked(cb)",                   # 11
+    "    return h.save()",                  # 12
+    "",
+    "",
+    "def mutated():",                       # 15
+    "    s = Store()",                      # 16
+    "    s.value = 1",                      # 17
+    "    return s.save()",                  # 18
+    "",
+    "",
+    "def unpacked():",                      # 21
+    "    s = Store()",                      # 22
+    "    s, t = Alias(), 1",                # 23
+    "    return s.save()",                  # 24
+]
+
+
+def receiver_edge_cases(tmp):
+    """Four receiver cases a review of the release found the verifier deciding wrongly:
+    three verified a call that reaches another target, one could never be decided."""
+    root = os.path.join(tmp, "edges")
+    os.makedirs(root)
+    write(root, "store.py", EDGE_STORE)
+    write(root, "local.py", EDGE_LOCAL)
+    write(root, "caller.py", "\n".join(EDGE_CALLER_LINES) + "\n")
+    index = os.path.join(tmp, "edges.json")
+    proc = subprocess.run([sys.executable, SCANNER, "--root", root, "--out", index,
+                           "--detail"], capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise RuntimeError("edge fixture scan failed: %s" % proc.stderr)
+
+    def at(cid, subject_file, obj, *lines):
+        row = claim(cid, "calls", "module:" + subject_file, obj)
+        row["evidence"] = [{"path": subject_file, "line_start": n, "line_end": n}
+                           for n in lines]
+        return row
+
+    claims = [
+        # `Store = Other` at module level: `Store.save()` reaches Other.save.
+        at("e:module-rebind", "local.py", "method:local.py:Store.save", 15),
+        # `from store import Store as Alias`: Alias() builds a Store, whatever else
+        # store.py happens to call Alias.
+        at("e:alias", "caller.py", "method:store.py:Store.save", 1, 6, 7),
+        at("e:alias-same-named", "caller.py", "method:store.py:Alias.save", 1, 6, 7),
+        # `self.save = callback` in __init__ shadows the method on every instance.
+        at("e:instance-shadow", "caller.py", "method:store.py:Hooked.save", 11, 12),
+        # `s.value = 1` mutates s; it does not rebind it.
+        at("e:mutation", "caller.py", "method:store.py:Store.save", 16, 17, 18),
+        # ...but unpacking into s does rebind it.
+        at("e:unpacked", "caller.py", "method:store.py:Store.save", 22, 23, 24),
+    ]
+    code, status, _, _, stderr = run(tmp, root, index, claims, name="edges")
+    check("receiver edge-case verification runs", code in (0, 1),
+          "exit %d: %s" % (code, stderr))
+
+    def expect(cid, wanted, what):
+        check(what, status.get(cid) == wanted, "%s: %r" % (cid, status.get(cid)))
+
+    expect("e:module-rebind", "needs_context",
+           "C.m() is undecided when C is rebound at module level")
+    expect("e:alias", "verified",
+           "an object built through an import alias verifies against the original class")
+    expect("e:alias-same-named", "rejected",
+           "an import alias is not credited to an unrelated class of that name")
+    expect("e:instance-shadow", "needs_context",
+           "obj.m() is undecided when the class assigns self.m")
+    expect("e:mutation", "verified",
+           "assigning an attribute of the receiver does not rebind it")
+    expect("e:unpacked", "needs_context",
+           "unpacking into the receiver still rebinds it")
+
+
 def same_file_calls(tmp, root, index):
     """A file never imports itself, so a call to its own function or method is bound by
     the definition, not by an import -- and used to be undecidable."""
@@ -851,6 +976,7 @@ def main():
               "exit %d" % proc.returncode)
 
         receiver_calls(tmp)
+        receiver_edge_cases(tmp)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

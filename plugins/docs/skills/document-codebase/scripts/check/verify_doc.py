@@ -500,6 +500,12 @@ class Verifier(object):
             return self.verify_self_call(tree, call, wanted, claimed_class, caller_path)
         if base in defined and self.class_named(tree, base) is not None:
             # `Local.build()`: the class is named at the call.
+            if self.bound_at_top_level(tree, base) > 1:
+                # `Local = Other` at module level: which class the call reaches
+                # depends on order, as for a function bound twice.
+                return "needs_context", ("%r is bound more than once at the top of %s, so "
+                                         "which class %s.%s() reaches depends on order"
+                                         % (base, caller_path, base, wanted))
             if self.shadowed_at(tree, base, call.lineno):
                 return "rejected", ("%s:%d calls %r through %r, but %r is rebound in the "
                                     "scope around it" % (caller_path, call.lineno, wanted,
@@ -710,7 +716,15 @@ class Verifier(object):
                     and isinstance(node.value, ast.Name) and node.value.id == "self")
 
         def mentions(target):
-            return any(is_target(leaf) for leaf in ast.walk(target))
+            # A binding target, not any name inside it: `s.value = 1` and `s[0] = 1`
+            # load `s` to mutate it, but `s, t = ...` and `*s, = ...` rebind it.
+            if is_target(target):
+                return True
+            if isinstance(target, (ast.Tuple, ast.List)):
+                return any(mentions(element) for element in target.elts)
+            if isinstance(target, ast.Starred):
+                return mentions(target.value)
+            return False
 
         if kind == "local":
             arguments = getattr(scope, "args", None)
@@ -771,11 +785,23 @@ class Verifier(object):
                 return node
         return None
 
-    def class_ref(self, node, bindings, callee_tree):
+    @staticmethod
+    def imported_as(tree, local):
+        """The original name a `from ... import X as local` brought in, `local` itself
+        when no import renames it, or None when imports disagree about what it is."""
+        originals = {alias.name for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)
+                     for alias in node.names if (alias.asname or alias.name) == local}
+        if not originals:
+            return local
+        return originals.pop() if len(originals) == 1 else None
+
+    def class_ref(self, node, bindings, callee_tree, tree=None):
         """The callee-file class an expression names, or None.
 
         `C` and `mod.C` count when the caller's import from the callee file bound
-        that name, and the callee file really defines `C` at its top level.
+        that name, and the callee file really defines `C` at its top level. A name
+        bound by `from callee import C as A` names `C`, never a class the callee file
+        happens to call `A`.
         """
         if isinstance(node, ast.Constant) and isinstance(node.value, str) \
                 and node.value.isidentifier():
@@ -787,6 +813,8 @@ class Verifier(object):
             name = node.attr
         else:
             name = None
+        if name is not None and tree is not None and not isinstance(node, ast.Attribute):
+            name = self.imported_as(tree, name)
         if name is None or self.class_named(callee_tree, name) is None:
             return None
         return name
@@ -811,7 +839,7 @@ class Verifier(object):
             used = self.name_used(node)
             if used and self.shadowed_at(tree, used, line):
                 return None, "%r in its annotation is rebound in the scope around it" % used
-            found = self.class_ref(node, bindings, callee_tree)
+            found = self.class_ref(node, bindings, callee_tree, tree)
             return (found, None) if found else (None, "its annotation does not name a "
                                                       "class imported from the callee file")
         if not isinstance(node, ast.Call):
@@ -822,7 +850,7 @@ class Verifier(object):
             return None, ("%r is rebound in the scope around the binding -- a parameter, a "
                           "local, or a narrower import -- so it is not the imported class"
                           % used)
-        found = self.class_ref(node.func, bindings, callee_tree)
+        found = self.class_ref(node.func, bindings, callee_tree, tree)
         if found is not None:
             dunder = "__aenter__" if how == "aenter" else "__enter__"
             if how in ("enter", "aenter") \
@@ -850,7 +878,7 @@ class Verifier(object):
                                                             definition.lineno))
         if how in ("enter", "aenter"):
             return None, "a factory's result entered with `with` is not followed"
-        found = self.class_ref(definition.returns, bindings, callee_tree)
+        found = self.class_ref(definition.returns, bindings, callee_tree, tree)
         return (found, None) if found else (None, "%s() is not annotated to return a "
                                                   "class imported from the callee file"
                                             % definition.name)
@@ -881,6 +909,24 @@ class Verifier(object):
         returns = [n for n in ast.walk(enter) if isinstance(n, ast.Return)]
         return bool(returns) and all(isinstance(r.value, ast.Name) and r.value.id == "self"
                                      for r in returns)
+
+    def instance_assignment(self, tree, class_name, attr):
+        """(class, line) of a `self.<attr> = ...` in `class_name` or a same-file base
+        it inherits from, or None."""
+        order = self.mro(tree, class_name) or [class_name]
+        for name in order:
+            cls = self.class_named(tree, name)
+            if cls is None:
+                continue
+            for node in ast.walk(cls):
+                targets = (node.targets if isinstance(node, ast.Assign) else
+                           [node.target] if isinstance(node, (ast.AnnAssign, ast.AugAssign))
+                           else [])
+                if any(isinstance(t, ast.Attribute) and t.attr == attr
+                       and isinstance(t.value, ast.Name) and t.value.id == "self"
+                       for t in targets):
+                    return name, node.lineno
+        return None
 
     def verify_receiver(self, tree, call, receiver, lines, bindings, obj):
         """A call through an object is verified when the claim proves the object's class.
@@ -933,6 +979,16 @@ class Verifier(object):
         if len(classes) > 1:
             return "rejected", ("%s is a %s, not only a %s"
                                 % (shown, " or ".join(sorted(classes)), wanted_class))
+        # An instance attribute of the same name wins over the method on lookup, so a
+        # `self.m = callback` in the class, or in a base of it, makes obj.m() a run-time
+        # choice -- the guard verify_self_call() applies to self.m().
+        proved = next(iter(classes))
+        assigned = self.instance_assignment(callee_tree, proved, call.func.attr)
+        if assigned is not None:
+            return "needs_context", ("%s assigns self.%s at line %d, which shadows the "
+                                     "method, so what %s.%s() calls is decided at run time"
+                                     % (assigned[0], call.func.attr, assigned[1], shown,
+                                        call.func.attr))
         # The class is proved; the method still has to be one it has.
         return self.resolved_verdict(callee_tree, next(iter(classes)), call.func.attr,
                                      wanted_class, "%s is a %s" % (shown,
