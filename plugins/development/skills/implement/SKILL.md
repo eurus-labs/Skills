@@ -1,6 +1,6 @@
 ---
 name: implement
-description: Implement features, fix bugs, or refactor code when the user asks for the code change to be made (for a question such as "how would you fix this?" with no request to change code, use design-solution instead) — inspecting the project, making the necessary design decisions, making focused changes, and verifying the result against the original request with tests, builds, and checks; builds from an existing design or plan when one is provided, and fixes review findings. Use when the user says "implement this", "add X", "build this feature", "fix this bug", "refactor X into Y", "make this change", "design and implement", "implement this plan", "fix these review comments", or hands over an issue or ticket to be coded. To review changes, use review-code instead; for one failing or flaky test, use debug-failing-test instead; to only add tests for existing code, use write-tests instead; to set up a repository's own verification skill, use setup-verification instead.
+description: Implement features, fix bugs, or refactor code when the user asks for the code change to be made (for a question such as "how would you fix this?" with no request to change code, use design-solution instead) — inspecting the project, making the necessary design decisions, making focused changes, and verifying the result against the original request with tests, builds, and checks; builds from an existing design or plan when one is provided, and fixes review findings. Use when the user says "implement this", "add X", "build this feature", "fix this bug", "refactor X into Y", "make this change", "design and implement", "implement this plan", "fix these review comments", or hands over an issue or ticket to be coded. To review changes, use review-code instead; for one failing or flaky test, use debug-failing-test instead; to only add tests for existing code, use write-tests instead; to verify an existing change without changing it, use verify-change instead.
 ---
 
 # Implement
@@ -146,7 +146,8 @@ tests prove every behavior correct.
    - **It exists:** read its `SKILL.md` and the feature files for every area the change touches. Its proof bar
      and those files' entry points join the verification plan; their `Expected behavior` entries tagged
      `[confirmed: …]` are acceptance criteria the change must not break unless the request changes them.
-   - **It does not exist:** decide whether to recommend `setup-verification`. Recommend it only when
+   - **It does not exist:** decide whether to recommend `setup-verification` from the `verification` plugin
+     (name it whether or not it is installed; the user can install it). Recommend it only when
      - the change touches runtime behavior — what the app does when it runs: a code path a user, client, or
        job executes; CLI, API, or UI output; data it reads or writes; runtime configuration; a dependency
        version. Editing code that runs counts even when behavior is meant to stay the same: a refactor is
@@ -157,8 +158,9 @@ tests prove every behavior correct.
      formatting-only edits, CI or editor configuration. Then
      continue with the project's own tests and checks without a **Limitations** entry for it.
 
-     When recommending, do it before writing the contract: say in one line what it adds (a feature map, a
-     fresh-build check, evidence capture) and that it writes a skill folder into the repository and asks a few questions about expected
+     When recommending, do it before writing the contract: say in one line what it adds (the project's
+     build, lint, analysis, and test checks with pass criteria, a feature map, a fresh-build check, evidence
+     capture) and that it writes a skill folder into the repository and asks a few questions about expected
      behavior. If the user agrees, run `setup-verification`, then resume here with the skill it created. If
      the user declines, or no one can be asked (CI, a subagent, a non-interactive run), continue with the
      project's own tests and checks, and record `no project verification skill` under **Limitations**. Ask
@@ -221,8 +223,10 @@ behavior that must not change, and a negative or failure case where the request 
    matches the plan.
 2. **Select checks by affected behavior, concrete regression risks, and project requirements**: the tests for
    each criterion, the tests covering every touched module, and the gates the project requires before a change
-   is done (full suite, lint, type check, build). Add checks for callers of any changed signature or format.
-   When the project has a verification skill, follow its procedure: run its `doctor` and `affected` commands,
+   is done — build, lint, static analysis such as type checks, and the full test suite, each one that the
+   project has. Add checks for callers of any changed signature or format.
+   When the project has a verification skill, follow its procedure: run its `doctor`, `affected`, and
+   `check --affected` commands,
    drive the entry points of every affected feature file under its `capture` command, and add its
    review-against-the-goal rows to the **Verification** table. A result that conflicts with an `[observed]`
    entry is reported under **Limitations**, not counted as a pass or a failure.

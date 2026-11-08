@@ -27,7 +27,7 @@ which cases to cover, deliver the cases with evidence without editing files.
   diagnose a failure.
 - **Tests already exist and the question is whether they are any good**, or which cases they miss — use
   `review-tests`.
-- **The user wants the implementation written too** — use `implement` from the `implementation` plugin when
+- **The user wants the implementation written too** — use `implement` from the `development` plugin when
   it is installed; it writes the code and its tests against the request. Otherwise do it directly. This
   skill assumes the code under test already exists.
 - **Test-first / TDD**, where the test is written before the code — this skill reads existing behavior to

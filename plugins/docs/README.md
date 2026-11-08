@@ -23,7 +23,7 @@ cannot tell a checked sentence from an unchecked one, so the separation is enfor
 
 ```bash
 copilot plugin marketplace add eurus-labs/Skills
-copilot plugin install docs@CopilotBox
+copilot plugin install docs@eurus-labs
 ```
 
 ## Skills

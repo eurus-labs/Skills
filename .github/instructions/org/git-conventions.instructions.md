@@ -23,15 +23,15 @@ cannot be undone by a later commit — get these wrong and the history is perman
   silently overrides them.
 - Use any identity other than the current user's name and GitHub no-reply address
   (`<id>+<login>@users.noreply.github.com`) for author *or* committer. Never use a private email.
-- Amend or rewrite a commit on `dev`, `main`, or in a merged PR. Always create a new one. Rebasing your own
+- Amend or rewrite a commit on `main` or in a merged PR. Always create a new one. Rebasing your own
   unmerged branch and pushing with `--force-with-lease` is expected.
 
 ## ALWAYS
 
-- Start from the latest `origin/dev`:
+- Start from the latest `origin/main`, the only long-lived branch, and open pull requests against it:
 
   ```bash
-  git fetch origin && git switch -c <branch> origin/dev
+  git fetch origin && git switch -c <branch> origin/main
   ```
 
 - Name branches `<type>/<area>-<outcome>` — lowercase kebab-case, a Conventional Commits type, no session
@@ -57,7 +57,7 @@ cannot be undone by a later commit — get these wrong and the history is perman
   replaced:
 
   ```bash
-  GIT_COMMITTER_NAME=<name> GIT_COMMITTER_EMAIL=<no-reply> git rebase origin/dev
+  GIT_COMMITTER_NAME=<name> GIT_COMMITTER_EMAIL=<no-reply> git rebase origin/main
   ```
 
 - Verify identity **after every rewrite**, not only after committing:

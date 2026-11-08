@@ -1,0 +1,23 @@
+{
+  "name": "verification",
+  "description": "Set up a repository's own verification \u2014 its build, lint, static analysis, and test checks with pass/fail criteria, a feature map, and evidence capture \u2014 and verify any existing change against its goal, with evidence for every check and criterion and one honest verdict.",
+  "version": "0.1.0",
+  "keywords": [
+    "verification",
+    "build",
+    "lint",
+    "static-analysis",
+    "tests",
+    "evidence",
+    "feature-map"
+  ],
+  "author": {
+    "name": "eurus-labs"
+  },
+  "repository": "https://github.com/eurus-labs/Skills",
+  "license": "MIT",
+  "skills": [
+    "./skills/setup-verification/",
+    "./skills/verify-change/"
+  ]
+}
