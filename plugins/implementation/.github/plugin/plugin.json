@@ -1,7 +1,7 @@
 {
   "name": "implementation",
   "description": "Design a software solution and implementation plan without touching code, implement a feature, bug fix, or refactor and verify it against the original request, or set up a repository's own verification skill and feature map \u2014 acceptance criteria fixed before coding, design patterns used only for a concrete problem, confirmed behavior kept apart from merely observed behavior, and evidence reported for every check.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "keywords": [
     "implementation",
     "design",
