@@ -80,8 +80,9 @@ class TokenError(Exception):
 
 
 def _digest(password):
-    # Stand-in for the real password hashing, which lives in the accounts service.
-    return hashlib.sha256(password.encode("utf-8")).hexdigest()
+    # Stand-in for the accounts service's password hashing: a slow KDF with a fixed salt, so a
+    # digest can be compared in tests.
+    return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), b"resetkit", 100000).hex()
 
 
 class ResetTokens:
@@ -184,8 +185,9 @@ class TokenError(Exception):
 
 
 def _digest(password):
-    # Stand-in for the real password hashing, which lives in the accounts service.
-    return hashlib.sha256(password.encode("utf-8")).hexdigest()
+    # Stand-in for the accounts service's password hashing: a slow KDF with a fixed salt, so a
+    # digest can be compared in tests.
+    return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), b"resetkit", 100000).hex()
 
 
 class ResetTokens:
