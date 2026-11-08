@@ -698,7 +698,54 @@ EDGE_CALLER_LINES = [
     "def held():",                          # 45
     "    h = Holder()",                     # 46
     "    return h.save()",                  # 47
+    "",
+    "",
+    "def reclassed():",                     # 50
+    "    s = Store()",                      # 51
+    "    s.__class__ = Hooked",             # 52
+    "    return s.save()",                  # 53
 ]
+
+EDGE_ANNOTATED = """\
+class Store:
+    @staticmethod
+    def save():
+        return 1
+
+
+Store: type
+
+
+def run():
+    return Store.save()
+"""
+
+EDGE_CLASS_BODY = """\
+class Store:
+    def __init__(self, cb):
+        class Setup:
+            self.save = cb
+
+    def save(self):
+        return 1
+
+    def run(self):
+        return self.save()
+"""
+
+EDGE_ALIAS_ELSEWHERE = """\
+from other import Store as Alias
+
+
+def unrelated():
+    from store import Store as Alias
+    return Alias
+
+
+def build():
+    s = Alias()
+    return s.save()
+"""
 
 EDGE_OTHER = """\
 class Store:
@@ -807,6 +854,9 @@ def receiver_edge_cases(tmp):
     write(root, "other.py", EDGE_OTHER)
     write(root, "factory.py", EDGE_FACTORY)
     write(root, "dual.py", EDGE_DUAL)
+    write(root, "annotated.py", EDGE_ANNOTATED)
+    write(root, "classbody.py", EDGE_CLASS_BODY)
+    write(root, "elsewhere.py", EDGE_ALIAS_ELSEWHERE)
     index = os.path.join(tmp, "edges.json")
     proc = subprocess.run([sys.executable, SCANNER, "--root", root, "--out", index,
                            "--detail"], capture_output=True, text=True)
@@ -857,6 +907,15 @@ def receiver_edge_cases(tmp):
         at("e:nested-self", "caller.py", "method:store.py:Holder.save", 46, 47),
         # The same alias imported from two modules is not one class.
         at("e:alias-two-modules", "dual.py", "method:store.py:Store.save", 1, 2, 6, 7),
+        # Fourth review round.
+        # `Store: type` declares; it binds nothing.
+        at("e:bare-annotation", "annotated.py", "method:annotated.py:Store.save", 11),
+        # A nested class *body* runs in the method, so its `self` is the outer one.
+        at("e:class-body-self", "classbody.py", "method:classbody.py:Store.save", 10),
+        # The alias visible here comes from other.py, not the claimed store.py.
+        at("e:alias-wrong-module", "elsewhere.py", "method:store.py:Store.save", 1, 10, 11),
+        # Assigning __class__ changes which class's methods the object has.
+        at("e:class-reassigned", "caller.py", "method:store.py:Store.save", 51, 52, 53),
     ]
     code, status, _, _, stderr = run(tmp, root, index, claims, name="edges")
     check("receiver edge-case verification runs", code in (0, 1),
@@ -901,6 +960,15 @@ def receiver_edge_cases(tmp):
            "self.m assigned in a nested class does not shadow the outer class's m")
     expect("e:alias-two-modules", "needs_context",
            "an alias imported from two modules is not credited to either")
+    expect("e:bare-annotation", "verified",
+           "a value-less annotation of a class name does not rebind it")
+    expect("e:class-body-self", "needs_context",
+           "a nested class body writing the outer self.m shadows the method")
+    check("an alias imported from another module is not credited to the callee",
+          status.get("e:alias-wrong-module") in ("needs_context", "rejected"),
+          "e:alias-wrong-module: %r" % status.get("e:alias-wrong-module"))
+    expect("e:class-reassigned", "needs_context",
+           "assigning the receiver's __class__ leaves the call undecided")
 
 
 def same_file_calls(tmp, root, index):
