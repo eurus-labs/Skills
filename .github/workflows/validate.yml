@@ -10,7 +10,9 @@ permissions:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    # Pinned: on ubuntu-26.04, the PlantUML 1.2020 package cannot parse Graphviz
+    # 14's version string, so `plantuml -version` exits 254 before any check runs.
+    runs-on: ubuntu-24.04
 
     strategy:
       fail-fast: false

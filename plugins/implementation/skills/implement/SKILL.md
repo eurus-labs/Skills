@@ -1,6 +1,6 @@
 ---
 name: implement
-description: Implement features, fix bugs, or refactor code when the user asks for the code change to be made (for a question such as "how would you fix this?" with no request to change code, use design-solution instead) — inspecting the project, making the necessary design decisions, making focused changes, and verifying the result against the original request with tests, builds, and checks; builds from an existing design or plan when one is provided, and fixes review findings. Use when the user says "implement this", "add X", "build this feature", "fix this bug", "refactor X into Y", "make this change", "design and implement", "implement this plan", "fix these review comments", or hands over an issue or ticket to be coded. When the user wants only a design, plan, or advice with no code, use design-solution instead; to review changes, use review-code instead; for one failing or flaky test, use debug-failing-test instead; to only add tests for existing code, use write-tests instead.
+description: Implement features, fix bugs, or refactor code when the user asks for the code change to be made (for a question such as "how would you fix this?" with no request to change code, use design-solution instead) — inspecting the project, making the necessary design decisions, making focused changes, and verifying the result against the original request with tests, builds, and checks; builds from an existing design or plan when one is provided, and fixes review findings. Use when the user says "implement this", "add X", "build this feature", "fix this bug", "refactor X into Y", "make this change", "design and implement", "implement this plan", "fix these review comments", or hands over an issue or ticket to be coded. To review changes, use review-code instead; for one failing or flaky test, use debug-failing-test instead; to only add tests for existing code, use write-tests instead; to set up a repository's own verification skill, use setup-verification instead.
 ---
 
 # Implement
@@ -49,7 +49,9 @@ by verification evidence, not by the code compiling.
 5. **Verification is mandatory and is yours.** Run it even when a review plugin exists; an independent review
    adds to it and never replaces it. Do not hand verification to a skill that may not load.
 6. **Evidence must be able to fail.** A test that would also pass on the unchanged code, or that recomputes the
-   expected value with the same logic as the implementation, does not establish the requested behavior.
+   expected value with the same logic as the implementation, does not establish the requested behavior. Nor
+   does a test that agrees with the code but contradicts the function's target — its docstring, documented
+   contract, or the request: that is evidence of a bug, reported under **Limitations** if out of scope.
 7. **Never edit an existing test to make it pass** unless it is demonstrably wrong against the request — then
    record it under **Contract changes**.
 8. **Report status honestly.** `implemented and verified` only with evidence for every criterion and every
@@ -139,6 +141,28 @@ tests prove every behavior correct.
    `package.json` scripts, `pyproject.toml`/`tox.ini`, or the ecosystem's standard runner.
 4. Read the code the request touches, its callers, the interfaces it implements, and its existing tests. Find
    the nearest precedent for this kind of change and use it as the template.
+5. Look for the project's own verification skill: a `verify-*` folder under `.github/skills/`,
+   `.claude/skills/`, or `.agents/skills/`, with its feature map at `verify-*/references/features/`.
+   - **It exists:** read its `SKILL.md` and the feature files for every area the change touches. Its proof bar
+     and those files' entry points join the verification plan; their `Expected behavior` entries tagged
+     `[confirmed: …]` are acceptance criteria the change must not break unless the request changes them.
+   - **It does not exist:** decide whether to recommend `setup-verification`. Recommend it only when
+     - the change touches runtime behavior — what the app does when it runs: a code path a user, client, or
+       job executes; CLI, API, or UI output; data it reads or writes; runtime configuration; a dependency
+       version. Editing code that runs counts even when behavior is meant to stay the same: a refactor is
+       where regressions hide; or
+     - this is the first-time setup of these skills in the repository — the user says they are onboarding
+       the repository or using these skills there for the first time.
+     Do not recommend it for changes with no runtime effect: documentation, comments, tests only,
+     formatting-only edits, CI or editor configuration. Then
+     continue with the project's own tests and checks without a **Limitations** entry for it.
+
+     When recommending, do it before writing the contract: say in one line what it adds (a feature map, a
+     fresh-build check, evidence capture) and that it writes a skill folder into the repository and asks a few questions about expected
+     behavior. If the user agrees, run `setup-verification`, then resume here with the skill it created. If
+     the user declines, or no one can be asked (CI, a subagent, a non-interactive run), continue with the
+     project's own tests and checks, and record `no project verification skill` under **Limitations**. Ask
+     once per repository per session; do not ask again after a decline.
 
 ### 2. Select the workflow
 
@@ -184,6 +208,9 @@ behavior that must not change, and a negative or failure case where the request 
 3. Add or update tests where needed to verify behavior, in the framework and layout the repository already
    uses. When practical, run a new test before the implementation exists and see it fail for the right reason.
 4. Update documentation the change makes wrong: README usage, help text, changelog if the repository keeps one.
+   When the project has a feature map and the change alters an area it describes, update that feature file in
+   the same change: new behavior the user requested is tagged `[confirmed: user, <date>]`; never retag an
+   `[observed]` entry as confirmed because the code now does it.
 5. Record material departures from the supplied design or your own plan, with the cause. If a departure
    invalidates a design assumption, revisit the design before continuing.
 
@@ -195,6 +222,10 @@ behavior that must not change, and a negative or failure case where the request 
 2. **Select checks by affected behavior, concrete regression risks, and project requirements**: the tests for
    each criterion, the tests covering every touched module, and the gates the project requires before a change
    is done (full suite, lint, type check, build). Add checks for callers of any changed signature or format.
+   When the project has a verification skill, follow its procedure: run its `doctor` and `affected` commands,
+   drive the entry points of every affected feature file under its `capture` command, and add its
+   review-against-the-goal rows to the **Verification** table. A result that conflicts with an `[observed]`
+   entry is reported under **Limitations**, not counted as a pass or a failure.
 3. **For bug fixes, reproduce the original failure and confirm the correction** when feasible: the
    reproduction fails before the fix and passes after.
 4. **Check relevant negative cases and failure behavior**: invalid, empty, or boundary input; missing
