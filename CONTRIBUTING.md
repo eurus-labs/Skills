@@ -334,6 +334,10 @@ an author from a subject, so any rule placed there contaminates the measurement 
   version of scenario 02 measured nothing because a 20% discount and a 10% tax produce the same total in
   either order.
 - Update `EXPECTED.md` in the same commit. A scenario with a stale answer key is scored wrong.
+- **Eval graders under `plugins/*/evals/` are answer keys too.** They state what is planted, so they follow
+  the same rule as `EXPECTED.md`: never inside a scenario, never reachable from one. A behavior case's
+  `scaffold.sh` leaves the scenario's README out for the same reason. After editing a fixture, run
+  `python3 tools/build_eval_scaffolds.py`; `tools/test_eval_scaffolds.py` fails until you do.
 - `fixtures/04-security/app.py` is genuinely exploitable. Never copy from it, never run it against real data,
   and leave its file-level warning banner intact.
 

@@ -138,3 +138,21 @@ built-in manual: troubleshooting, FAQ, glossary, references, compliance, changel
 never generated: you write each one or waive it with your name and a reason, and publication waits until
 you have. Only pages marked with a diagram require one. Unknown answers keep the manual incomplete. See
 [the manual guide](skills/document-codebase/references/manual.md).
+
+## Evals
+
+`evals/` holds a [`claude plugin eval`](https://code.claude.com/docs/en/plugin-evals) suite:
+
+- **`trigger/`:** 6 cases. Three documentation requests must fire `document-codebase`; three must not: a
+  question about the code asked in chat, a single docstring, and an API reference.
+- **`behavior/`:** 1 case. An architecture overview of `tests/contracts/layered-repo` must take the
+  architecture preset, never the manual one, and cover the real entry points, calls and layers. It is tagged
+  `expensive`, since the whole pipeline runs.
+
+```bash
+claude plugin eval plugins/docs --no-publish --max-cost-usd 10 \
+  --scaffold --allow-tools Bash Write Edit
+```
+
+Run the trigger cases on their own with `--tag trigger --ablation none`. Without the plugin no skill can fire, so their baseline arm always passes and only doubles the cost; with `--ablation none` the "fired" check counts toward the score. Keep the baseline for `--tag behavior`, where `Δ` is the point. The graders are an answer key; keep them out of a demo
+session.
