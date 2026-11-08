@@ -611,6 +611,32 @@ Store = Other
 
 def run():
     return Store.save()
+
+
+class Base:
+    def __init__(self, callback):
+        self.hook = callback
+
+    def hook(self):
+        return 1
+
+
+class Child(Base):
+    def go(self):
+        return self.hook()
+
+
+def factory():
+    class Nested:
+        def __init__(self, callback):
+            self.ping = callback
+
+        def ping(self):
+            return 1
+
+        def go(self):
+            return self.ping()
+    return Nested
 """
 
 EDGE_CALLER_LINES = [
@@ -664,6 +690,10 @@ def receiver_edge_cases(tmp):
     claims = [
         # `Store = Other` at module level: `Store.save()` reaches Other.save.
         at("e:module-rebind", "local.py", "method:local.py:Store.save", 15),
+        # `self.hook = callback` in a base shadows the method for the subclass too.
+        at("e:base-instance-shadow", "local.py", "method:local.py:Base.hook", 28),
+        # A class nested in a function still shadows its own method.
+        at("e:nested-instance-shadow", "local.py", "method:local.py:Nested.ping", 40),
         # `from store import Store as Alias`: Alias() builds a Store, whatever else
         # store.py happens to call Alias.
         at("e:alias", "caller.py", "method:store.py:Store.save", 1, 6, 7),
@@ -684,6 +714,10 @@ def receiver_edge_cases(tmp):
 
     expect("e:module-rebind", "needs_context",
            "C.m() is undecided when C is rebound at module level")
+    expect("e:base-instance-shadow", "needs_context",
+           "self.m() is undecided when a same-file base assigns self.m")
+    expect("e:nested-instance-shadow", "needs_context",
+           "self.m() is undecided when a nested class assigns self.m")
     expect("e:alias", "verified",
            "an object built through an import alias verifies against the original class")
     expect("e:alias-same-named", "rejected",

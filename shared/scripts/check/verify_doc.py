@@ -531,17 +531,13 @@ class Verifier(object):
                                      "parameter is self" % (caller_path, call.lineno, wanted))
 
         # An instance attribute of the same name wins over the method on lookup, so
-        # `self.m = callback` anywhere in the class makes `self.m()` a run-time choice.
-        for node in ast.walk(owner):
-            targets = (node.targets if isinstance(node, ast.Assign) else
-                       [node.target] if isinstance(node, (ast.AnnAssign, ast.AugAssign))
-                       else [])
-            if any(isinstance(t, ast.Attribute) and t.attr == wanted
-                   and isinstance(t.value, ast.Name) and t.value.id == "self"
-                   for t in targets):
-                return "needs_context", ("%s assigns self.%s at line %d, which shadows the "
-                                         "method, so what self.%s() calls is decided at "
-                                         "run time" % (owner.name, wanted, node.lineno, wanted))
+        # `self.m = callback` anywhere in the class, or in a same-file base it inherits
+        # from, makes `self.m()` a run-time choice.
+        assigned = self.instance_assignment(tree, owner.name, wanted, owner)
+        if assigned is not None:
+            return "needs_context", ("%s assigns self.%s at line %d, which shadows the "
+                                     "method, so what self.%s() calls is decided at "
+                                     "run time" % (assigned[0], wanted, assigned[1], wanted))
         return self.resolved_verdict(tree, owner.name, wanted, claimed_class,
                                      "self at %s:%d is a %s" % (caller_path, call.lineno,
                                                                 owner.name))
@@ -907,12 +903,15 @@ class Verifier(object):
         return bool(returns) and all(isinstance(r.value, ast.Name) and r.value.id == "self"
                                      for r in returns)
 
-    def instance_assignment(self, tree, class_name, attr):
+    def instance_assignment(self, tree, class_name, attr, node=None):
         """(class, line) of a `self.<attr> = ...` in `class_name` or a same-file base
-        it inherits from, or None."""
+        it inherits from, or None. `node` is the class itself when it is not at the top
+        of the file -- a nested class still shadows its own methods."""
         order = self.mro(tree, class_name) or [class_name]
         for name in order:
             cls = self.class_named(tree, name)
+            if cls is None and name == class_name:
+                cls = node
             if cls is None:
                 continue
             for node in ast.walk(cls):
