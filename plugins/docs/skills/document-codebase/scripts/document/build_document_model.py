@@ -57,6 +57,13 @@ import sys
 import manual
 import template as template_module
 
+# The overview ranks modules the way the selection did, so the table explains the scope a
+# reader is shown rather than a different order. The layout is the same in `shared/` and
+# in a materialized plugin, so this resolves in both.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                "survey"))
+from select_units import connections  # noqa: E402
+
 FORMAT_VERSION = 2
 GENERATOR_VERSION = "0.2.0-dev"
 SUPPORTED_SCHEMA = {2, 3}
@@ -494,16 +501,16 @@ def overview_page(index, fragments, claims_by_id):
                     % (coverage.get("files_scanned", 0), languages or "no known language",
                        revision or "an untracked working tree"))]
 
-    # Whatever the fragments say about the most depended-upon modules is the closest
-    # thing to a summary that is actually backed by something.
-    fan_in = index.get("fan_in", {})
-    ranked = sorted(fragments, key=lambda f: -fan_in.get(f.get("source", ""), 0))
+    # Whatever the fragments say about the most connected modules is the closest thing
+    # to a summary that is actually backed by something -- ranked as the selection was.
+    fan_in, fan_out, order = connections(index)
+    ranked = sorted(fragments, key=lambda f: order(f.get("source", "")))
     top = [f for f in ranked if f.get("status") in PROSE_STATUSES][:5]
     if top:
         blocks.append(table(
             "block:overview-key-modules",
-            ("Module", "Depended on by", "Basis", "Role"),
-            [(f["source"], str(fan_in.get(f["source"], 0)),
+            ("Module", "Imported by", "Imports", "Basis", "Role"),
+            [(f["source"], str(fan_in.get(f["source"], 0)), str(fan_out.get(f["source"], 0)),
               "verified" if f["status"] == "verified" else "inferred",
               f.get("role", ""))
              for f in top],
@@ -694,10 +701,12 @@ def traced_flows_page(flows):
                       if isinstance(u, dict) and u.get("reason")]
         if unresolved:
             # Where the trace stopped, on the page rather than in a report nobody opens.
-            # A chain that quietly ends reads as a chain that ended in the code.
+            # A chain that quietly ends reads as a chain that ended in the code. The
+            # reason is the analysis's account of what it could not trace, never an
+            # observation, so the page says so -- check_prose.py holds it to that.
             blocks.append(prose(
                 "block:flow-%s-unresolved" % stem,
-                "The trace does not continue past this point: %s"
+                "The trace stops here; what follows was not observed at a call site: %s"
                 % " ".join(unresolved)))
     if not blocks:
         return [absence("block:flows-none",
@@ -742,7 +751,68 @@ def flows_page(index, claims_by_id, flows=None):
     ]
 
 
-def product_overview_page(index, fragments, claims_by_id):
+def component_summary(architecture, analysis):
+    """The overview's opening: the components the architecture analysis named, each with
+    the statement that says what it does.
+
+    Without this the first thing a reader met was a file count and a table led by the
+    compatibility shim -- true, cited, and no answer to "what is this". The components are
+    the run's own synthesis of what the modules add up to, so they are the answer the
+    page has; each line carries the statement it rests on, hedged as that statement was.
+    """
+    # A grouping the analysis itself marks `unknown` is not one the page may present;
+    # an `inferred` one is presented as inferred. The status is the component's, apart
+    # from whatever its supporting statement says.
+    components = [c for c in (architecture or {}).get("components", ()) or ()
+                  if isinstance(c, dict) and c.get("modules")
+                  and c.get("status") in ("declared", "observed", "inferred")]
+    if not components:
+        return []
+    by_id = getattr(analysis, "by_id", {}) or {}
+    blocks = [prose("block:product-components-intro",
+                    "The architecture analysis groups it into %d component(s):"
+                    % len(components))]
+    for component in components:
+        statements = [by_id[i] for i in component.get("statement_ids", ()) or ()
+                      if i in by_id and by_id[i].get("status") in STATEMENT_PROSE_STATUSES]
+        lead = next((st for st in statements if st.get("kind") == "responsibility"),
+                    statements[0] if statements else None)
+        stem = re.sub(r"[^a-z0-9]+", "-", str(component.get("id", "")).lower()).strip("-")
+        members = ", ".join(os.path.basename(m) for m in sorted(component["modules"]))
+        text = "%s (%s)" % (component.get("name") or component.get("id"), members)
+        text = hedged(text, component.get("status"))
+        if lead is not None:
+            text += " -- " + sentence(lead)
+        blocks.append(prose("block:product-component-%s" % stem, text,
+                            analysis_refs=[lead["id"]] if lead is not None else ()))
+    return blocks
+
+
+def first_trigger(flows):
+    """The traced way in, when a flow analysis holds one: the trigger of the first flow
+    and where its trace ends. None when there is no traced flow to point at."""
+    for flow in (flows or {}).get("flows", ()) or ():
+        if not isinstance(flow, dict):
+            continue
+        trigger, steps = flow.get("trigger") or {}, flow.get("steps") or []
+        if not trigger.get("text") or not steps:
+            continue
+        place = ""
+        evidence = trigger.get("evidence") or []
+        if evidence and isinstance(evidence[0], dict):
+            place = " (%s:%s)" % (evidence[0].get("path"), evidence[0].get("line_start"))
+        return prose(
+            "block:product-ways-in",
+            "The traced way in: %s%s From there %d verified call(s) lead to %s; the flows "
+            "page follows each one to its call site."
+            % (hedged(trigger["text"], trigger.get("status")), place, len(steps),
+               entity_label(steps[-1].get("to", ""))),
+            claim_refs=[c for st in steps for c in st.get("claim_ids", ()) or ()])
+    return None
+
+
+def product_overview_page(index, fragments, claims_by_id, architecture=None, flows=None,
+                          analysis=None):
     """What the repository is, before any of its internals.
 
     The outside-in preset opens here rather than on the dependency graph, because the
@@ -759,15 +829,19 @@ def product_overview_page(index, fragments, claims_by_id):
                           in sorted(coverage.get("languages", {}).items(),
                                     key=lambda kv: -kv[1]))
     source = index.get("source") or {}
-    blocks = [prose("block:product-scope",
+    blocks = component_summary(architecture, analysis)
+    scope = prose("block:product-scope",
                     "%d source file(s) written in %s, read at revision %s. Everything "
                     "below cites the file and line it came from; what the repository "
                     "does not say is named rather than filled in."
                     % (coverage.get("files_scanned", 0),
                        languages or "no language this scanner reads",
-                       source.get("revision") or "an untracked working tree"))]
+                       source.get("revision") or "an untracked working tree"))
     entries = index.get("entry_points", ())
-    if entries:
+    traced = first_trigger(flows)
+    if traced is not None:
+        blocks.append(traced)
+    elif entries:
         blocks.append(prose(
             "block:product-ways-in",
             "The scanner counts %d file(s) as a way in -- nothing imports them and each "
@@ -781,14 +855,19 @@ def product_overview_page(index, fragments, claims_by_id):
                             "recognises: it is read as a library, called from outside."))
 
     # The busiest modules with what they are for. Without this the page is a file count.
-    fan_in = index.get("fan_in", {})
-    ranked = sorted(fragments, key=lambda f: -fan_in.get(f.get("source", ""), 0))
+    fan_in, fan_out, order = connections(index)
+    ranked = sorted(fragments, key=lambda f: order(f.get("source", "")))
     top = [f for f in ranked if f.get("status") in PROSE_STATUSES][:5]
     if top:
+        blocks.append(prose(
+            "block:product-key-modules-intro",
+            "The modules the rest are wired through: ranked by how many others import "
+            "each one plus how many it imports, so the code that drives the system sits "
+            "beside the code everything shares."))
         blocks.append(table(
             "block:product-key-modules",
-            ("Module", "Depended on by", "Basis", "What it is for"),
-            [(f["source"], str(fan_in.get(f["source"], 0)),
+            ("Module", "Imported by", "Imports", "Basis", "What it is for"),
+            [(f["source"], str(fan_in.get(f["source"], 0)), str(fan_out.get(f["source"], 0)),
               "verified" if f["status"] == "verified" else "inferred",
               f.get("role", ""))
              for f in top],
@@ -799,6 +878,8 @@ def product_overview_page(index, fragments, claims_by_id):
             "block:product-none",
             "No module description survived verification, so this page can say what was "
             "scanned and not what any of it is for."))
+    # Scope last: what was read is the frame for the answer, not the answer.
+    blocks.append(scope)
     return blocks
 
 
@@ -1155,7 +1236,8 @@ BUILDERS = {
     "flows": lambda ix, frags, claims, by_id, an, kinds, extra: flows_page(
         ix, by_id, extra.get("flows")),
     "product-overview": lambda ix, frags, claims, by_id, an, kinds, extra:
-        product_overview_page(ix, frags, by_id),
+        product_overview_page(ix, frags, by_id, extra.get("architecture"), extra.get("flows"),
+                              an),
     "getting-started": lambda ix, frags, claims, by_id, an, kinds, extra:
         getting_started_page(extra.get("operations")),
     "operations": lambda ix, frags, claims, by_id, an, kinds, extra:

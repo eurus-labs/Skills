@@ -190,6 +190,37 @@ def main():
               and not os.path.exists(os.path.join(out_dir, "conventions.rst")),
               repr(doc["authored_pages"]))
 
+        # --- The overview answers "what is this" before it counts files.
+        overview = next(p for p in doc["pages"] if p["id"] == "overview")
+        ids = [b["id"] for b in overview["blocks"]]
+        check("the overview opens on the components, not a file count",
+              ids[:1] == ["block:product-components-intro"], repr(ids))
+        led = next(b for b in overview["blocks"]
+                   if b["id"] == "block:product-component-component-pipeline")
+        check("and each component line rests on its statement",
+              led["analysis_refs"] == ["s-interaction"] and "The pipeline" in led["text"],
+              repr(led))
+        # A grouping the analysis marks inferred says so; one marked unknown is not shown.
+        shaped = json.load(open(architecture, encoding="utf-8"))
+        shaped["components"][0]["status"] = "inferred"
+        shaped["components"][1]["status"] = "unknown"
+        hedged_arch = write_json(os.path.join(tmp, "architecture-hedged.json"), shaped)
+        code, hedged_doc, err = build("hedged", "outside-in", "--architecture", hedged_arch,
+                                      "--operations", operations, "--flows", flows)
+        hedged_blocks = {b["id"]: b for p in json.load(open(hedged_doc, encoding="utf-8"))
+                         ["pages"] if p["id"] == "overview" for b in p["blocks"]}
+        pipeline_line = hedged_blocks.get("block:product-component-component-pipeline", {})
+        check("an inferred component is introduced as inferred",
+              code == 0 and pipeline_line.get("text", "").startswith("Inferred"),
+              repr(pipeline_line)[:300] + err[:200])
+        check("and an unknown one is left out of the overview",
+              "block:product-component-component-storage" not in hedged_blocks,
+              repr(sorted(hedged_blocks)))
+
+        content = [i for i in ids if not i.endswith("-next")]
+        check("the scope comes last, after the modules",
+              content[-1] == "block:product-scope", repr(ids))
+
         # --- C6's synthesis reaches a reader for the first time.
         components = read(os.path.join(out_dir, "components.rst"))
         check("the components page names the components, not the directories",

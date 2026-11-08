@@ -10,7 +10,7 @@ python3 scripts/pipeline.py survey --root . --top 25
 ```
 
 - **Read** the scanner's digest, every finding from the index validator, and the selected units with their
-  fan-in.
+  fan-in and fan-out.
 - **Decide** whether to continue, rescan, or stop and report the repository is out of scope — and whether the
   scope this picked is the right one.
 
@@ -27,11 +27,13 @@ may cite, and the absence of one is itself an answer: a repository with no ADR g
 exists", not a rationale you worked out.
 
 **The scope is a budget.** Every module in `units.txt` costs a model call, so the ranking keeps the top 25 by
-fan-in plus every entry point. Change it with `--top` if the repository warrants it and say in the document
+connections — how many modules import each one plus how many it imports — plus every entry point.
+Fan-in alone ranks the shared helpers first and the modules that drive the system last, because an
+orchestrator imports much and is imported by little; counting both directions keeps both. Change it with `--top` if the repository warrants it and say in the document
 which cutoff you used; raise it deliberately, not by forgetting it. `units.txt` is the contract for the whole
 run — everything outside it is covered in one line each, grouped by directory. **Read the warnings the
 selection prints.** A repository whose modules import nothing from each other — standalone CLIs, scripts a
-scheduler runs — has no fan-in to rank, and the cutoff it gets is arbitrary rather than considered; pick the
+scheduler runs — has no connections to rank, and the cutoff it gets is arbitrary rather than considered; pick the
 units by hand there and say that you did.
 
 Ruff's import-usage annotation is advisory and additive. **An unused import is not evidence that a dependency

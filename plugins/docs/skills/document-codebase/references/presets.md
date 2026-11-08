@@ -51,7 +51,7 @@ their own, so it is the one to use when the three analyses were written.
 
 | Page | Contains | Mandatory |
 | --- | --- | --- |
-| `overview` | What was scanned, in what languages, at what revision, and the ways in | yes |
+| `overview` | The components and what each does, the traced way in, the most connected modules, then what was scanned | yes |
 | `getting-started` | Install, build, test and run procedures with their quoted commands, plus declared requirements | yes |
 | `conventions` | **Named, never written** — a team's conventions are not in a dependency graph | no |
 | `architecture` | Import edges that cross a directory boundary, each with the line that proves it | yes |
