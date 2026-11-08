@@ -19,8 +19,11 @@ Run `setup-verification` once per repository, before the first `implement`:
 It writes a `verify-<app>` skill into the repository — the feature map, a fresh-build check, change-to-area
 mapping, and evidence capture — so every later `implement` verifies against the running app and against
 confirmed behavior, not only against tests that may mirror the code. If a repository has no such skill,
-`implement` recommends this step first and asks before running it; when you decline, or no one can be asked,
-it continues with the project's own tests and says so in its report.
+`implement` recommends this step first — only when the change touches runtime behavior, or when you are
+setting the repository up for these skills for the first time — and asks before running it. A docs-only,
+test-only, or formatting-only change goes ahead without the question; a refactor of running code does not.
+When you decline, or no one can be asked, it continues with the project's own tests and says so in its
+report.
 
 ## Skills
 

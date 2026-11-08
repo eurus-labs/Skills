@@ -146,9 +146,19 @@ tests prove every behavior correct.
    - **It exists:** read its `SKILL.md` and the feature files for every area the change touches. Its proof bar
      and those files' entry points join the verification plan; their `Expected behavior` entries tagged
      `[confirmed: …]` are acceptance criteria the change must not break unless the request changes them.
-   - **It does not exist:** before writing the contract, recommend setting it up first with
-     `setup-verification` — say in one line what it adds (a feature map, a fresh-build check, evidence
-     capture) and that it writes a skill folder into the repository and asks a few questions about expected
+   - **It does not exist:** decide whether to recommend `setup-verification`. Recommend it only when
+     - the change touches runtime behavior — what the app does when it runs: a code path a user, client, or
+       job executes; CLI, API, or UI output; data it reads or writes; runtime configuration; a dependency
+       version. Editing code that runs counts even when behavior is meant to stay the same: a refactor is
+       where regressions hide; or
+     - this is the first-time setup of these skills in the repository — the user says they are onboarding
+       the repository or using these skills there for the first time.
+     Do not recommend it for changes with no runtime effect: documentation, comments, tests only,
+     formatting-only edits, CI or editor configuration. Then
+     continue with the project's own tests and checks without a **Limitations** entry for it.
+
+     When recommending, do it before writing the contract: say in one line what it adds (a feature map, a
+     fresh-build check, evidence capture) and that it writes a skill folder into the repository and asks a few questions about expected
      behavior. If the user agrees, run `setup-verification`, then resume here with the skill it created. If
      the user declines, or no one can be asked (CI, a subagent, a non-interactive run), continue with the
      project's own tests and checks, and record `no project verification skill` under **Limitations**. Ask
