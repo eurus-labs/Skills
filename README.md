@@ -7,7 +7,7 @@ grouped into installable **plugins**. They also work in Claude Code and any othe
 
 ```bash
 copilot plugin marketplace add eurus-labs/Skills
-copilot plugin install testing@CopilotBox
+copilot plugin install testing@eurus-labs
 ```
 
 Then just ask — the matching skill loads on its own:
@@ -15,7 +15,8 @@ Then just ask — the matching skill loads on its own:
 > *"Write tests for `src/parser.py`"* · *"Why is this test red?"* · *"Review my changes"* · *"Document this repo"*
 
 Swap `testing` for any plugin below. `add` takes the repository; everything after it takes the marketplace
-name, **`CopilotBox`** (case-sensitive). Inside an interactive session, use `/plugin install testing@CopilotBox`.
+name, **`eurus-labs`** (case-sensitive), the same as the GitHub org. Inside an interactive session, use
+`/plugin install testing@eurus-labs`.
 
 ## Plugins
 
@@ -38,11 +39,11 @@ name, **`CopilotBox`** (case-sensitive). Inside an interactive session, use `/pl
 
 | Symptom | Fix |
 | ------- | --- |
-| `Available plugins: none` | `copilot plugin marketplace update CopilotBox`; for an unmerged branch, re-add with `#branch` |
-| `Marketplace "CopilotBox" already registered` | `update`, or `remove` then `add` |
+| `Available plugins: none` | `copilot plugin marketplace update eurus-labs`; for an unmerged branch, re-add with `#branch` |
+| `Marketplace "eurus-labs" already registered` | `update`, or `remove` then `add` |
 | `File not found: marketplace.json` with doubled paths | Pass the directory containing `.github/plugin/`, e.g. `.` |
 | `Repository not found` on a ref | Use `owner/repo#ref`, not `@` |
-| `Marketplace "eurus-skills" ...` | `copilot plugin marketplace remove eurus-skills --force`, then `add` again |
+| Plugins listed as `...@CopilotBox` or `...@eurus-skills` | Registrations from before the marketplace was renamed: `copilot plugin marketplace remove CopilotBox --force` (or `eurus-skills`), then `add` again |
 
 </details>
 

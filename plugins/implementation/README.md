@@ -7,7 +7,7 @@ specific app. Three skills, each usable on its own: the boundary between them is
 
 ```bash
 copilot plugin marketplace add eurus-labs/Skills
-copilot plugin install implementation@CopilotBox
+copilot plugin install implementation@eurus-labs
 ```
 
 ## Start here
