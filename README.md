@@ -25,7 +25,8 @@ name, **`eurus-labs`** (case-sensitive), the same as the GitHub org. Inside an i
 | [`testing`](plugins/testing/) | `write-tests`, `review-tests`, `debug-failing-test` | Write, audit, and debug tests in the framework the repo already uses. **Can install your project's test runner** — with your agreement, never unattended |
 | [`code-review`](plugins/code-review/) | `review-code`, `setup-review-rules` | Review code against Google's Standard of Code Review; generate a repo's agent/review rules files |
 | [`docs`](plugins/docs/) | `document-codebase` | Write architecture docs, a product manual, or your own template, every claim checked against the real dependency graph; check existing docs against a template |
-| [`implementation`](plugins/implementation/) | `setup-verification`, `design-solution`, `implement` | Start with `setup-verification` to give the repo its own verification skill and feature map; then plan a change without coding, or implement a feature, fix, or refactor and verify it against the request with evidence for every check |
+| [`development`](plugins/development/) | `design-solution`, `implement` | Plan a change without coding, or implement a feature, fix, or refactor and verify it against the request with evidence for every check |
+| [`verification`](plugins/verification/) | `setup-verification`, `verify-change` | Give a repo its own verification: build, lint, static analysis, and test checks with pass criteria, a feature map, and evidence capture. Then verify any change against its goal, with one verdict |
 
 <details>
 <summary><b>Other ways to install, and troubleshooting</b></summary>

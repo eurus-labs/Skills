@@ -25,7 +25,7 @@ A finding you cannot attach a failure scenario to is a nit at most.
 
 - **Tests are the subject** — use `review-tests` from the `testing` plugin.
 - **A test is failing** — use `debug-failing-test`.
-- **The user wants the code fixed, not judged** — use `implement` from the `implementation` plugin when it
+- **The user wants the code fixed, not judged** — use `implement` from the `development` plugin when it
   is installed; it validates each finding against the code before fixing it. Otherwise do it directly. This
   skill reports.
 - **The repository needs rules files written** — use `setup-review-rules`.
