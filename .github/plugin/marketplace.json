@@ -37,6 +37,12 @@
       "source": "plugins/verification",
       "description": "Set up a repository's own verification \u2014 its build, lint, static analysis, and test checks with pass/fail criteria, a feature map, and evidence capture \u2014 and verify any existing change against its goal, with evidence for every check and criterion and one honest verdict.",
       "version": "0.1.1"
+    },
+    {
+      "name": "skill-authoring",
+      "source": "plugins/skill-authoring",
+      "description": "Evaluate Agent Skills on three levels \u2014 static structure and scope, whether they trigger on the right requests and stay quiet on the wrong ones, and whether they lead an agent to the right outcome compared with no skill \u2014 by writing eval suites for `claude plugin eval` and reporting what each failure means.",
+      "version": "0.1.0"
     }
   ]
 }

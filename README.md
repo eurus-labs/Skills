@@ -27,6 +27,7 @@ name, **`eurus-labs`** (case-sensitive), the same as the GitHub org. Inside an i
 | [`docs`](plugins/docs/) | `document-codebase` | Write architecture docs, a product manual, or your own template, every claim checked against the real dependency graph; check existing docs against a template |
 | [`development`](plugins/development/) | `design-solution`, `implement` | Plan a change without coding, or implement a feature, fix, or refactor and verify it against the request with evidence for every check |
 | [`verification`](plugins/verification/) | `setup-verification`, `verify-change` | Give a repo its own verification: build, lint, static analysis, and test checks with pass criteria, a feature map, and evidence capture. Then verify any change against its goal, with one verdict |
+| [`skill-authoring`](plugins/skill-authoring/) | `evaluate-skill` | Evaluate Agent Skills: static structure, whether they trigger on the right requests, and whether they beat no skill on tasks with known answers, via `claude plugin eval` |
 
 <details>
 <summary><b>Other ways to install, and troubleshooting</b></summary>
