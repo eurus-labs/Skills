@@ -63,6 +63,30 @@ three conditions hold at once, or the import does not ship:
 Forbidden regardless of the allowlist: any package that reaches the network on import, and any package used to
 do what the stdlib already does.
 
+## Required dependencies — named, for an output file format only
+
+One exception to "the stdlib path must always work": a skill whose **deliverable is a file in a format the
+standard library cannot write** — today, a PowerPoint `.pptx` — may require the package that writes it. A
+hand-rolled OOXML writer would be thousands of lines and a worse file. All of these hold, or the import does
+not ship:
+
+1. **It is named in the table below**, with the format it exists for. Adding a row is a pull request that
+   edits this table.
+2. **The script stops at import with one stderr line** naming the missing package and the install command, and
+   exits non-zero. No traceback, no partial output, and a `--check-deps` (or equivalent) that reports what is
+   missing and works on the very machine that lacks it.
+3. **Nothing installs it.** The skill tells the user the command and stops; installing stays the user's act.
+4. **Everything else stays stdlib.** Reading the input, validating the output, and any step that does not
+   write the format must not import the package, so they run before the requirement is known to be met.
+5. **It is declared** in a `## Requirements` section of the `SKILL.md`, its `Side effects`, the plugin
+   `README` `Notes`, and the root catalog row.
+
+| Import | PyPI | Output format | Used by |
+| ------ | ---- | ------------- | ------- |
+| `pptx`, `lxml`, `PIL` | `python-pptx`, `Pillow` (`lxml` comes with python-pptx) | `.pptx` | `presentation` → `workflow-slides-blocks/scripts/wfslides.py` |
+
+CI installs the packages in this table so the scripts that need them are tested.
+
 ### Reporting which path ran
 
 A script whose accuracy depends on whether the accelerator was present **must say so in its output** —
