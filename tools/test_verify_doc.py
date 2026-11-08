@@ -664,7 +664,70 @@ EDGE_CALLER_LINES = [
     "    s = Store()",                      # 22
     "    s, t = Alias(), 1",                # 23
     "    return s.save()",                  # 24
+    "",
+    "",
+    "def overridden(cb):",                  # 27
+    "    s = Store()",                      # 28
+    "    s.save = cb",                      # 29
+    "    return s.save()",                  # 30
 ]
+
+EDGE_CONFIG = """\
+class Store:
+    @staticmethod
+    def save():
+        return 1
+
+
+Store.timeout = 30
+
+
+def run():
+    return Store.save()
+"""
+
+EDGE_NESTED = """\
+class Store:
+    def save(self):
+        return 1
+
+
+def factory(cb):
+    class Store:
+        def __init__(self):
+            self.save = cb
+
+        def save(self):
+            return 2
+
+        def go(self):
+            return self.save()
+    return Store
+
+
+def other_factory():
+    class Store:
+        def save(self):
+            return 3
+
+        def go(self):
+            return self.save()
+    return Store
+"""
+
+EDGE_SCOPED = """\
+from store import Store
+
+
+def other():
+    from elsewhere import Other as Store
+    return Store
+
+
+def build():
+    s = Store()
+    return s.save()
+"""
 
 
 def receiver_edge_cases(tmp):
@@ -675,6 +738,9 @@ def receiver_edge_cases(tmp):
     write(root, "store.py", EDGE_STORE)
     write(root, "local.py", EDGE_LOCAL)
     write(root, "caller.py", "\n".join(EDGE_CALLER_LINES) + "\n")
+    write(root, "config.py", EDGE_CONFIG)
+    write(root, "nested.py", EDGE_NESTED)
+    write(root, "scoped.py", EDGE_SCOPED)
     index = os.path.join(tmp, "edges.json")
     proc = subprocess.run([sys.executable, SCANNER, "--root", root, "--out", index,
                            "--detail"], capture_output=True, text=True)
@@ -704,6 +770,17 @@ def receiver_edge_cases(tmp):
         at("e:mutation", "caller.py", "method:store.py:Store.save", 16, 17, 18),
         # ...but unpacking into s does rebind it.
         at("e:unpacked", "caller.py", "method:store.py:Store.save", 22, 23, 24),
+        # Second review round: what the first round's fixes got wrong.
+        # `s.save = cb` replaces the very method being called.
+        at("e:method-overridden", "caller.py", "method:store.py:Store.save", 28, 29, 30),
+        # `Store.timeout = 30` configures the class; it does not rebind the name.
+        at("e:class-attribute", "config.py", "method:config.py:Store.save", 11),
+        # A nested class named like a top-level one is checked as itself.
+        at("e:nested-same-name", "nested.py", "method:nested.py:Store.save", 15),
+        # ...and is not credited to it even when it shadows nothing.
+        at("e:nested-namesake", "nested.py", "method:nested.py:Store.save", 25),
+        # An import inside an unrelated function does not change what `Store` is here.
+        at("e:alias-other-scope", "scoped.py", "method:store.py:Store.save", 10, 11),
     ]
     code, status, _, _, stderr = run(tmp, root, index, claims, name="edges")
     check("receiver edge-case verification runs", code in (0, 1),
@@ -728,6 +805,16 @@ def receiver_edge_cases(tmp):
            "assigning an attribute of the receiver does not rebind it")
     expect("e:unpacked", "needs_context",
            "unpacking into the receiver still rebinds it")
+    expect("e:method-overridden", "needs_context",
+           "assigning the called method on the receiver leaves the call undecided")
+    expect("e:class-attribute", "verified",
+           "setting a class attribute at module level does not rebind the class")
+    expect("e:nested-same-name", "needs_context",
+           "a nested class that assigns self.m is not checked as the top-level namesake")
+    expect("e:nested-namesake", "needs_context",
+           "self.m() in a nested class is not credited to a top-level class of its name")
+    expect("e:alias-other-scope", "verified",
+           "an import in an unrelated function does not affect the binding's class")
 
 
 def same_file_calls(tmp, root, index):

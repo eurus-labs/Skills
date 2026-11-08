@@ -457,8 +457,15 @@ class Verifier(object):
         count = 0
 
         def names(target):
-            return any(isinstance(leaf, ast.Name) and leaf.id == name
-                       for leaf in ast.walk(target))
+            # `Store.timeout = 30` loads Store to set an attribute; only a name, or a
+            # name inside tuple, list or starred unpacking, is rebound.
+            if isinstance(target, ast.Name):
+                return target.id == name
+            if isinstance(target, (ast.Tuple, ast.List)):
+                return any(names(element) for element in target.elts)
+            if isinstance(target, ast.Starred):
+                return names(target.value)
+            return False
         for node in Verifier.own_nodes(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 count += node.name == name
@@ -541,6 +548,13 @@ class Verifier(object):
             return "needs_context", ("%s assigns self.%s at line %d, which shadows the "
                                      "method, so what self.%s() calls is decided at "
                                      "run time" % (assigned[0], wanted, assigned[1], wanted))
+        if self.class_named(tree, owner.name) is not owner:
+            # A nested class. Method resolution looks classes up by name at the top of
+            # the file, which would find a namesake -- or nothing -- rather than this one.
+            return "needs_context", ("self at %s:%d is a %s nested inside another scope; "
+                                     "a claim naming %s.%s cannot say which %s it means"
+                                     % (caller_path, call.lineno, owner.name, claimed_class,
+                                        wanted, owner.name))
         return self.resolved_verdict(tree, owner.name, wanted, claimed_class,
                                      "self at %s:%d is a %s" % (caller_path, call.lineno,
                                                                 owner.name))
@@ -781,17 +795,26 @@ class Verifier(object):
                 return node
         return None
 
-    @staticmethod
-    def imported_as(tree, local):
+    def imported_as(self, tree, local, line=None):
         """The original name a `from ... import X as local` brought in, `local` itself
-        when no import renames it, or None when imports disagree about what it is."""
-        originals = {alias.name for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)
+        when no import renames it, or None when imports disagree about what it is.
+
+        Only imports visible at `line` count: the module's own, and those of every
+        function enclosing it. An import inside an unrelated function binds nothing
+        here."""
+        scopes = [tree]
+        if line is not None:
+            scopes += [node for node in ast.walk(tree)
+                       if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                       and node.lineno <= line <= node.end_lineno]
+        originals = {alias.name for scope in scopes for node in self.own_nodes(scope)
+                     if isinstance(node, ast.ImportFrom)
                      for alias in node.names if (alias.asname or alias.name) == local}
         if not originals:
             return local
         return originals.pop() if len(originals) == 1 else None
 
-    def class_ref(self, node, bindings, callee_tree, tree=None):
+    def class_ref(self, node, bindings, callee_tree, tree=None, line=None):
         """The callee-file class an expression names, or None.
 
         `C` and `mod.C` count when the caller's import from the callee file bound
@@ -810,7 +833,7 @@ class Verifier(object):
         else:
             name = None
         if name is not None and tree is not None and not isinstance(node, ast.Attribute):
-            name = self.imported_as(tree, name)
+            name = self.imported_as(tree, name, line)
         if name is None or self.class_named(callee_tree, name) is None:
             return None
         return name
@@ -835,7 +858,7 @@ class Verifier(object):
             used = self.name_used(node)
             if used and self.shadowed_at(tree, used, line):
                 return None, "%r in its annotation is rebound in the scope around it" % used
-            found = self.class_ref(node, bindings, callee_tree, tree)
+            found = self.class_ref(node, bindings, callee_tree, tree, line)
             return (found, None) if found else (None, "its annotation does not name a "
                                                       "class imported from the callee file")
         if not isinstance(node, ast.Call):
@@ -846,7 +869,7 @@ class Verifier(object):
             return None, ("%r is rebound in the scope around the binding -- a parameter, a "
                           "local, or a narrower import -- so it is not the imported class"
                           % used)
-        found = self.class_ref(node.func, bindings, callee_tree, tree)
+        found = self.class_ref(node.func, bindings, callee_tree, tree, line)
         if found is not None:
             dunder = "__aenter__" if how == "aenter" else "__enter__"
             if how in ("enter", "aenter") \
@@ -874,7 +897,7 @@ class Verifier(object):
                                                             definition.lineno))
         if how in ("enter", "aenter"):
             return None, "a factory's result entered with `with` is not followed"
-        found = self.class_ref(definition.returns, bindings, callee_tree, tree)
+        found = self.class_ref(definition.returns, bindings, callee_tree, tree, line)
         return (found, None) if found else (None, "%s() is not annotated to return a "
                                                   "class imported from the callee file"
                                             % definition.name)
@@ -910,11 +933,15 @@ class Verifier(object):
         """(class, line) of a `self.<attr> = ...` in `class_name` or a same-file base
         it inherits from, or None. `node` is the class itself when it is not at the top
         of the file -- a nested class still shadows its own methods."""
-        order = self.mro(tree, class_name) or [class_name]
+        if node is not None and self.class_named(tree, class_name) is not node:
+            # A nested class: a top-level class of the same name is someone else, and
+            # its bases cannot be looked up by name either, so only it is checked.
+            order, lookup = [class_name], {class_name: node}
+        else:
+            order = self.mro(tree, class_name) or [class_name]
+            lookup = {}
         for name in order:
-            cls = self.class_named(tree, name)
-            if cls is None and name == class_name:
-                cls = node
+            cls = lookup.get(name) or self.class_named(tree, name)
             if cls is None:
                 continue
             for node in ast.walk(cls):
@@ -925,6 +952,29 @@ class Verifier(object):
                        and isinstance(t.value, ast.Name) and t.value.id == "self"
                        for t in targets):
                     return name, node.lineno
+        return None
+
+    def method_override(self, scope, receiver, method):
+        """The line of a `<receiver>.<method> = ...` in `scope`, or None. Mutating some
+        other attribute of the receiver leaves its class and methods alone; assigning
+        the method being called does not."""
+        kind, name = receiver
+
+        def is_receiver(node):
+            if kind == "local":
+                return isinstance(node, ast.Name) and node.id == name
+            return (isinstance(node, ast.Attribute) and node.attr == name
+                    and isinstance(node.value, ast.Name) and node.value.id == "self")
+        nodes = self.own_nodes(scope) if kind == "local" else ast.walk(scope)
+        for node in nodes:
+            targets = (node.targets if isinstance(node, ast.Assign) else
+                       [node.target] if isinstance(node, (ast.AnnAssign, ast.AugAssign))
+                       else [])
+            for target in targets:
+                for leaf in ast.walk(target):
+                    if isinstance(leaf, ast.Attribute) and leaf.attr == method \
+                            and is_receiver(leaf.value):
+                        return node.lineno
         return None
 
     def verify_receiver(self, tree, call, receiver, lines, bindings, obj):
@@ -951,6 +1001,13 @@ class Verifier(object):
             if scope is None:
                 return "needs_context", ("%s is used outside a class, so there is no class "
                                          "whose methods set it" % shown)
+        method = call.func.attr
+        override = self.method_override(scope, receiver, method)
+        if override is not None:
+            return "needs_context", ("%s.%s is assigned at line %d, which replaces the "
+                                     "method on that object, so what %s.%s() calls is "
+                                     "decided at run time" % (shown, method, override,
+                                                              shown, method))
         found = self.receiver_bindings(scope, receiver)
         if not found:
             return "needs_context", ("%r is called through %s, which nothing in the "
