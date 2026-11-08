@@ -35,12 +35,79 @@ def check(name, condition, detail=""):
 
 def tree(root):
     found = {}
-    for dirpath, _, filenames in os.walk(root):
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d != ".git"]
         for name in filenames:
             path = os.path.join(dirpath, name)
             with open(path, "rb") as fh:
                 found[os.path.relpath(path, root).replace(os.sep, "/")] = fh.read()
     return found
+
+
+def scenario_readme(source_rel):
+    """The scenario README above a fixture, which states its answer, as bytes, or None."""
+    parts = source_rel.split("/")
+    if parts[0] != "fixtures" or len(parts) < 2:
+        return None
+    path = os.path.join(REPO, "fixtures", parts[1], "README.md")
+    if not os.path.isfile(path):
+        return None
+    with open(path, "rb") as fh:
+        return fh.read()
+
+
+def git(workspace, *args):
+    return subprocess.run(["git", *args], cwd=workspace, capture_output=True,
+                          text=True).stdout.strip()
+
+
+def check_git_case(case_rel, spec):
+    script = os.path.join(REPO, case_rel, "scaffold.sh")
+    if not os.path.isfile(script):
+        check("%s has a scaffold.sh" % case_rel, False)
+        return
+    workspace = tempfile.mkdtemp(prefix="eval-scaffold-git-")
+    try:
+        # Whoever runs the eval may have an identity in the environment, which outranks
+        # `git -c user.*`. The commits must still be the fixture's.
+        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        env.update(HOME=workspace, GIT_CONFIG_NOSYSTEM="1",
+                   GIT_AUTHOR_NAME="Someone Else", GIT_AUTHOR_EMAIL="someone@example.com",
+                   GIT_COMMITTER_NAME="Someone Else", GIT_COMMITTER_EMAIL="someone@example.com")
+        run = subprocess.run(["bash", script], cwd=workspace, capture_output=True, text=True,
+                             env=env)
+        check("%s scaffold runs" % case_rel, run.returncode == 0, run.stderr)
+        base = dict((rel, text.encode("utf-8")) for rel, text in
+                    build.fixture_files(os.path.join(REPO, spec["base"])))
+        change = dict((rel, text.encode("utf-8")) for rel, text in
+                      build.fixture_files(os.path.join(REPO, spec["change"])))
+        expected = dict(base, **change)
+        got = tree(workspace)
+        check("%s recreates base + change exactly" % case_rel, got == expected,
+              "missing %s, extra %s, differing %s" % (
+                  sorted(set(expected) - set(got)), sorted(set(got) - set(expected)),
+                  sorted(k for k in set(got) & set(expected) if got[k] != expected[k])))
+        readme = scenario_readme(spec["base"])
+        check("%s carries no scenario README, which states the answer" % case_rel,
+              readme is None or readme not in got.values())
+        check("%s leaves a clean tree" % case_rel, git(workspace, "status", "--porcelain") == "")
+        head = spec["branch"] or "main"
+        check("%s checks out %s" % (case_rel, head),
+              git(workspace, "rev-parse", "--abbrev-ref", "HEAD") == head)
+        if spec["branch"]:
+            changed = git(workspace, "diff", "--name-only", "main...HEAD").splitlines()
+            label = "main...%s" % spec["branch"]
+        else:
+            changed = git(workspace, "diff", "--name-only", "HEAD~1", "HEAD").splitlines()
+            label = "the last commit"
+        check("%s: %s changes exactly the change's files" % (case_rel, label),
+              sorted(changed) == sorted(change), "got %s" % changed)
+        authors = set(git(workspace, "log", "--all",
+                          "--format=%an <%ae>%n%cn <%ce>").splitlines())
+        check("%s commits as the fixture, not the user" % case_rel,
+              authors == {"Eval Fixture <fixture@example.invalid>"}, "got %s" % authors)
+    finally:
+        shutil.rmtree(workspace, ignore_errors=True)
 
 
 def main():
@@ -65,14 +132,21 @@ def main():
             expected = {rel: text.encode("utf-8") for rel, text in
                         build.fixture_files(os.path.join(REPO, source_rel), exclude)}
             got = tree(workspace)
+            readme = scenario_readme(source_rel)
             check("%s carries no scenario README, which states the answer" % case_rel,
-                  not (source_rel.startswith("fixtures/") and "README.md" in got))
+                  readme is None or readme not in got.values())
             check("%s recreates %s exactly" % (case_rel, source_rel), got == expected,
                   "missing %s, extra %s, differing %s" % (
                       sorted(set(expected) - set(got)), sorted(set(got) - set(expected)),
                       sorted(k for k in set(got) & set(expected) if got[k] != expected[k])))
         finally:
             shutil.rmtree(workspace, ignore_errors=True)
+
+    if shutil.which("git") is None:
+        print("skip: no git to build the git scaffolds")
+    else:
+        for case_rel, spec in sorted(build.GIT_SCAFFOLDS.items()):
+            check_git_case(case_rel, spec)
 
     # The heredoc is quoted, so nothing in a fixture is expanded: prove it on the hardest case.
     workspace = tempfile.mkdtemp(prefix="eval-scaffold-expand-")
