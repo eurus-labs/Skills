@@ -735,13 +735,22 @@ class Verifier(object):
     def class_nodes(cls):
         """Every node of a class whose `self` is that class's instance: its methods and
         their closures, and the bodies of classes nested in them -- a class body runs in
-        the enclosing scope, so its `self` is still the outer one -- but not the methods
-        of those nested classes, which bind a `self` of their own."""
+        the enclosing scope, so its `self` is still the outer one -- but not the
+        functions of those nested classes that bind a `self` of their own."""
+        def binds_self(function):
+            arguments = function.args
+            every = (list(getattr(arguments, "posonlyargs", [])) + list(arguments.args)
+                     + list(arguments.kwonlyargs)
+                     + [a for a in (arguments.vararg, arguments.kwarg) if a])
+            return any(argument.arg == "self" for argument in every)
+
         stack = [(child, False) for child in ast.iter_child_nodes(cls)]
         while stack:
             node, nested = stack.pop()
+            # Inside a nested class, a function that takes its own `self` is about a
+            # different object; a static method or closure without one still sees ours.
             if nested and isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef,
-                                            ast.Lambda)):
+                                            ast.Lambda)) and binds_self(node):
                 continue
             yield node
             inner = nested or isinstance(node, ast.ClassDef)
@@ -1022,10 +1031,10 @@ class Verifier(object):
         return None
 
     def method_override(self, scope, receiver, method):
-        """(line, attribute) of a `<receiver>.<method> = ...` or `<receiver>.__class__ =
-        ...` in `scope`, or None. Mutating some other attribute of the receiver leaves
-        its class and methods alone; replacing the method, or the class it is looked up
-        on, does not."""
+        """(line, attribute) of a write to `<receiver>.<method>`, `.__class__` or
+        `.__dict__` in `scope`, or None. Mutating some other attribute of the receiver
+        leaves its class and methods alone; replacing the method, the class it is looked
+        up on, or the instance dictionary it may be found in, does not."""
         kind, name = receiver
 
         def is_receiver(node):
@@ -1033,7 +1042,7 @@ class Verifier(object):
                 return isinstance(node, ast.Name) and node.id == name
             return (isinstance(node, ast.Attribute) and node.attr == name
                     and isinstance(node.value, ast.Name) and node.value.id == "self")
-        for attr in (method, "__class__"):
+        for attr in (method, "__class__", "__dict__"):
             nodes = self.own_nodes(scope) if kind == "local" else self.class_nodes(scope)
             line = self.writes_attribute(nodes, is_receiver, attr)
             if line is not None:
@@ -1068,7 +1077,8 @@ class Verifier(object):
         override = self.method_override(scope, receiver, method)
         if override is not None:
             line, attr = override
-            replaced = "the method" if attr == method else "its class"
+            replaced = {method: "the method", "__class__": "its class",
+                        "__dict__": "its instance dictionary"}[attr]
             return "needs_context", ("%s.%s is assigned at line %d, which replaces %s on "
                                      "that object, so what %s.%s() calls is decided at "
                                      "run time" % (shown, attr, line, replaced, shown,

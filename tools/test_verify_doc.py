@@ -704,7 +704,29 @@ EDGE_CALLER_LINES = [
     "    s = Store()",                      # 51
     "    s.__class__ = Hooked",             # 52
     "    return s.save()",                  # 53
+    "",
+    "",
+    "def redicted(cb):",                    # 56
+    "    s = Store()",                      # 57
+    "    s.__dict__ = {'save': cb}",        # 58
+    "    return s.save()",                  # 59
 ]
+
+EDGE_STATIC_CLOSURE = """\
+class Store:
+    def __init__(self, cb):
+        class Setup:
+            @staticmethod
+            def apply():
+                self.save = cb
+        Setup.apply()
+
+    def save(self):
+        return 1
+
+    def run(self):
+        return self.save()
+"""
 
 EDGE_ANNOTATED = """\
 class Store:
@@ -857,6 +879,7 @@ def receiver_edge_cases(tmp):
     write(root, "annotated.py", EDGE_ANNOTATED)
     write(root, "classbody.py", EDGE_CLASS_BODY)
     write(root, "elsewhere.py", EDGE_ALIAS_ELSEWHERE)
+    write(root, "closure.py", EDGE_STATIC_CLOSURE)
     index = os.path.join(tmp, "edges.json")
     proc = subprocess.run([sys.executable, SCANNER, "--root", root, "--out", index,
                            "--detail"], capture_output=True, text=True)
@@ -916,6 +939,11 @@ def receiver_edge_cases(tmp):
         at("e:alias-wrong-module", "elsewhere.py", "method:store.py:Store.save", 1, 10, 11),
         # Assigning __class__ changes which class's methods the object has.
         at("e:class-reassigned", "caller.py", "method:store.py:Store.save", 51, 52, 53),
+        # Fifth review round.
+        # Replacing __dict__ replaces every instance attribute, the method included.
+        at("e:dict-replaced", "caller.py", "method:store.py:Store.save", 57, 58, 59),
+        # A nested static method binds no self, so `self` in it is the outer one.
+        at("e:static-closure", "closure.py", "method:closure.py:Store.save", 13),
     ]
     code, status, _, _, stderr = run(tmp, root, index, claims, name="edges")
     check("receiver edge-case verification runs", code in (0, 1),
@@ -969,6 +997,10 @@ def receiver_edge_cases(tmp):
           "e:alias-wrong-module: %r" % status.get("e:alias-wrong-module"))
     expect("e:class-reassigned", "needs_context",
            "assigning the receiver's __class__ leaves the call undecided")
+    expect("e:dict-replaced", "needs_context",
+           "replacing the receiver's __dict__ leaves the call undecided")
+    expect("e:static-closure", "needs_context",
+           "a nested static method writing the outer self.m shadows the method")
 
 
 def same_file_calls(tmp, root, index):
