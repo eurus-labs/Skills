@@ -258,8 +258,10 @@ None. Everything this skill requires, including verification, is in this file.
 - **Side effects.** This skill edits files in the user's repository and runs the project's own tests,
   linters, type checkers, and builds, which may write build output or reach the network themselves. It
   never installs a tool just to run a check — a check that needs a missing tool is reported `not run`. It
-  adds a project dependency only when the request requires one (hard rule 4), recording it under **Design
-  decisions**; installing it with the project's package manager may update the lockfile and reach the network.
+  installs no packages. When the request requires a new dependency (hard rule 4), it declares it in the
+  project's manifest, records it under **Design decisions**, and gives the user the project's own install
+  command to run; checks that need the dependency installed are `not run` until then. It never runs a
+  package manager's install or update command and never edits a lockfile by hand.
   Ask before any command that acts outside the working tree — a migration against a database, a deploy, a
   publish, a call to a live service.
 - No destructive git commands (`reset --hard`, `checkout -- <file>`, `clean`, force-push) without the user's

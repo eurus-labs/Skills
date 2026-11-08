@@ -79,9 +79,9 @@ code now does it.
 ## Notes
 
 - **Side effects:** `implement` edits files in your repository and runs your project's own tests, linters,
-  type checkers, and builds, which may write build output or reach the network themselves. It never installs
-  a tool just to run a check, adds a project dependency only when your request requires one, does not commit
-  or push unless asked, and asks before anything acting outside the working tree
+  type checkers, and builds, which may write build output or reach the network themselves. It installs
+  nothing: when your request needs a new dependency it declares it in the manifest and gives you the install
+  command to run. It does not commit or push unless asked, and asks before anything acting outside the working tree
   (database migrations, deploys, publishes). `design-solution` writes nothing except a design file you ask for.
   `setup-verification` writes only the verification skill folder (including an executable `scripts/verify`),
   runs your project's own build, start, and test commands during its survey and trial run, installs nothing,
