@@ -12,7 +12,7 @@
       "name": "testing",
       "source": "plugins/testing",
       "description": "Write, review, and debug automated tests in whatever framework a repository already uses. Detects the stack at runtime rather than imposing a framework. With your agreement, it installs the project's own test runner when it is missing, and review-tests may run the project's documented setup \u2014 never anything else, and never unattended.",
-      "version": "0.3.3"
+      "version": "0.3.4"
     },
     {
       "name": "code-review",
@@ -24,7 +24,7 @@
       "name": "docs",
       "source": "plugins/docs",
       "description": "Write architecture documentation, a product manual, or a document following your own template from repository source, verified dependency and call evidence, and reviewed prose \u2014 you choose the outline, none is mandatory \u2014 and check existing docs against a template. Produces multi-page docs with file:line citations and a human checkpoint for the final readings.",
-      "version": "1.3.4"
+      "version": "1.3.5"
     },
     {
       "name": "development",
@@ -36,7 +36,7 @@
       "name": "verification",
       "source": "plugins/verification",
       "description": "Set up a repository's own verification \u2014 its build, lint, static analysis, and test checks with pass/fail criteria, a feature map, and evidence capture \u2014 and verify any existing change against its goal, with evidence for every check and criterion and one honest verdict.",
-      "version": "0.1.0"
+      "version": "0.1.1"
     }
   ]
 }

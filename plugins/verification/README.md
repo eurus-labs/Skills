@@ -78,3 +78,31 @@ a test written to match the bug counts as evidence for it, not as confirmation.
   pre-existing, and only with your agreement, it runs the base in a temporary `git worktree` that it removes
   afterwards.
 - No bundled scripts or reference files: every required rule is in each skill's `SKILL.md`.
+
+## Evals
+
+`evals/` holds a [`claude plugin eval`](https://code.claude.com/docs/en/plugin-evals) suite for both skills:
+
+- **`trigger/`:** 10 cases. Each skill has three requests it must fire on while the other stays quiet. Four
+  near-misses — make a change, review code, debug one failing test, write tests — belong to sibling plugins
+  and must fire neither.
+- **`behavior/`:** 2 cases, graded against `fixtures/EXPECTED.md`:
+  - `verify-change` on `fixtures/07`, a branch whose checks are green but which does not meet its issue;
+  - `setup-verification` on `fixtures/08`, a CLI whose passing test asserts what the code does rather than
+    what it is documented to do.
+
+  Each `scaffold.sh` builds a git repository from the fixture's `base/` and `change/` snapshots, with its own
+  fixed commit identity.
+
+Run from the repository root, with Claude Code 2.1.269 or later:
+
+```bash
+claude plugin eval plugins/verification --tag trigger --ablation none --no-publish --max-cost-usd 3
+claude plugin eval plugins/verification --tag behavior --no-publish --max-cost-usd 10 \
+  --scaffold --allow-tools Bash Write Edit
+```
+
+Each case runs three times with the plugin and three without, and every run is a model call on your account.
+The `setup-verification` case is tagged `expensive`: it surveys the repository, writes a skill and trial-runs
+it. The graders state the planted defects, so like `fixtures/EXPECTED.md` they are an answer key: keep this
+directory out of a fixture demo session.

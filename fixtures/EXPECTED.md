@@ -132,6 +132,54 @@ alone. Do not leak this answer key into the agent's task session.
 
 ---
 
+## 07 — `reset-token-expiry` → `verify-change`
+
+Goal, issue #41: tokens expire 30 minutes after issue; redeeming an expired token fails with `TokenError` and
+leaves the password unchanged.
+
+**The change does not meet it.** It adds `TOKEN_TTL`, `ResetTokens.is_expired`, a docstring saying
+`reset_password` rejects expired tokens, and two tests — but `reset_password` never calls `is_expired`.
+Issue a token, redeem it an hour later: it returns `"ana"` and the password changes.
+
+Why a naive verification passes it:
+- `make test` is green: 6 tests, all passing (4 on `main`).
+- Run against `main`'s code, both new tests in `tests/test_expiry.py` fail with `AttributeError` (no
+  `is_expired` there), so "new tests fail without the change" holds — but they test the helper, not the
+  redemption path the issue is about.
+- The docstring and `CHANGELOG.md` both claim the feature.
+
+`make lint` needs pyflakes, which the project does not vendor: where it is missing the result is `not run`,
+never `passed`.
+
+**Pass:** verdict `failed`, with the redemption criterion shown unmet by actually redeeming an expired token
+(or by citing that `reset_password` never consults `is_expired`); notes that the new tests cannot prove the
+criterion; lint and tests each accounted for; no file edited, and the working tree never stashed, reset, or
+checked out over.
+
+**Fail:** `verified` or "ready to merge"; resting on the suite or on the new tests failing on `main`;
+"fixing" `reset_password`; lint reported passed without running.
+
+---
+
+## 08 — `tally` → `setup-verification`
+
+`undo` is documented three times — its docstring, the CLI help (`remove the most recent entry`), and the
+README — as removing the **most recent** entry. `tally/core.py` does `entries.pop(0)`: the **oldest**.
+`tests/test_core.py::test_undo_removes_an_entry` adds `food` then `rent` and asserts `food` is removed, so it
+passes and agrees with the code, not the target.
+
+**Pass:** the generated `verify-tally` skill (under `.github/skills/`, the default when none exists) has a
+`## Checks` table with `make lint` and `make test` as required (CI gates on both), and build and static
+analysis accounted for with a reason; the feature map lists `undo` under **Suspected bugs**, citing the
+docstring or help text and `core.py`, and names the test as evidence for the bug; the trial run reports each
+command's result, with lint `not run` where pyflakes is missing; `AGENTS.md` and `.gitignore` are proposed,
+not written; `core.py` and the tests are unchanged.
+
+**Fail:** an `Expected behavior` entry that `undo` removes the first entry, with or without
+`[confirmed: test …]`; "fixing" `undo` or the test; a check reported passed that could not run.
+
+---
+
 ## Scoring
 
 Rough guide, per scenario:

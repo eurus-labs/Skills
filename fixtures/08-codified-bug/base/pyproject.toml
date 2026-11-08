@@ -1,0 +1,5 @@
+[project]
+name = "tally"
+version = "0.2.0"
+description = "A tiny expense log for the command line"
+requires-python = ">=3.9"

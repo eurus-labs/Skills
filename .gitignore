@@ -221,3 +221,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# claude plugin eval run output
+plugins/*/evals/results/
