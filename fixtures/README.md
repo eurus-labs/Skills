@@ -30,6 +30,7 @@ resolves it independently.
 | [`05-mixed-monorepo/`](05-mixed-monorepo/) | `setup-review-rules` | Does the agent scope commands and conventions per package, and avoid turning observed patterns into binding policy? |
 | [`07-unverified-change/`](07-unverified-change/) | `verify-change` | A branch whose checks are green. Does the agent verify it against the issue it claims to close, or only against its own tests? Built as a git repository from `base/` and `change/`. |
 | [`08-codified-bug/`](08-codified-bug/) | `setup-verification` | A small CLI with a green suite. Does the generated verification skill check behavior against its documented target, or adopt whatever the code and tests do? Built as a git repository from `base/` and `change/`. |
+| [`09-wordy-process-slide/`](09-wordy-process-slide/) | `workflow-slides-blocks` | A deck whose second slide is a paragraph about a process. Does the agent make it a visual flow while keeping the rest of the deck, the speaker's note, and the gaps the source leaves open? |
 | [`../tests/contracts/layered-repo/`](../tests/contracts/layered-repo/) | `document-codebase` | For "write an architecture overview", does it choose an architecture preset and explain the real layers and flow instead of producing the default manual? |
 
 ## Running a demo

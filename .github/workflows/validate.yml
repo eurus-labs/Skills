@@ -47,6 +47,12 @@ jobs:
           python3 -m pip install --quiet --disable-pip-version-check sphinx myst-parser sphinxcontrib-plantuml
           sphinx-build --version
 
+      - name: python-pptx and Pillow, the named file-format requirement
+        run: |
+          # The one required third-party dependency (scripts.instructions.md, "Required
+          # dependencies"). The scripts never install it; CI does, so wfslides.py is tested.
+          python3 -m pip install --quiet --disable-pip-version-check python-pptx Pillow
+
       - name: Every script compiles
         run: python3 -m compileall -q tools shared plugins
 

@@ -307,6 +307,9 @@ effectively executable. Therefore:
   accelerator with a working stdlib fallback, and only if it is named in the allowlist in
   [`.github/instructions/domain/scripts.instructions.md`](.github/instructions/domain/scripts.instructions.md).
   A script that cannot run on a clean machine is a broken skill — there is no install step on the user's side.
+  The one exception is a **required dependency for an output file format** the standard library cannot write
+  (today `.pptx`): named in the same file's table, stopping at import with the install command, never installed
+  by the skill, and declared in the skill's `## Requirements`.
 - No instructions that try to override the host agent's safety behavior or suppress its confirmations.
 
 ## Fixtures

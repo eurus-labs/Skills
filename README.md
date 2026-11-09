@@ -28,6 +28,7 @@ name, **`eurus-labs`** (case-sensitive), the same as the GitHub org. Inside an i
 | [`development`](plugins/development/) | `design-solution`, `implement` | Plan a change without coding, or implement a feature, fix, or refactor and verify it against the request with evidence for every check |
 | [`verification`](plugins/verification/) | `setup-verification`, `verify-change` | Give a repo its own verification: build, lint, static analysis, and test checks with pass criteria, a feature map, and evidence capture. Then verify any change against its goal, with one verdict |
 | [`skill-authoring`](plugins/skill-authoring/) | `evaluate-skill` | Evaluate Agent Skills: static structure, whether they trigger on the right requests, and whether they beat no skill on tasks with known answers, via `claude plugin eval` |
+| [`presentation`](plugins/presentation/) | `workflow-slides-blocks` | Make or refine a simple, visual PowerPoint slide for a workflow, process, before/after or operating model, built on your own deck. **Requires python-pptx and Pillow**, which it never installs |
 
 <details>
 <summary><b>Other ways to install, and troubleshooting</b></summary>

@@ -56,7 +56,7 @@ Use Problem → Design → Predict → Build → Validate → Learn.
 - Scale the plan to the task. A small edit needs a short stated approach, not a new design document.
 - A skill's own runtime checkpoints (asking the user, approvals) are for the skill's users, not rules requiring approval for every edit you make here.
 - Preserve unrelated local changes. Avoid destructive replacements without explicit authorization.
-- Reuse verified capabilities before adding abstractions or dependencies. Bundled scripts are stdlib-only Python 3.9+; add no application toolchain unless asked.
+- Reuse verified capabilities before adding abstractions or dependencies. Bundled scripts are stdlib-only Python 3.9+, except a named file-format requirement (`scripts.instructions.md`); add no application toolchain unless asked.
 - If delegating, give the goal, inputs, output contract, allowed scope, and acceptance checks; review returned artifacts rather than trusting completion summaries.
 - Keep requirements, assumptions, decisions, and observed results distinct in the PR description (and `doc/` for lasting design).
 - Do not create a pull request unless asked.

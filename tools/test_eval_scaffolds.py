@@ -44,6 +44,10 @@ def tree(root):
     return found
 
 
+def as_bytes(data):
+    return data if isinstance(data, bytes) else data.encode("utf-8")
+
+
 def scenario_readme(source_rel):
     """The scenario README above a fixture, which states its answer, as bytes, or None."""
     parts = source_rel.split("/")
@@ -77,9 +81,9 @@ def check_git_case(case_rel, spec):
         run = subprocess.run(["bash", script], cwd=workspace, capture_output=True, text=True,
                              env=env)
         check("%s scaffold runs" % case_rel, run.returncode == 0, run.stderr)
-        base = dict((rel, text.encode("utf-8")) for rel, text in
+        base = dict((rel, as_bytes(data)) for rel, data in
                     build.fixture_files(os.path.join(REPO, spec["base"])))
-        change = dict((rel, text.encode("utf-8")) for rel, text in
+        change = dict((rel, as_bytes(data)) for rel, data in
                       build.fixture_files(os.path.join(REPO, spec["change"])))
         expected = dict(base, **change)
         got = tree(workspace)
@@ -129,7 +133,7 @@ def main():
         try:
             run = subprocess.run(["bash", script], cwd=workspace, capture_output=True, text=True)
             check("%s scaffold runs" % case_rel, run.returncode == 0, run.stderr)
-            expected = {rel: text.encode("utf-8") for rel, text in
+            expected = {rel: as_bytes(data) for rel, data in
                         build.fixture_files(os.path.join(REPO, source_rel), exclude)}
             got = tree(workspace)
             readme = scenario_readme(source_rel)
@@ -165,6 +169,25 @@ def main():
         with open(os.path.join(out, "x.sh"), encoding="utf-8") as fh:
             check("shell syntax in a fixture is copied, not expanded",
                   fh.read() == 'echo "$HOME" `whoami` $(id) \\n\n')
+    finally:
+        shutil.rmtree(workspace, ignore_errors=True)
+
+    # A binary file goes through base64; prove the round trip on bytes no text heredoc could carry.
+    workspace = tempfile.mkdtemp(prefix="eval-scaffold-binary-")
+    try:
+        source = os.path.join(workspace, "src")
+        os.makedirs(os.path.join(source, "deep"))
+        blob = bytes(range(256)) * 3 + b"EVAL_FIXTURE_EOF\n\x00"
+        with open(os.path.join(source, "deep", "blob.bin"), "wb") as fh:
+            fh.write(blob)
+        out = os.path.join(workspace, "out")
+        os.makedirs(out)
+        script = os.path.join(workspace, "scaffold.sh")
+        with open(script, "w", encoding="utf-8") as fh:
+            fh.write(build.render(os.path.relpath(source, build.REPO)))
+        subprocess.run(["bash", script], cwd=out, check=True)
+        with open(os.path.join(out, "deep", "blob.bin"), "rb") as fh:
+            check("a binary fixture file is recreated byte for byte", fh.read() == blob)
     finally:
         shutil.rmtree(workspace, ignore_errors=True)
 
