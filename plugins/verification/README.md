@@ -26,9 +26,11 @@ Then verify any change, whoever made it:
 - **`setup-verification`** — surveys the codebase and writes a project-local `verify-<app>` skill into it:
   - **checks:** the build, lint, static analysis, and test checks that apply, each with its command, when it
     applies, whether it is required, and its pass criterion;
-  - **a feature map:** one file per area, with the source paths it owns;
-  - **a small CLI:** `doctor`, `start`, `stop`, `affected`, `check`, `capture` and `report`, wrapping the
-    commands your repository already has;
+  - **a feature map:** one file per area, with the source paths it owns and the shared code it uses, so a
+    change to shared code reaches every area that depends on it;
+  - **a small CLI:** `doctor`, `start`, `url`, `stop`, `affected`, `check`, `capture`, `report` and `clean`,
+    wrapping the commands your repository already has. Each run gets its own port and data, so several
+    agents can verify different changes on one machine; where the app cannot be isolated, the skill says so;
   - **known failures:** checks already failing on the base, recorded with the commit, never folded into
     what passes.
 

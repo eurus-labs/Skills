@@ -78,6 +78,18 @@ def main():
     check("verify-change passes a commit range's own endpoints, not HEAD",
           "`<a>..<b>` for a commit range" in vc and "<base>..HEAD` for a commit range" not in vc)
     check("verify-change ends with a JSON verdict", '"verdict":' in vc)
+    check("affected follows shared code through uses:, and marks those areas",
+          "`uses:`" in sv and "via <path>" in sv and "uses: `" in sv)
+    check("verify-change and implement turn unmapped paths into criteria or gaps",
+          "`unmapped:`" in vc and "**Not verified**" in vc and "`unmapped:`" in im)
+    check("runs are isolated: own port and data, a url command, no fixed port in drive lines",
+          "One run never touches another's" in sv and "| `url` |" in sv
+          and "## Isolation" in gen and "localhost:8000" not in sv)
+    check("old runs can be cleaned without touching a live one",
+          "| `clean [--keep <n>]` |" in sv and "nothing outside `.verify/`" in sv)
+    check("a server never outlives its run",
+          "also after a failed step" in gen and "also when a step failed" in vc
+          and "even after a failed step" in im)
     check("implement no longer reads a review table from the project skill",
           "review-against-the-goal" not in im)
 
