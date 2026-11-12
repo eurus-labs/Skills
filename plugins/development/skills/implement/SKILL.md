@@ -225,17 +225,18 @@ behavior that must not change, and a negative or failure case where the request 
    each criterion, the tests covering every touched module, and the gates the project requires before a change
    is done — build, lint, static analysis such as type checks, and the full test suite, each one that the
    project has. Add checks for callers of any changed signature or format.
-   When the project has a verification skill, follow its procedure: run its `doctor`, `affected`, and
-   `check --affected` commands,
-   drive the entry points of every affected feature file under its `capture` command, and add its
-   review-against-the-goal rows to the **Verification** table. A result that conflicts with an `[observed]`
+   When the project has a verification skill, use it: run its `doctor`, `affected`, and `check --affected`
+   commands, drive the entry points of every affected feature file under its `capture` command, and add a row
+   to the **Verification** table for each `[confirmed: …]` entry in those files. Its known failures are hints:
+   confirm them on the unchanged code (step 8). A result that conflicts with an `[observed]`
    entry is reported under **Limitations**, not counted as a pass or a failure.
 3. **For bug fixes, reproduce the original failure and confirm the correction** when feasible: the
    reproduction fails before the fix and passes after.
 4. **Check relevant negative cases and failure behavior**: invalid, empty, or boundary input; missing
    resources; the error the user should see.
 5. **Run the checks using project conventions**, narrowest first, so a failure points at its cause. Confirm a
-   passing run actually executed tests — a selector that collected nothing is not a pass.
+   passing run actually executed tests — a selector that collected nothing is not a pass, and tests that cover
+   the change but were skipped prove nothing until they run.
 6. **Inspect the final changes** with `git diff` and the list of new files: accidental edits, scope drift,
    changed signatures with unchanged callers, removed error handling, debug output, secrets.
 7. **Repair failures caused by the change** and repeat the relevant checks — the failing check and those

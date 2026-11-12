@@ -15,6 +15,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (`fixtures/13`), and a repository that already has its own verify skill (`fixtures/14`, triggering).
   Not run yet.
 
+### Changed
+
+- **`verification`** (0.2.0): one place judges a change. A pilot of the plugin on this repository found the
+  generated `verify-<app>` skill competing with `verify-change` and reporting false greens.
+  - The generated skill no longer claims "verify a change", has no review table or `met`/`not met` verdicts,
+    and carries the no-edit, no-stash rules. `verify-change` gives the verdict and uses it.
+  - Whether a check is required comes from CI or a written rule, never from whether it can run here.
+  - A baseline no longer changes what passes: failing checks go under **Known failures**, and a failure is
+    pre-existing only when it reproduces on the change's base.
+  - Skipped tests are not evidence.
+  - The CLI contract requires `check` to print every row of `## Checks` and to fail on a row it cannot read,
+    to accept a commit range, to act on the current directory's repository, and to scope evidence to a run
+    with a tree fingerprint.
+  - `verify-change` ends its report with a JSON verdict for CI, and should run in a session that did not
+    write the change when it gates a merge.
+- **`implement`** (`development` 0.3.2) uses the project's verification skill for checks and confirmed
+  behavior instead of its review table, and treats skipped tests and known failures the same way.
+
 ## [0.2.0] — Unreleased
 
 The first release under the **`eurus-labs`** name. It renames the marketplace, regroups skills into plugins by

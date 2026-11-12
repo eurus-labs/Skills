@@ -29,15 +29,18 @@ Then verify any change, whoever made it:
   - **a feature map:** one file per area, with the source paths it owns;
   - **a small CLI:** `doctor`, `start`, `stop`, `affected`, `check`, `capture` and `report`, wrapping the
     commands your repository already has;
-  - **a review against the goal:** one verdict per criterion.
+  - **known failures:** checks already failing on the base, recorded with the commit, never folded into
+    what passes.
 
-  It asks you for the business rules the code cannot settle, then trial-runs every command. Generic itself;
+  The generated skill holds what is specific to your repository and gives no verdict; `verify-change` and
+  `implement` use it. It asks you for the business rules the code cannot settle, then trial-runs every command. Generic itself;
   what it writes adapts to each repository. Fires on "set up verification for this repo", "make a verify
   skill", "create a feature map".
 - **`verify-change`** — verifies a change that already exists: the working tree, a branch, a commit range, or
   a pull request. It fixes the goal and acceptance criteria first, runs every check that applies, attaches
   evidence to each criterion, separates this change's failures from pre-existing ones, and reports one
-  verdict. Changes no code. Fires on "verify this change", "does this PR do what the issue asks", "run all
+  verdict, also as a JSON block CI can gate a merge on. Changes no code. It is the one place a change is
+  judged, and uses the repository's `verify-<app>` skill when there is one. Fires on "verify this change", "does this PR do what the issue asks", "run all
   the checks on this".
 
 | You ask for | Skill |
