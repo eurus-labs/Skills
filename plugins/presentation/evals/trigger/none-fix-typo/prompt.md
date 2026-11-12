@@ -1,5 +1,5 @@
 ---
-description: must not fire: editing text in place
+description: "must not fire: editing text in place"
 tags: [trigger]
 max_turns: 6
 allowed_tools: [Read, Glob, Grep, Skill]

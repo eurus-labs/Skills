@@ -1,0 +1,21 @@
+{
+  "name": "presentation",
+  "description": "Make or refine simple, visual PowerPoint slides: workflows, processes, before/after and operating models drawn as framed blocks of icon-and-label nodes in 2\u20133 colours, built on the user's own .pptx with its theme kept. Requires python-pptx and Pillow, which it never installs.",
+  "version": "0.1.1",
+  "keywords": [
+    "presentation",
+    "slides",
+    "pptx",
+    "powerpoint",
+    "workflow",
+    "diagram"
+  ],
+  "author": {
+    "name": "eurus-labs"
+  },
+  "repository": "https://github.com/eurus-labs/Skills",
+  "license": "MIT",
+  "skills": [
+    "./skills/workflow-slides-blocks/"
+  ]
+}

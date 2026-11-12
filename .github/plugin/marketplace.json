@@ -12,43 +12,43 @@
       "name": "testing",
       "source": "plugins/testing",
       "description": "Write, review, and debug automated tests in whatever framework a repository already uses. Detects the stack at runtime rather than imposing a framework. With your agreement, it installs the project's own test runner when it is missing, and review-tests may run the project's documented setup \u2014 never anything else, and never unattended.",
-      "version": "0.3.4"
+      "version": "0.3.5"
     },
     {
       "name": "code-review",
       "source": "plugins/code-review",
       "description": "Review code against Google's Standard of Code Review and the repository's own rules files and review checklist, reporting findings with Conventional Comments labels and CWE-named security categories. Also generates those rules files and the checklist the review reads.",
-      "version": "0.2.3"
+      "version": "0.2.4"
     },
     {
       "name": "docs",
       "source": "plugins/docs",
       "description": "Write architecture documentation, a product manual, or a document following your own template from repository source, verified dependency and call evidence, and reviewed prose \u2014 you choose the outline, none is mandatory \u2014 and check existing docs against a template. Produces multi-page docs with file:line citations and a human checkpoint for the final readings.",
-      "version": "1.3.5"
+      "version": "1.3.6"
     },
     {
       "name": "development",
       "source": "plugins/development",
       "description": "Design a change without touching code, or implement a feature, bug fix, or refactor and verify it against the original request \u2014 acceptance criteria fixed before coding, design patterns used only for a concrete problem, and evidence reported for every check.",
-      "version": "0.3.0"
+      "version": "0.3.1"
     },
     {
       "name": "verification",
       "source": "plugins/verification",
       "description": "Set up a repository's own verification \u2014 its build, lint, static analysis, and test checks with pass/fail criteria, a feature map, and evidence capture \u2014 and verify any existing change against its goal, with evidence for every check and criterion and one honest verdict.",
-      "version": "0.1.1"
+      "version": "0.1.2"
     },
     {
       "name": "skill-authoring",
       "source": "plugins/skill-authoring",
       "description": "Evaluate Agent Skills on three levels \u2014 static structure and scope, whether they trigger on the right requests and stay quiet on the wrong ones, and whether they lead an agent to the right outcome compared with no skill \u2014 by writing eval suites for `claude plugin eval` and reporting what each failure means.",
-      "version": "0.1.0"
+      "version": "0.1.1"
     },
     {
       "name": "presentation",
       "source": "plugins/presentation",
       "description": "Make or refine simple, visual PowerPoint slides: workflows, processes, before/after and operating models drawn as framed blocks of icon-and-label nodes in 2\u20133 colours, built on the user's own .pptx with its theme kept. Requires python-pptx and Pillow, which it never installs.",
-      "version": "0.1.0"
+      "version": "0.1.1"
     }
   ]
 }

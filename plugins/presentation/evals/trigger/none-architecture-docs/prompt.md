@@ -1,5 +1,5 @@
 ---
-description: must not fire: documentation of a codebase
+description: "must not fire: documentation of a codebase"
 tags: [trigger]
 max_turns: 6
 allowed_tools: [Read, Glob, Grep, Skill]

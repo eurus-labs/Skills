@@ -19,7 +19,8 @@ A plugin is an installable bundle of related skills. One plugin = one coherent t
 
 ```
 plugins/<plugin-name>/
-├── .github/plugin/plugin.json   # required — the manifest
+├── .github/plugin/plugin.json   # required — the manifest (Copilot)
+├── .claude-plugin/plugin.json   # required — an identical copy (Claude Code, `claude plugin eval`)
 ├── README.md                    # required — what it is, how to install, what's inside
 └── skills/
     └── <skill-name>/
