@@ -119,6 +119,19 @@ def check_plugin(name):
         fail(rel(manifest_path), "name is %r but the folder is %r"
              % (manifest.get("name"), name))
 
+    # Claude Code, and `claude plugin eval` with it, read only plugin.json or
+    # .claude-plugin/plugin.json. Without this copy an eval resolves "no plugin" and
+    # silently measures Claude Code with nothing installed.
+    claude_path = os.path.join(plugin_dir, ".claude-plugin", "plugin.json")
+    if not os.path.isfile(claude_path):
+        fail("plugins/%s" % name, "has no .claude-plugin/plugin.json -- Claude Code and "
+             "`claude plugin eval` do not read .github/plugin/plugin.json; copy it there")
+    else:
+        mirror = load_json(claude_path)
+        if mirror is not None and mirror != manifest:
+            fail(rel(claude_path), "differs from .github/plugin/plugin.json -- copy that "
+                 "file over it")
+
     for field in ("description", "version"):
         if not manifest.get(field):
             fail(rel(manifest_path), "missing required field %r" % field)

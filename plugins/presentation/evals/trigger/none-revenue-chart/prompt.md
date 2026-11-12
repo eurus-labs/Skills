@@ -1,5 +1,5 @@
 ---
-description: must not fire: a data chart on its own
+description: "must not fire: a data chart on its own"
 tags: [trigger]
 max_turns: 6
 allowed_tools: [Read, Glob, Grep, Skill]

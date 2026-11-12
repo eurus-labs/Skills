@@ -66,6 +66,11 @@ capability, and adds three plugins and eval suites.
 
 ### Fixed
 
+- **Evals load.** The first real `claude plugin eval` run found that nine eval descriptions were invalid YAML
+  (four `verification` cases and five `presentation` cases refused to load) and that no plugin resolved at
+  all, because Claude Code reads `.claude-plugin/plugin.json` and the manifests only existed at
+  `.github/plugin/plugin.json`. Every plugin now carries both, and the validator and two new tests keep
+  them identical and the eval frontmatter parseable.
 - **`implement`** never runs a dependency install.
 - **`document-codebase`** (`docs`): `verify_doc` resolves method receivers correctly in more cases, including
   `self.m` assignments that shadow a base method, `__dict__` replacement and nested functions without `self`.

@@ -1,0 +1,17 @@
+{
+  "name": "_template",
+  "description": "Scaffolding, not a real plugin. Copy this folder to plugins/<your-plugin-name>/ and replace every placeholder.",
+  "version": "0.1.0",
+  "keywords": [
+    "template",
+    "scaffold"
+  ],
+  "author": {
+    "name": "eurus-labs"
+  },
+  "repository": "https://github.com/eurus-labs/Skills",
+  "license": "MIT",
+  "skills": [
+    "./skills/example-skill/"
+  ]
+}

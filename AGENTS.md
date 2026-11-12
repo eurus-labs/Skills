@@ -88,7 +88,7 @@ This section overrides any conflicting default from your harness, tooling, or sy
 
 ## This Repository
 
-- A GitHub Copilot plugin marketplace; no application. `.github/plugin/marketplace.json` lists plugins; each `plugins/<plugin>/` has `.github/plugin/plugin.json`, a `README.md`, and `skills/<skill>/SKILL.md` with optional `references/` and `scripts/`. `plugins/_template/` is the scaffold and is not installable.
+- A GitHub Copilot plugin marketplace; no application. `.github/plugin/marketplace.json` lists plugins; each `plugins/<plugin>/` has `.github/plugin/plugin.json` and an identical `.claude-plugin/plugin.json` (the copy Claude Code and `claude plugin eval` read; `validate.py` checks them), a `README.md`, and `skills/<skill>/SKILL.md` with optional `references/` and `scripts/`. `plugins/_template/` is the scaffold and is not installable.
 - Before writing, read the root `README.md` catalog and decide: a new skill in an existing plugin (the default), a new plugin (only when no theme fits), or an edit to an existing skill (prefer it over a near-duplicate, which hurts triggering for both). Ask if genuinely ambiguous: splitting plugins later changes install names.
 - New skill: copy `plugins/_template/skills/example-skill/SKILL.md`, add `"./skills/<name>/"` to the plugin's `skills` array, bump the plugin's minor `version`, and update the plugin README, its `description` if scope changed, and its root catalog row.
 - New plugin: copy `plugins/_template/` (kebab-case), set `name` to the folder name and `version` to `0.1.0`, add a `marketplace.json` entry whose `description` and `version` match `plugin.json`, and add a root catalog row.

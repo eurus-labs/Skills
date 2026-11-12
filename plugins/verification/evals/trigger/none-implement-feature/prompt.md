@@ -1,5 +1,5 @@
 ---
-description: should fire no skill in this plugin: making a change is implement's
+description: "should fire no skill in this plugin: making a change is implement's"
 tags: [trigger]
 max_turns: 6
 allowed_tools: [Read, Glob, Grep, Skill]

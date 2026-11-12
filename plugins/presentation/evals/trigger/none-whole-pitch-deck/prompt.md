@@ -1,5 +1,5 @@
 ---
-description: must not fire: a whole deck of content slides
+description: "must not fire: a whole deck of content slides"
 tags: [trigger]
 max_turns: 6
 allowed_tools: [Read, Glob, Grep, Skill]

@@ -1,0 +1,21 @@
+{
+  "name": "development",
+  "description": "Design a change without touching code, or implement a feature, bug fix, or refactor and verify it against the original request \u2014 acceptance criteria fixed before coding, design patterns used only for a concrete problem, and evidence reported for every check.",
+  "version": "0.3.0",
+  "keywords": [
+    "development",
+    "implementation",
+    "design",
+    "bug-fix",
+    "refactoring"
+  ],
+  "author": {
+    "name": "eurus-labs"
+  },
+  "repository": "https://github.com/eurus-labs/Skills",
+  "license": "MIT",
+  "skills": [
+    "./skills/design-solution/",
+    "./skills/implement/"
+  ]
+}

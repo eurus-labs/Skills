@@ -12,9 +12,14 @@ description: Rules for plugin.json, marketplace.json, and shared.manifest — ma
 | ---- | ---- |
 | Marketplace | `.github/plugin/marketplace.json` |
 | Plugin | `plugins/<name>/.github/plugin/plugin.json` |
+| Plugin, Claude Code's copy | `plugins/<name>/.claude-plugin/plugin.json` |
 
-`.github/plugin/` is a valid manifest location — the resolver checks `.plugin/`, `plugin.json`,
-`.github/plugin/`, and `.claude-plugin/`. Do not "fix" this by moving manifests to the plugin root.
+`.github/plugin/` is a valid manifest location for Copilot — its resolver checks `.plugin/`,
+`plugin.json`, `.github/plugin/`, and `.claude-plugin/`. Claude Code reads only `plugin.json` and
+`.claude-plugin/plugin.json`, so `claude plugin eval` against a plugin with only the `.github/` manifest
+reports "Plugin under test: none resolved" and runs every case with no plugin at all. Each plugin therefore
+carries the same file at both paths, and the validator fails when either is missing or they differ. Do not
+"fix" this by moving manifests to the plugin root.
 
 ## Parity — enforced by the validator
 

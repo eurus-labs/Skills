@@ -12,7 +12,8 @@
    ```
 
 2. Edit `plugins/my-plugin-name/.github/plugin/plugin.json` — set `name` to `my-plugin-name` (it must match the
-   folder), write a real `description`, and list your skills in `skills`.
+   folder), write a real `description`, and list your skills in `skills`. Then copy it over
+   `plugins/my-plugin-name/.claude-plugin/plugin.json`; the validator fails if the two differ.
 3. Rename `skills/example-skill/` to your skill's name and rewrite its `SKILL.md`. Delete
    `references/example.md` if you do not need it.
 4. Rewrite this README using the template below.
