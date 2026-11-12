@@ -73,6 +73,10 @@ def main():
     check("check must print every row and fail on an unreadable one",
           "**every row**" in sv and "never skipped" in sv)
     check("affected accepts a commit range", "<a>..<b>" in sv)
+    check("the fingerprint never includes the evidence it guards",
+          "always excluding `.verify/`" in sv)
+    check("verify-change passes a commit range's own endpoints, not HEAD",
+          "`<a>..<b>` for a commit range" in vc and "<base>..HEAD` for a commit range" not in vc)
     check("verify-change ends with a JSON verdict", '"verdict":' in vc)
     check("implement no longer reads a review table from the project skill",
           "review-against-the-goal" not in im)

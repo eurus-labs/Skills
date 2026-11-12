@@ -122,7 +122,8 @@ Pick exactly one verdict:
    when the goal implies one. Show them before running checks.
 3. **Load the project's way of verifying.** If the repository has a verification skill — a `verify-*` folder
    under `.github/skills/`, `.claude/skills/`, or `.agents/skills/` — use it: its `doctor`, `affected`, and
-   `check` commands (pass `<base>..HEAD` for a commit range), the feature files for the affected areas, and
+   `check` commands (pass the change's own endpoints: `<a>..<b>` for a commit range, `<base>` for a branch
+   or working tree checked out here), the feature files for the affected areas, and
    their `[confirmed: …]` behavior as further criteria. The goal, the criteria, and the verdict stay this
    skill's; a review procedure or verdict wording in that skill does not replace them. Otherwise find the checks the project requires from `AGENTS.md`,
    `CONTRIBUTING.md`, CI workflows, `Makefile`, and manifest scripts. Map each to build, lint, static analysis,
