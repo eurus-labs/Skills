@@ -57,6 +57,36 @@ GIT_SCAFFOLDS = {
         "branch": None,
         "messages": ("Add the tally expense log", "Test the CLI end to end"),
     },
+    "plugins/verification/evals/behavior/verify-change-reports-blocked-required-check": {
+        "base": "fixtures/10-required-check-blocked/base",
+        "change": "fixtures/10-required-check-blocked/change",
+        "branch": "free-shipping-code",
+        "messages": ("Add discount codes", "Add a FREESHIP code (#58)"),
+    },
+    "plugins/verification/evals/behavior/verify-change-runs-skipped-tests": {
+        "base": "fixtures/11-skipped-test-hides-bug/base",
+        "change": "fixtures/11-skipped-test-hides-bug/change",
+        "branch": "bulk-rate",
+        "messages": ("Add shipping costs", "Ship heavy orders at the bulk rate (#61)"),
+    },
+    "plugins/verification/evals/behavior/verify-change-proves-pre-existing-failure": {
+        "base": "fixtures/12-pre-existing-failure/base",
+        "change": "fixtures/12-pre-existing-failure/change",
+        "branch": "add-tax",
+        "messages": ("Add order arithmetic", "Add add_tax (#64)"),
+    },
+    "plugins/verification/evals/behavior/setup-verification-runs-every-ci-check": {
+        "base": "fixtures/13-pipes-in-ci/base",
+        "change": "fixtures/13-pipes-in-ci/change",
+        "branch": None,
+        "messages": ("Add textkit", "Note the slugify command in the changelog"),
+    },
+    "plugins/verification/evals/trigger/verify-change-with-local-verify-skill": {
+        "base": "fixtures/14-local-verify-skill/base",
+        "change": "fixtures/14-local-verify-skill/change",
+        "branch": "fix-rounding",
+        "messages": ("Add order totals and their verify skill", "Round totals half up (#31)"),
+    },
 }
 
 # The commits are the fixture's, not anyone's. The identity is set through the environment,

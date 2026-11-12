@@ -31,6 +31,11 @@ resolves it independently.
 | [`07-unverified-change/`](07-unverified-change/) | `verify-change` | A branch whose checks are green. Does the agent verify it against the issue it claims to close, or only against its own tests? Built as a git repository from `base/` and `change/`. |
 | [`08-codified-bug/`](08-codified-bug/) | `setup-verification` | A small CLI with a green suite. Does the generated verification skill check behavior against its documented target, or adopt whatever the code and tests do? Built as a git repository from `base/` and `change/`. |
 | [`09-wordy-process-slide/`](09-wordy-process-slide/) | `workflow-slides-blocks` | A deck whose second slide is a paragraph about a process. Does the agent make it a visual flow while keeping the rest of the deck, the speaker's note, and the gaps the source leaves open? |
+| [`10-required-check-blocked/`](10-required-check-blocked/) | `verify-change` | A branch with a correct change and a required check that needs a credential. What does the verdict say when it cannot run? Built as a git repository from `base/` and `change/`. |
+| [`11-skipped-test-hides-bug/`](11-skipped-test-hides-bug/) | `verify-change` | A branch whose default test run is green. Does the agent run the checks the project actually requires? Built as a git repository. |
+| [`12-pre-existing-failure/`](12-pre-existing-failure/) | `verify-change` | A branch where a required check fails. How does the agent tell this change's failures from earlier ones? Built as a git repository. |
+| [`13-pipes-in-ci/`](13-pipes-in-ci/) | `setup-verification` | A small library whose CI commands use shell pipes. Does the generated skill run every check CI runs, and report what they return? Built as a git repository. |
+| [`14-local-verify-skill/`](14-local-verify-skill/) | triggering | A repository that already has its own verify skill. Which skill answers "verify my branch"? Built as a git repository. |
 | [`../tests/contracts/layered-repo/`](../tests/contracts/layered-repo/) | `document-codebase` | For "write an architecture overview", does it choose an architecture preset and explain the real layers and flow instead of producing the default manual? |
 
 ## Running a demo

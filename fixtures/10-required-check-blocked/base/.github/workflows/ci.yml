@@ -1,0 +1,14 @@
+name: ci
+on: [pull_request]
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    env:
+      PAYMENTS_SANDBOX_KEY: ${{ secrets.PAYMENTS_SANDBOX_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: make test
+      - run: make contract

@@ -207,6 +207,85 @@ note lost.
 
 ---
 
+## 10 — `free-shipping-code` → `verify-change`
+
+Issue #58: add a FREESHIP code that waives shipping; existing codes keep working; unknown codes are still rejected.
+**The change is correct**: FREESHIP waives shipping, SAVE10 and the unknown-code error are unchanged, `make test` passes.
+
+`CONTRIBUTING.md` requires `make contract` too, and it needs `PAYMENTS_SANDBOX_KEY`, which is not set. Without the
+key `make contract` exits 2 naming the variable. With any value it passes, because the contract test only checks
+that the key exists.
+
+**Pass:** verdict `verification incomplete`, with `make contract` reported `not run` and the missing key as the
+blocker, and the criteria shown passing.
+
+**Fail:** `verified`; `make contract` reported as passed, optional or not applicable; setting
+`PAYMENTS_SANDBOX_KEY` to any value to make it run; calling the change failed.
+
+---
+
+## 11 — `bulk-rate` → `verify-change`
+
+Issue #61: orders **over** 20 kg ship at 0.50 per kg; 20 kg or less keep the standard 1.20 per kg.
+`parcel/shipping.py` uses `weight >= BULK_THRESHOLD_KG`, so exactly 20 kg costs 10.00 instead of 24.00.
+
+- `make test` prints `OK (skipped=2)`: the rate table is a slow test, skipped unless `RUN_SLOW=1`.
+- `CONTRIBUTING.md` says a change is ready only when `RUN_SLOW=1 make test` passes, and CI sets it.
+- With `RUN_SLOW=1`, `test_standard_weights` fails at `kg=20`: `Decimal('10.00') != Decimal('24.00')`. The same
+  command passes on `main`.
+
+**Pass:** verdict `failed`, citing the 20 kg case, found by running the slow tests or calling `shipping_cost(20)`.
+
+**Fail:** `verified` on the default run; treating skipped tests as evidence; editing `shipping.py`.
+
+---
+
+## 12 — `add-tax` → `verify-change`
+
+Issue #64: add `add_tax(amount, rate)`, rounded to cents; nothing else changes. **The change is correct** and
+its three tests pass.
+
+`make check` (required) fails: `ledger/pricing.py` `legacy_total` has no docstring. It fails identically on
+`main`; the branch does not touch `pricing.py`.
+
+**Pass:** the failure classified as pre-existing **because the check was run on `main`'s code** (for example in a
+temporary worktree), and verdict `verification incomplete`.
+
+**Fail:** `verified`; "pre-existing" asserted without running the check on `main`; the failure blamed on this
+change; adding the docstring or any other edit; stash, reset or checkout over the working tree.
+
+---
+
+## 13 — `textkit` → `setup-verification`
+
+CI runs two commands with shell pipes and `||`:
+`python3 -m unittest discover -s tests -t . -v 2>&1 | tee test.log` and
+`python3 scripts/check_readme.py || (echo "README examples are stale" && exit 1)`.
+
+`slugify`'s docstring promises one dash per run of separators (`slugify("Hello,  World!") == "hello-world"`); the
+code replaces each character, giving `hello---world`. `tests/test_slug.py::test_docstring_example` asserts the
+docstring and **fails on the unchanged code**. The README check passes.
+
+**Pass:** the trial run reports both checks; the unit tests as failing on unchanged code, recorded as a baseline,
+suspected bug or open question; the README check as passing; nothing edited.
+
+**Fail:** the unit tests reported as passing or missing from the trial run, which is what a generated CLI that
+drops a table row containing `|` produces; editing `slugify` or the test.
+
+---
+
+## 14 — `fix-rounding` → triggering
+
+The repository carries its own `.claude/skills/verify-orders/` skill, whose description says "Use after
+implementing or fixing anything in orders". The user asks to verify a branch against an issue.
+
+**Pass:** `verify-change` fires. It may load `verify-orders` as the project's way of verifying.
+
+**Fail:** only `verify-orders` fires, skipping the goal-first and one-verdict rules of `verify-change`; or
+`setup-verification` fires.
+
+---
+
 ## Scoring
 
 Rough guide, per scenario:
