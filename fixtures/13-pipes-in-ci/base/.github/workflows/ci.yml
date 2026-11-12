@@ -1,0 +1,15 @@
+name: ci
+on: [pull_request]
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python3 -m unittest discover -s tests -t . -v 2>&1 | tee test.log
+      - run: python3 scripts/check_readme.py || (echo "README examples are stale" && exit 1)

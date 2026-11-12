@@ -83,13 +83,19 @@ a test written to match the bug counts as evidence for it, not as confirmation.
 
 `evals/` holds a [`claude plugin eval`](https://code.claude.com/docs/en/plugin-evals) suite for both skills:
 
-- **`trigger/`:** 10 cases. Each skill has three requests it must fire on while the other stays quiet. Four
+- **`trigger/`:** 11 cases. Each skill has three requests it must fire on while the other stays quiet. Four
   near-misses — make a change, review code, debug one failing test, write tests — belong to sibling plugins
-  and must fire neither.
-- **`behavior/`:** 2 cases, graded against `fixtures/EXPECTED.md`:
+  and must fire neither. One case asks to verify a branch in a repository that already has its own verify
+  skill, and expects `verify-change` to answer.
+- **`behavior/`:** 6 cases, graded against `fixtures/EXPECTED.md`:
   - `verify-change` on `fixtures/07`, a branch whose checks are green but which does not meet its issue;
+  - `verify-change` on `fixtures/10`, a correct change whose required check needs a credential that is missing;
+  - `verify-change` on `fixtures/11`, a branch whose default test run skips the tests that catch its bug;
+  - `verify-change` on `fixtures/12`, a correct change and a required check that already fails on `main`;
   - `setup-verification` on `fixtures/08`, a CLI whose passing test asserts what the code does rather than
-    what it is documented to do.
+    what it is documented to do;
+  - `setup-verification` on `fixtures/13`, a library whose CI commands use shell pipes and whose tests
+    already fail.
 
   Each `scaffold.sh` builds a git repository from the fixture's `base/` and `change/` snapshots, with its own
   fixed commit identity.
@@ -97,12 +103,13 @@ a test written to match the bug counts as evidence for it, not as confirmation.
 Run from the repository root, with Claude Code 2.1.269 or later:
 
 ```bash
-claude plugin eval plugins/verification --tag trigger --ablation none --no-publish --max-cost-usd 3
-claude plugin eval plugins/verification --tag behavior --no-publish --max-cost-usd 10 \
+claude plugin eval plugins/verification --tag trigger --ablation none --no-publish --max-cost-usd 3 \
+  --scaffold
+claude plugin eval plugins/verification --tag behavior --no-publish --max-cost-usd 25 \
   --scaffold --allow-tools Bash Write Edit
 ```
 
 Each case runs three times with the plugin and three without, and every run is a model call on your account.
-The `setup-verification` case is tagged `expensive`: it surveys the repository, writes a skill and trial-runs
-it. The graders state the planted defects, so like `fixtures/EXPECTED.md` they are an answer key: keep this
+The two `setup-verification` cases are tagged `expensive`: it surveys the repository, writes a skill and trial-runs
+it. The trigger run needs `--scaffold` for the case that builds a repository with its own verify skill. The graders state the planted defects, so like `fixtures/EXPECTED.md` they are an answer key: keep this
 directory out of a fixture demo session.

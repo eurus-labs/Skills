@@ -5,6 +5,16 @@ All notable changes to this marketplace. Each plugin also carries its own `versi
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- **`verification`** (0.1.3): five eval cases for the failures a pilot of the plugin found or could not
+  exercise: a required check that cannot run (`fixtures/10`), tests skipped by default that hide a bug
+  (`fixtures/11`), a required check already failing on `main` (`fixtures/12`), CI commands with shell pipes
+  (`fixtures/13`), and a repository that already has its own verify skill (`fixtures/14`, triggering).
+  Not run yet.
+
 ## [0.2.0] — Unreleased
 
 The first release under the **`eurus-labs`** name. It renames the marketplace, regroups skills into plugins by
