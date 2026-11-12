@@ -30,13 +30,13 @@
       "name": "development",
       "source": "plugins/development",
       "description": "Design a change without touching code, or implement a feature, bug fix, or refactor and verify it against the original request \u2014 acceptance criteria fixed before coding, design patterns used only for a concrete problem, and evidence reported for every check.",
-      "version": "0.3.1"
+      "version": "0.3.2"
     },
     {
       "name": "verification",
       "source": "plugins/verification",
       "description": "Set up a repository's own verification \u2014 its build, lint, static analysis, and test checks with pass/fail criteria, a feature map, and evidence capture \u2014 and verify any existing change against its goal, with evidence for every check and criterion and one honest verdict.",
-      "version": "0.1.3"
+      "version": "0.2.0"
     },
     {
       "name": "skill-authoring",
