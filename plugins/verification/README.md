@@ -26,9 +26,11 @@ Then verify any change, whoever made it:
 - **`setup-verification`** — surveys the codebase and writes a project-local `verify-<app>` skill into it:
   - **checks:** the build, lint, static analysis, and test checks that apply, each with its command, when it
     applies, whether it is required, and its pass criterion;
-  - **a feature map:** one file per area, with the source paths it owns;
-  - **a small CLI:** `doctor`, `start`, `stop`, `affected`, `check`, `capture` and `report`, wrapping the
-    commands your repository already has;
+  - **a feature map:** one file per area, with the source paths it owns and the shared code it uses, so a
+    change to shared code reaches every area that depends on it;
+  - **a small CLI:** `doctor`, `start`, `url`, `stop`, `affected`, `check`, `capture`, `report` and `clean`,
+    wrapping the commands your repository already has. Each run gets its own port and data, so several
+    agents can verify different changes on one machine; where the app cannot be isolated, the skill says so;
   - **known failures:** checks already failing on the base, recorded with the commit, never folded into
     what passes.
 
@@ -90,11 +92,13 @@ a test written to match the bug counts as evidence for it, not as confirmation.
   near-misses — make a change, review code, debug one failing test, write tests — belong to sibling plugins
   and must fire neither. One case asks to verify a branch in a repository that already has its own verify
   skill, and expects `verify-change` to answer.
-- **`behavior/`:** 6 cases, graded against `fixtures/EXPECTED.md`:
+- **`behavior/`:** 7 cases, graded against `fixtures/EXPECTED.md`:
   - `verify-change` on `fixtures/07`, a branch whose checks are green but which does not meet its issue;
   - `verify-change` on `fixtures/10`, a correct change whose required check needs a credential that is missing;
   - `verify-change` on `fixtures/11`, a branch whose default test run skips the tests that catch its bug;
   - `verify-change` on `fixtures/12`, a correct change and a required check that already fails on `main`;
+  - `verify-change` on `fixtures/15`, a change to a helper two areas share, whose suite is green but which
+    breaks the area the issue does not name;
   - `setup-verification` on `fixtures/08`, a CLI whose passing test asserts what the code does rather than
     what it is documented to do;
   - `setup-verification` on `fixtures/13`, a library whose CI commands use shell pipes and whose tests
@@ -108,7 +112,7 @@ Run from the repository root, with Claude Code 2.1.269 or later:
 ```bash
 claude plugin eval plugins/verification --tag trigger --ablation none --no-publish --max-cost-usd 3 \
   --scaffold
-claude plugin eval plugins/verification --tag behavior --no-publish --max-cost-usd 25 \
+claude plugin eval plugins/verification --tag behavior --no-publish --max-cost-usd 30 \
   --scaffold --allow-tools Bash Write Edit
 ```
 

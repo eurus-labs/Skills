@@ -123,8 +123,10 @@ Pick exactly one verdict:
 3. **Load the project's way of verifying.** If the repository has a verification skill — a `verify-*` folder
    under `.github/skills/`, `.claude/skills/`, or `.agents/skills/` — use it: its `doctor`, `affected`, and
    `check` commands (pass the change's own endpoints: `<a>..<b>` for a commit range, `<base>` for a branch
-   or working tree checked out here), the feature files for the affected areas, and
-   their `[confirmed: …]` behavior as further criteria. The goal, the criteria, and the verdict stay this
+   or working tree checked out here), the feature files for the affected areas — including areas it lists
+   `via` shared code the change touches — and their `[confirmed: …]` behavior as further criteria. A source
+   path it reports as `unmapped:` has no feature criteria: cover it with a criterion from the goal, or list it
+   under **Not verified**. The goal, the criteria, and the verdict stay this
    skill's; a review procedure or verdict wording in that skill does not replace them. Otherwise find the checks the project requires from `AGENTS.md`,
    `CONTRIBUTING.md`, CI workflows, `Makefile`, and manifest scripts. Map each to build, lint, static analysis,
    or tests, and note any that does not exist.
@@ -135,6 +137,8 @@ Pick exactly one verdict:
    command, its exit code, and the summary line.
 6. **Gather evidence for each criterion.** Drive the behavior through the path a real user or client takes,
    using the project's verification skill or its existing tools. Check side effects, not just output.
+   Stop every server you started, also when a step failed. Where that skill's `## Isolation` says runs must
+   not overlap, state it in the report: evidence from a run that overlapped another proves nothing.
    Confirm a new test fails without the change when the base can be run (hard rule 6).
 7. **Classify every failure** as this change's or pre-existing, by evidence (hard rule 6). Anything outside
    the goal that you noticed, such as a suspected bug, goes under **Outside this change**.

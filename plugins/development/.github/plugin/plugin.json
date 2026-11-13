@@ -1,7 +1,7 @@
 {
   "name": "development",
   "description": "Design a change without touching code, or implement a feature, bug fix, or refactor and verify it against the original request \u2014 acceptance criteria fixed before coding, design patterns used only for a concrete problem, and evidence reported for every check.",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "keywords": [
     "development",
     "implementation",

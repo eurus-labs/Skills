@@ -226,8 +226,11 @@ behavior that must not change, and a negative or failure case where the request 
    is done — build, lint, static analysis such as type checks, and the full test suite, each one that the
    project has. Add checks for callers of any changed signature or format.
    When the project has a verification skill, use it: run its `doctor`, `affected`, and `check --affected`
-   commands, drive the entry points of every affected feature file under its `capture` command, and add a row
-   to the **Verification** table for each `[confirmed: …]` entry in those files. Its known failures are hints:
+   commands, drive the entry points of every affected feature file — areas listed `via` shared code
+   included — under its `capture` command, run its `stop` even after a failed step, and add a row to the
+   **Verification** table for each `[confirmed: …]` entry in those files. An `unmapped:` path it reports has
+   no feature criteria: cover it with a criterion of your own or list it under **Limitations**. Its known
+   failures are hints:
    confirm them on the unchanged code (step 8). A result that conflicts with an `[observed]`
    entry is reported under **Limitations**, not counted as a pass or a failure.
 3. **For bug fixes, reproduce the original failure and confirm the correction** when feasible: the

@@ -37,6 +37,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     write the change when it gates a merge.
 - **`implement`** (`development` 0.3.2) uses the project's verification skill for checks and confirmed
   behavior instead of its review table, and treats skipped tests and known failures the same way.
+- **`verification`** (0.3.0): a generated `verify-<app>` skill holds up under shared code and parallel
+  agents.
+  - Feature areas list the shared code they use (`uses:`), and `affected` reports an area reached only
+    through it as `via <path>`. A path no area owns or uses has no feature criteria: `verify-change` covers
+    it from the goal or lists it under **Not verified**.
+  - Each run starts the app on a free port with its data under `.verify/<run-id>/`; drive commands read the
+    address from the new `url` command instead of a fixed port. A project that cannot be isolated says so
+    under `## Isolation`. The trial run starts a second run alongside the first to prove it.
+  - `stop` runs even after a failed step, and the new `clean` lists old run folders and deletes them only with `--yes`, after the user agrees, never a
+    live one.
+  - A behavior eval case on the new `fixtures/15-shared-code-change`: a branch that changes a helper the cart
+    and the invoice export share, with a green suite. Not run yet.
+- **`implement`** (`development` 0.3.3) follows the same `via` areas, `unmapped:` paths and `stop` rule.
 
 ## [0.2.0] — Unreleased
 

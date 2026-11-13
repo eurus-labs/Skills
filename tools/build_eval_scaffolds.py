@@ -87,6 +87,12 @@ GIT_SCAFFOLDS = {
         "branch": "fix-rounding",
         "messages": ("Add order totals and their verify skill", "Round totals half up (#31)"),
     },
+    "plugins/verification/evals/behavior/verify-change-follows-shared-code": {
+        "base": "fixtures/15-shared-code-change/base",
+        "change": "fixtures/15-shared-code-change/change",
+        "branch": "currency-symbol",
+        "messages": ("Add the cart and invoice export", "Show the currency symbol in cart totals (#7)"),
+    },
 }
 
 # The commits are the fixture's, not anyone's. The identity is set through the environment,
