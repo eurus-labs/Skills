@@ -342,6 +342,10 @@ an author from a subject, so any rule placed there contaminates the measurement 
   the same rule as `EXPECTED.md`: never inside a scenario, never reachable from one. A behavior case's
   `scaffold.sh` leaves the scenario's README out for the same reason. After editing a fixture, run
   `python3 tools/build_eval_scaffolds.py`; `tools/test_eval_scaffolds.py` fails until you do.
+- **See every skill's evals and their latest results** with `python3 tools/build_eval_board.py`. It writes
+  `eval-board.html` (git-ignored): one card per skill with the cases that must fire it, keep it quiet, or
+  grade its behavior, and each case's latest score from the local `plugins/*/evals/results/`. A score from
+  a partial suite or an errored run is shown but never counted as trusted.
 - `fixtures/04-security/app.py` is genuinely exploitable. Never copy from it, never run it against real data,
   and leave its file-level warning banner intact.
 

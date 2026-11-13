@@ -224,3 +224,4 @@ __marimo__/
 
 # claude plugin eval run output
 plugins/*/evals/results/
+eval-board.html
