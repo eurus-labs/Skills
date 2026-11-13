@@ -132,7 +132,7 @@ current directory, not the one the script sits in, so the same CLI runs in a tem
 | `check [<name>…] [--affected <base>]` | Runs the named checks from `## Checks`, or with `--affected` every check whose `applies when` matches the changed paths, each through `capture`. Prints one line for **every row** of the table — rows it did not select as `not requested`, which is not a result, only a sign the row exists — with required, result (hard rule 9) and the reason for anything but `passed`, and the number of skipped tests beside a `passed`. A row it cannot read is an error, never skipped: a command containing `\|` must survive the table. Exits non-zero when a selected required check is not `passed` | the project's own build, lint, analysis, and test commands |
 | `capture <label> -- <command…>` | Runs the command; saves stdout, stderr, exit code, the tree fingerprint as `doctor` computes it, and timestamp to the current run's `.verify/<run-id>/<label>.*`, marking the capture stale when the fingerprint differs from the run's; `--screenshot <url>` uses the browser tool the repository already has | the command itself |
 | `report` | Prints the current run's captures as a table: label, command, exit code, stale or not, file paths | — |
-| `clean [--keep <n>]` | Deletes run folders under `.verify/`, newest `<n>` (default 5) and the current run kept, and refuses while a run it would delete still has a process `start` recorded; deletes nothing outside `.verify/` | — |
+| `clean [--keep <n>] [--yes]` | Lists the run folders under `.verify/` it would delete — all but the newest `<n>` (default 5) and the current run — and deletes them only with `--yes`, which an agent passes only after the user agrees to that list. Refuses while a run it would delete still has a process `start` recorded; deletes nothing outside `.verify/` | — |
 
 ### The generated `SKILL.md`
 
@@ -193,7 +193,8 @@ Run everything from the repository root, with `V=.github/skills/verify-<app>/scr
    client takes — success, cancel, error, empty, and persistence paths — wrapping each check in
    `$V capture <label> -- …`. Check side effects, not only output: files, rows, HTTP calls, a
    restart or reload round trip.
-6. `$V stop`, then `$V report`. `$V clean` removes old runs.
+6. `$V stop`, then `$V report`. To remove old runs, show the user what `$V clean` lists and run
+   `$V clean --yes` only after they agree.
 
 ## Driving it
 <per surface: the commands or tool calls an agent uses; preferred selectors or endpoints; how to wait on

@@ -86,7 +86,10 @@ def main():
           "One run never touches another's" in sv and "| `url` |" in sv
           and "## Isolation" in gen and "localhost:8000" not in sv)
     check("old runs can be cleaned without touching a live one",
-          "| `clean [--keep <n>]` |" in sv and "nothing outside `.verify/`" in sv)
+          "| `clean [--keep <n>] [--yes]` |" in sv and "nothing outside `.verify/`" in sv)
+    check("cleaning deletes only after the user agrees to the list",
+          "only with `--yes`" in sv and "only after the user agrees" in sv
+          and "`$V clean --yes` only after they agree" in gen)
     check("a server never outlives its run",
           "also after a failed step" in gen and "also when a step failed" in vc
           and "even after a failed step" in im)

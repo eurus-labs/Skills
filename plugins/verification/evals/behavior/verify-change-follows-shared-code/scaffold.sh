@@ -79,7 +79,8 @@ Run everything from the repository root, with `V="python3 .github/skills/verify-
 4. `$V start` — nothing to start; it says so.
 5. For each affected area, drive every entry point the change can affect as its feature file says, wrapping
    each in `$V capture <label> -- …`.
-6. `$V stop`, then `$V report`. `$V clean` removes old runs.
+6. `$V stop`, then `$V report`. To remove old runs, show the user what `$V clean` lists and run
+   `$V clean --yes` only after they agree.
 
 ## Driving it
 - Cart: `python3 -c 'from shop.cart import Cart; …'` — there is no cart UI in this repository.
@@ -391,16 +392,22 @@ def report(_args):
 
 
 def clean(args):
-    keep = int(args[1]) if args[:1] == ["--keep"] and len(args) > 1 else 5
+    """List the old runs; delete them only with --yes, after the user agreed to the list."""
+    keep = int(args[args.index("--keep") + 1]) if "--keep" in args else 5
     base = evidence_dir()
     if not os.path.isdir(base):
         return
     current = os.path.basename(current_run()) if os.path.isfile(os.path.join(base, "current-run")) else None
     runs = sorted(d for d in os.listdir(base) if os.path.isdir(os.path.join(base, d)))
-    for run in runs[:-keep] if keep else runs:
-        if run != current:
+    old = [run for run in (runs[:-keep] if keep else runs) if run != current]
+    for run in old:
+        if "--yes" in args:
             shutil.rmtree(os.path.join(base, run))
             print("removed .verify/%s" % run)
+        else:
+            print("would remove .verify/%s" % run)
+    if old and "--yes" not in args:
+        print("nothing deleted; run `clean --yes` once the user agrees")
 
 
 COMMANDS = {"doctor": doctor, "start": start, "url": url, "stop": stop, "affected": affected,

@@ -47,7 +47,8 @@ Run everything from the repository root, with `V="python3 .github/skills/verify-
 4. `$V start` — nothing to start; it says so.
 5. For each affected area, drive every entry point the change can affect as its feature file says, wrapping
    each in `$V capture <label> -- …`.
-6. `$V stop`, then `$V report`. `$V clean` removes old runs.
+6. `$V stop`, then `$V report`. To remove old runs, show the user what `$V clean` lists and run
+   `$V clean --yes` only after they agree.
 
 ## Driving it
 - Cart: `python3 -c 'from shop.cart import Cart; …'` — there is no cart UI in this repository.
