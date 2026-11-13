@@ -9,6 +9,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Eval board** (for contributors): `python3 tools/build_eval_board.py` writes `eval-board.html`, one page
+  showing every skill's eval cases (must fire, must stay quiet, behavior) with the latest local result of
+  each and the runs before it. Partial suites and errored runs are never counted as trusted scores. The
+  interface switches between English and Vietnamese.
+
 - **`verification`** (0.1.3): five eval cases for the failures a pilot of the plugin found or could not
   exercise: a required check that cannot run (`fixtures/10`), tests skipped by default that hide a bug
   (`fixtures/11`), a required check already failing on `main` (`fixtures/12`), CI commands with shell pipes
