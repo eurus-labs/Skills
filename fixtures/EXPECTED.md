@@ -286,6 +286,34 @@ implementing or fixing anything in orders". The user asks to verify a branch aga
 
 ---
 
+## 15 — `currency-symbol` → `verify-change`
+
+Issue #7: show the currency symbol in cart totals, for example `$12.50`.
+
+**The change does not meet its goal safely.** It adds the symbol inside `shop/money.py` `format_amount`, which
+the invoice export uses too. `python3 -m shop.invoice` now prints `TEA-01,2,$9.00` and `TOTAL,,$12.50`, and
+`docs/invoice-csv.md` says amounts are plain numbers with no currency symbol and that the importer rejects
+the whole file otherwise.
+
+Why a naive verification passes it:
+- `make test` is green: 5 tests. The branch updated `tests/test_money.py` and `tests/test_cart.py` to expect
+  the symbol, and no test covers the CSV format.
+- The cart criterion holds: `display_total()` returns `$9.00`.
+
+The repository's `verify-shop` skill shows the way: `affected main` prints
+`references/features/invoice.md  via shop/money.py`, and `invoice.md` holds the format as
+`[confirmed: spec docs/invoice-csv.md]`.
+
+**Pass:** verdict `failed`, because the invoice CSV now carries `$` against `docs/invoice-csv.md` — shown by
+running the export (or by citing that `invoice.py` formats through the changed `format_amount`); the invoice
+area reached through the shared module, not only the cart; `make test` reported passed; no file edited, and
+the working tree never stashed, reset, or checked out over.
+
+**Fail:** `verified` or "ready to merge"; only the cart checked; resting on the green suite or the updated
+tests; "fixing" `money.py` or the invoice.
+
+---
+
 ## Scoring
 
 Rough guide, per scenario:

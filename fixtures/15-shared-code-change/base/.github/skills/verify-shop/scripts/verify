@@ -1,0 +1,237 @@
+#!/usr/bin/env python3
+"""verify -- shop's verification CLI.
+
+Runs `make test` and the commands it is given, and writes evidence to `.verify/<run-id>/` at the
+repository root. Starts no server; reaches no network. Acts on the git repository of the current
+directory. Standard library only.
+
+    python3 .github/skills/verify-shop/scripts/verify <command> [args]
+
+Commands: doctor, start, url, stop, affected, check, capture, report, clean.
+"""
+
+import fnmatch
+import hashlib
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+
+SKILL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def git(*args):
+    return subprocess.run(("git",) + args, capture_output=True, text=True, check=True).stdout
+
+
+def root():
+    try:
+        return git("rev-parse", "--show-toplevel").strip()
+    except subprocess.CalledProcessError:
+        die("not inside a git repository")
+
+
+def die(reason):
+    print("error: %s" % reason)
+    sys.exit(1)
+
+
+def evidence_dir():
+    return os.path.join(root(), ".verify")
+
+
+def current_run():
+    marker = os.path.join(evidence_dir(), "current-run")
+    if not os.path.isfile(marker):
+        die("no current run -- run `doctor` first")
+    with open(marker) as fh:
+        return os.path.join(evidence_dir(), fh.read().strip())
+
+
+def fingerprint():
+    """HEAD plus a hash of the diff and the untracked files, always leaving out .verify/."""
+    head = git("rev-parse", "HEAD").strip()
+    digest = hashlib.sha256(git("diff", "HEAD", "--", ".", ":(exclude).verify").encode())
+    for path in sorted(git("ls-files", "--others", "--exclude-standard").split()):
+        if path.startswith(".verify/"):
+            continue
+        digest.update(path.encode())
+        with open(os.path.join(root(), path), "rb") as fh:
+            digest.update(fh.read())
+    return "%s+%s" % (head, digest.hexdigest()[:12])
+
+
+def doctor(_args):
+    for tool in ("git", "make", "python3"):
+        if shutil.which(tool) is None:
+            die("%s is not installed" % tool)
+    run_id = time.strftime("%Y%m%d-%H%M%S") + "-%d" % os.getpid()
+    run = os.path.join(evidence_dir(), run_id)
+    os.makedirs(run)
+    with open(os.path.join(run, "fingerprint"), "w") as fh:
+        fh.write(fingerprint() + "\n")
+    with open(os.path.join(evidence_dir(), "current-run"), "w") as fh:
+        fh.write(run_id + "\n")
+    print("run %s; nothing to build (pure Python); tree %s" % (run_id, fingerprint()))
+
+
+def start(_args):
+    print("not applicable: shop has no server")
+
+
+def url(_args):
+    die("shop has no server, so no URL")
+
+
+def stop(_args):
+    print("not applicable: nothing was started")
+
+
+def changed_paths(spec):
+    if spec and ".." in spec:
+        return sorted(set(git("diff", "--name-only", spec).split()))
+    base = spec or git("merge-base", "HEAD", "main").strip()
+    paths = set(git("diff", "--name-only", base).split())
+    paths.update(git("ls-files", "--others", "--exclude-standard").split())
+    return sorted(p for p in paths if not p.startswith(".verify/"))
+
+
+def areas():
+    """(file, owns globs, uses globs) for each index entry of the feature map."""
+    with open(os.path.join(SKILL, "references", "features", "README.md")) as fh:
+        text = fh.read()
+    entries = re.findall(r"^- \[[^]]+\]\(([^)]+)\)(.*?)(?=^- |^#|\Z)", text, re.S | re.M)
+    found = []
+    for target, rest in entries:
+        rest = " ".join(rest.split())
+        owns = re.search(r"owns: (.*?)(?: — |$)", rest)
+        uses = re.search(r"uses: (.*?)(?: — |$)", rest)
+        globs = lambda m: re.findall(r"`([^`]+)`", m.group(1)) if m else []
+        found.append((target, globs(owns), globs(uses)))
+    return found
+
+
+def matches(path, globs):
+    return any(fnmatch.fnmatch(path, g) for g in globs)
+
+
+def checks():
+    """Rows of `## Checks` as dicts. A row that does not have six cells is an error."""
+    with open(os.path.join(SKILL, "SKILL.md")) as fh:
+        text = fh.read()
+    table = text.split("## Checks", 1)[1].split("\n## ", 1)[0]
+    rows = []
+    for line in table.splitlines():
+        if not line.startswith("|") or line.startswith("| Check") or line.startswith("| -"):
+            continue
+        cells = [c.strip() for c in re.split(r"(?<!\\)\|", line.strip())[1:-1]]
+        if len(cells) != 6:
+            die("cannot read this row of ## Checks: %s" % line)
+        name, kind, command, applies, required, passes = cells
+        rows.append({"name": name, "command": command.strip("`").replace("\\|", "|"),
+                     "applies": applies, "required": required.startswith("yes"), "passes": passes})
+    return rows
+
+
+def affected(args):
+    paths = changed_paths(args[0] if args else None)
+    owned = set()
+    for target, owns, uses in areas():
+        hit = [p for p in paths if matches(p, owns)]
+        via = [p for p in paths if matches(p, uses)]
+        owned.update(hit + via)
+        if hit:
+            print("references/features/%s" % target)
+        elif via:
+            print("references/features/%s  via %s" % (target, ", ".join(via)))
+    for p in paths:
+        if p not in owned:
+            print("unmapped: %s" % p)
+    for row in checks():
+        if row["command"] != "—" and (row["applies"] == "always" or any(matches(p, [row["applies"]]) for p in paths)):
+            print("check: %s" % row["name"])
+
+
+def capture(args):
+    if "--" not in args or args.index("--") != 1:
+        die("usage: capture <label> -- <command…>")
+    label, command = args[0], args[2:]
+    run = current_run()
+    result = subprocess.run(command, capture_output=True, text=True, cwd=root())
+    with open(os.path.join(run, "fingerprint")) as fh:
+        stale = fh.read().strip() != fingerprint()
+    for suffix, data in (("out", result.stdout), ("err", result.stderr),
+                         ("meta", "command: %s\nexit: %d\nstale: %s\ntime: %s\n" % (
+                             " ".join(command), result.returncode, "yes" if stale else "no",
+                             time.strftime("%Y-%m-%dT%H:%M:%S")))):
+        with open(os.path.join(run, "%s.%s" % (label, suffix)), "w") as fh:
+            fh.write(data)
+    sys.stdout.write(result.stdout)
+    sys.stderr.write(result.stderr)
+    return result
+
+
+def check(args):
+    selected = set(a for a in args if not a.startswith("--"))
+    paths = None
+    if "--affected" in args:
+        i = args.index("--affected")
+        paths = changed_paths(args[i + 1] if i + 1 < len(args) else None)
+    failed_required = False
+    for row in checks():
+        applies = row["applies"] == "always" or (paths is not None and any(matches(p, [row["applies"]]) for p in paths))
+        wanted = row["name"] in selected or (paths is not None and applies) or (not selected and paths is None)
+        req = "required" if row["required"] else "optional"
+        if not wanted:
+            print("%-9s %-8s not requested" % (row["name"], req))
+            continue
+        if row["command"] == "—":
+            print("%-9s %-8s not applicable: %s" % (row["name"], req, row["passes"].split(":", 1)[-1].strip()))
+            continue
+        result = capture([row["name"], "--"] + row["command"].split())
+        ran = re.search(r"Ran (\d+) tests?", result.stderr)
+        skipped = re.search(r"skipped=(\d+)", result.stderr)
+        if result.returncode == 0 and ran and int(ran.group(1)) > 0:
+            note = "%s tests" % ran.group(1) + ("; %s skipped" % skipped.group(1) if skipped else "")
+            print("%-9s %-8s passed (%s)" % (row["name"], req, note))
+        else:
+            print("%-9s %-8s failed (exit %d)" % (row["name"], req, result.returncode))
+            failed_required = failed_required or row["required"]
+    if failed_required:
+        sys.exit(1)
+
+
+def report(_args):
+    run = current_run()
+    print("| label | command | exit | stale |")
+    print("| ----- | ------- | ---- | ----- |")
+    for name in sorted(os.listdir(run)):
+        if name.endswith(".meta"):
+            with open(os.path.join(run, name)) as fh:
+                meta = dict(line.split(": ", 1) for line in fh.read().splitlines())
+            print("| %s | `%s` | %s | %s |" % (name[:-5], meta["command"], meta["exit"], meta["stale"]))
+
+
+def clean(args):
+    keep = int(args[1]) if args[:1] == ["--keep"] and len(args) > 1 else 5
+    base = evidence_dir()
+    if not os.path.isdir(base):
+        return
+    current = os.path.basename(current_run()) if os.path.isfile(os.path.join(base, "current-run")) else None
+    runs = sorted(d for d in os.listdir(base) if os.path.isdir(os.path.join(base, d)))
+    for run in runs[:-keep] if keep else runs:
+        if run != current:
+            shutil.rmtree(os.path.join(base, run))
+            print("removed .verify/%s" % run)
+
+
+COMMANDS = {"doctor": doctor, "start": start, "url": url, "stop": stop, "affected": affected,
+            "check": check, "capture": capture, "report": report, "clean": clean}
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2 or sys.argv[1] not in COMMANDS:
+        die("usage: verify {%s} [args]" % ",".join(COMMANDS))
+    os.chdir(root())
+    COMMANDS[sys.argv[1]](sys.argv[2:])
