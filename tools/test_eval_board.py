@@ -59,6 +59,13 @@ class Catalog(unittest.TestCase):
         for c in behavior:
             self.assertEqual(len(c["fires"]), 1, c["name"])
 
+    def test_a_tool_grader_keeps_the_input_it_restricts(self):
+        case_ = [c for c in self.plugins["verification"]["cases"]
+                 if c["name"] == "verify-change-runs-skipped-tests"][0]
+        tree = [g for g in case_["graders"] if g["name"] == "tree-preserved"][0]
+        self.assertEqual(tree["tool"], "Bash")
+        self.assertIn("stash", tree["match"])
+
     def test_plugins_without_evals_are_listed_with_their_skills(self):
         self.assertEqual(self.plugins["code-review"]["cases"], [])
         self.assertIn("review-code", [s for s, _ in self.plugins["code-review"]["skills"]])
@@ -80,7 +87,7 @@ class Results(unittest.TestCase):
     def test_reads_score_delta_and_orders_newest_first(self):
         old = self.write("2026-11-01T00-00-00Z", result([case("a", 0.5, 0.1)]))
         new = self.write("2026-11-02T00-00-00Z", result([case("a", 0.9, 0.4)]))
-        runs = board.load_results([old, new])["a"]
+        runs = board.load_results([("p", old), ("p", new)])["p/a"]
         self.assertEqual([r["score"] for r in runs], [0.9, 0.5])
         self.assertEqual(runs[0]["delta"], 0.4)
         self.assertTrue(board.trusted(runs[0]))
@@ -90,16 +97,38 @@ class Results(unittest.TestCase):
         path = self.write("2026-11-12T15-22-41-539Z", result(
             [case("none-implement-feature", 1.0, errors=["exit 1: Not logged in · Please run /login"])],
             partial=True, reason="auth_failed"))
-        run = board.load_results([path])["none-implement-feature"][0]
+        run = board.load_results([("verification", path)])["verification/none-implement-feature"][0]
         self.assertFalse(board.trusted(run))
         self.assertEqual(run["partialReason"], "auth_failed")
 
     def test_an_errored_run_or_skipped_judges_are_not_trusted(self):
         a = self.write("s1", result([case("x", 1.0, errors=["timed out after 300s"])]))
         b = self.write("s2", result([case("y", 1.0, skipped=True)]))
-        loaded = board.load_results([a, b])
-        self.assertFalse(board.trusted(loaded["x"][0]))
-        self.assertFalse(board.trusted(loaded["y"][0]))
+        loaded = board.load_results([("p", a), ("p", b)])
+        self.assertFalse(board.trusted(loaded["p/x"][0]))
+        self.assertFalse(board.trusted(loaded["p/y"][0]))
+
+    def test_the_same_case_name_in_two_plugins_keeps_two_histories(self):
+        # none-implement-feature exists in both testing and verification.
+        root = os.path.join(self.tmp.name, "repo")
+        paths = []
+        for plugin, score in (("testing", 0.2), ("verification", 0.9)):
+            folder = os.path.join(root, "plugins", plugin, "evals", "results", "2026-11-13T00-00-00Z")
+            os.makedirs(folder)
+            path = os.path.join(folder, "aggregate-result.json")
+            with open(path, "w") as fh:
+                json.dump(result([case("none-implement-feature", score)]), fh)
+            paths.append(path)
+        loaded = board.load_results(paths)
+        self.assertEqual(loaded["testing/none-implement-feature"][0]["score"], 0.2)
+        self.assertEqual(loaded["verification/none-implement-feature"][0]["score"], 0.9)
+
+    def test_a_result_outside_results_takes_its_plugin_from_the_suite_or_is_skipped(self):
+        named = self.write("named", dict(result([case("a", 1.0)]), suite={"plugins": [{"name": "docs"}]}))
+        unnamed = self.write("unnamed", result([case("b", 1.0)]))
+        loaded = board.load_results([named, unnamed])
+        self.assertIn("docs/a", loaded)
+        self.assertEqual([k for k in loaded if k.endswith("/b")], [])
 
     def test_a_file_that_is_not_a_result_is_skipped(self):
         bad = os.path.join(self.tmp.name, "other.json")
@@ -115,6 +144,8 @@ class Page(unittest.TestCase):
                                "graders": [], "fires": ["s"], "quiet": [], "skills": ["s"]}]}]
         page = board.board(plugins, {})
         self.assertEqual(page.count("</script>"), 1)
+        self.assertIn("const r = h[0];", page, "the badge shows the newest run, trusted or not")
+        self.assertNotIn("scorePill(c.name)", page, "results are keyed by plugin and case, never case alone")
         self.assertIn('data-lang="en"', page)
         self.assertIn('data-lang="vi"', page)
         self.assertNotIn("__DATA__", page)
