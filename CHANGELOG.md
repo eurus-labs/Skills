@@ -15,7 +15,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   interface switches between English and Vietnamese. Each host's results get their own badge: Claude Code
   and Copilot CLI are never mixed.
 - **How to run the evals** (for contributors): `doc/running-evals.md` covers `claude plugin eval` and the
-  Copilot runner, the credential, Windows setup, grading, reading results, and common errors.
+  Copilot runner, the credential, Windows setup, grading, reading results, and common errors. It explains how to choose
+  and pin the model on each host. `tools/copilot_eval.py` takes `--model` and `--reasoning-effort`, gives both
+  arms the same flags, and records them in the result, and the eval board shows the model beside the host.
 - **Copilot eval runner** (for contributors): `python3 tools/copilot_eval.py plugins/<plugin>` runs a plugin's
   eval cases on GitHub Copilot CLI, with and without the plugin, each in a fresh scaffolded workspace. It
   checks file graders itself, asks a person for the rest, and records the scores for the eval board.

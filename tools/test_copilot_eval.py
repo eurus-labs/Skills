@@ -259,6 +259,27 @@ class Command(unittest.TestCase):
             self.assertIn("-C", cmd)
             self.assertIn("json", cmd)
 
+    def test_the_model_and_effort_reach_both_arms_and_the_result(self):
+        case = {"name": "c", "prompt": "p"}
+        for arm in ("with", "without"):
+            cmd = ce.copilot_command(case, arm, "/ws", VERIFICATION, "/out", "gpt-5.6-sol", "high")
+            self.assertEqual(cmd[-4:], ["--model", "gpt-5.6-sol", "--reasoning-effort", "high"])
+        unpinned = ce.copilot_command(case, "with", "/ws", VERIFICATION, "/out")
+        self.assertNotIn("--model", unpinned)
+        doc = ce.result_doc("verification", {}, False, None, "2099-01-01T00-00-00Z", "gpt-5.6-sol", "high")
+        self.assertEqual((doc["model"], doc["reasoningEffort"]), ("gpt-5.6-sol", "high"))
+        self.assertIsNone(ce.result_doc("verification", {}, False, None, "2099-01-01T00-00-00Z")["model"])
+
+    def test_the_board_reads_the_model_a_run_used(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        doc = ce.result_doc("verification", {"c": {"with": [{"score": 1.0, "error": None, "graders": []}]}},
+                            False, None, "2099-01-01T00-00-00Z", "gpt-5.6-sol")
+        path = os.path.join(tmp, "r.json")
+        with open(path, "w") as fh:
+            json.dump(doc, fh)
+        self.assertEqual(board.load_results([path])["verification/c"][0]["model"], "gpt-5.6-sol")
+
     def test_partial_documents_are_never_trusted_on_the_board(self):
         doc = ce.result_doc("verification", {"c": {"with": [{"score": 1.0, "error": None, "graders": []}]}},
                             True, "interrupted", "2099-01-01T00-00-00Z")

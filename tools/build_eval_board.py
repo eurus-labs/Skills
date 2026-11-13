@@ -166,6 +166,7 @@ def load_results(entries):
                 "stamp": stamp,
                 # claude plugin eval writes no host; tools/copilot_eval.py writes "copilot".
                 "host": doc.get("host") or "claude",
+                "model": doc.get("model"),
                 "score": agg.get("score"),
                 "delta": agg.get("delta"),
                 "runs": len(with_runs),
@@ -438,7 +439,7 @@ function historyTable(key){
   const h = DATA.results[key] || [];
   if (!h.length) return "";
   return `<div><span class="eyebrow">${t("history")}</span><div class="tw"><table><thead><tr><th>${t("when")}</th><th>${t("host")}</th><th>${t("score")}</th><th>Δ</th><th>${t("runs")}</th><th>${t("note")}</th></tr></thead><tbody>`+
-    h.map(r => `<tr><td class="mono">${esc(r.stamp)}</td><td>${esc(hostName(r.host))}</td><td class="num">${f2(r.score)}</td><td class="num">${f2(r.delta)}</td><td class="num">${r.runs}</td><td>${
+    h.map(r => `<tr><td class="mono">${esc(r.stamp)}</td><td>${esc(hostName(r.host))}${r.model ? " · " + esc(r.model) : ""}</td><td class="num">${f2(r.score)}</td><td class="num">${f2(r.delta)}</td><td class="num">${r.runs}</td><td>${
       esc([r.partial ? `${t("partial")}${r.partialReason ? ": " + r.partialReason : ""}` : "", r.errors.length ? `${t("error")}: ${r.errors.join("; ")}` : "", r.skippedPaid ? t("skippedPaid") : ""].filter(Boolean).join(" · "))}</td></tr>`).join("")+
     `</tbody></table></div></div>`;
 }

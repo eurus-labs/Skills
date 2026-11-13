@@ -28,6 +28,8 @@ An interrupted session is saved as partial.
 
 --run starts `copilot -p` in the scratch workspace with --allow-all-tools: the agent may run any
 command there, as you. It uses your existing Copilot sign-in and is billed to your Copilot plan.
+Pin the model with --model (and --reasoning-effort) so runs can be compared: both arms get the same flags,
+and the result records them. Without --model, Copilot uses its own default, which can change between runs.
 Standard library only; the scaffolds need bash (Git Bash on Windows).
 """
 
@@ -266,14 +268,17 @@ def build_workspace(case, arm, root):
     return workspace
 
 
-def copilot_command(case, arm, workspace, plugin_dir, out_dir, model=None):
+def model_flags(model=None, effort=None):
+    """The copilot flags that pin the model and its reasoning effort; both arms must get the same ones."""
+    return (["--model", model] if model else []) + (["--reasoning-effort", effort] if effort else [])
+
+
+def copilot_command(case, arm, workspace, plugin_dir, out_dir, model=None, effort=None):
     command = ["copilot", "-p", case["prompt"], "-C", workspace, "--allow-all-tools", "--no-ask-user",
                "--output-format", "json", "--share", os.path.join(out_dir, "%s-%s.md" % (case["name"], arm))]
     if arm == "with":
         command += ["--plugin-dir", os.path.abspath(plugin_dir)]
-    if model:
-        command += ["--model", model]
-    return command
+    return command + model_flags(model, effort)
 
 
 def run_copilot(command, log_path, timeout):
@@ -289,7 +294,7 @@ def run_copilot(command, log_path, timeout):
     return error, round(time.time() - started, 1)
 
 
-def result_doc(plugin, records, partial, reason, started):
+def result_doc(plugin, records, partial, reason, started, model=None, effort=None):
     cases = []
     for name, arms in records.items():
         with_runs, without_runs = arms.get("with", []), arms.get("without", [])
@@ -304,6 +309,9 @@ def result_doc(plugin, records, partial, reason, started):
     return {
         "schemaVersion": 1,
         "host": "copilot",
+        # What produced the scores: null means Copilot's own default at the time, which can change.
+        "model": model,
+        "reasoningEffort": effort,
         "partial": partial,
         "partialReason": reason,
         "suite": {"plugins": [{"name": plugin}]},
@@ -322,7 +330,12 @@ def main(argv=None, answer=input):
     parser.add_argument("--case", help="only cases whose name matches this glob")
     parser.add_argument("--arms", default="with,without", help="with, without, or both (default)")
     parser.add_argument("--run", action="store_true", help="start copilot -p yourself instead of asking")
-    parser.add_argument("--model", help="passed to copilot --model")
+    parser.add_argument("--model", help="pin the model for every run, passed to copilot --model "
+                                        "(see /model in Copilot for the names your plan offers)")
+    parser.add_argument("--reasoning-effort", dest="effort",
+                        choices=("none", "minimal", "low", "medium", "high", "xhigh", "max"),
+                        help="pin the reasoning effort, passed to copilot --reasoning-effort "
+                             "(the levels a model offers depend on the model)")
     parser.add_argument("--keep", action="store_true", help="keep the scratch workspaces")
     args = parser.parse_args(argv)
 
@@ -347,7 +360,8 @@ def main(argv=None, answer=input):
                 print("\n=== %s · %s plugin ===" % (case["name"], arm))
                 workspace = build_workspace(case, arm, scratch)
                 before = files_in(workspace)
-                command = copilot_command(case, arm, workspace, plugin_dir, out_dir, args.model)
+                command = copilot_command(case, arm, workspace, plugin_dir, out_dir, args.model, args.effort)
+                pinned = "".join(" %s" % flag for flag in model_flags(args.model, args.effort))
                 transcript, error = "", None
                 if args.run:
                     log = os.path.join(out_dir, "%s-%s.jsonl" % (case["name"], arm))
@@ -360,11 +374,11 @@ def main(argv=None, answer=input):
                     print("Workspace: %s" % workspace)
                     if arm == "with":
                         print("Start Copilot there with the plugin, for example:\n  set COPILOT_PLUGIN_DIR_ONLY=true"
-                              "  (PowerShell: $env:COPILOT_PLUGIN_DIR_ONLY='true')\n  copilot -C \"%s\" --plugin-dir \"%s\""
-                              % (workspace, plugin_dir))
+                              "  (PowerShell: $env:COPILOT_PLUGIN_DIR_ONLY='true')\n  copilot -C \"%s\" --plugin-dir \"%s\"%s"
+                              % (workspace, plugin_dir, pinned))
                     else:
                         print("Start Copilot there WITHOUT the plugin:\n  (PowerShell: $env:COPILOT_PLUGIN_DIR_ONLY='true')\n"
-                              "  copilot -C \"%s\"" % workspace)
+                              "  copilot -C \"%s\"%s" % (workspace, pinned))
                     print("Paste this prompt:\n" + "-" * 60 + "\n" + case["prompt"] + "\n" + "-" * 60)
                     answer("Press Enter when the agent has finished. ")
                 results = grade_run(case, arm, workspace, transcript, answer, before)
@@ -384,7 +398,7 @@ def main(argv=None, answer=input):
             shutil.rmtree(out_dir, ignore_errors=True)
         shutil.rmtree(scratch, ignore_errors=True)
         raise
-    doc = result_doc(plugin, records, partial, reason, started)
+    doc = result_doc(plugin, records, partial, reason, started, args.model, args.effort)
     with open(os.path.join(out_dir, "aggregate-result.json"), "w", encoding="utf-8") as fh:
         json.dump(doc, fh, indent=2)
     if not args.keep:
