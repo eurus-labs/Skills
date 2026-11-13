@@ -64,7 +64,8 @@ Read [`CONTRIBUTING.md`](CONTRIBUTING.md); AI agents read [`AGENTS.md`](AGENTS.m
 entry in [`.github/plugin/marketplace.json`](.github/plugin/marketplace.json) **and** a row in the table above.
 Content shared between plugins lives in [`shared/`](shared/) and is copied in by `tools/materialize.py` — edit
 the source, never the copies. [`fixtures/`](fixtures/) holds deliberately broken projects for evaluating the
-plugins. Before committing:
+plugins; [`doc/running-evals.md`](doc/running-evals.md) shows how to run the evals on Claude Code and on
+Copilot CLI. Before committing:
 
 ```bash
 python3 tools/validate.py && python3 tools/materialize.py
