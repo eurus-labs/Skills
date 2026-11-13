@@ -224,9 +224,27 @@ def score(results):
     return round(sum(r.get("weight", 1.0) for r in counted if r["passed"]) / total, 4)
 
 
+def is_wsl_launcher(path):
+    """C:\\Windows\\System32\\bash.exe and the WindowsApps stubs start WSL, which reads C:\\a\\b as escapes."""
+    lowered = path.lower().replace("/", "\\")
+    return "\\windows\\system32\\" in lowered or "\\windowsapps\\" in lowered
+
+
 def bash():
-    for candidate in (shutil.which("bash"), r"C:\Program Files\Git\bin\bash.exe"):
-        if candidate and os.path.isfile(candidate):
+    """A bash that can run the scaffolds: Git Bash on Windows, found next to git, else the one on PATH."""
+    candidates = []
+    git = shutil.which("git")
+    if git:
+        root = os.path.dirname(os.path.dirname(git))
+        candidates += [os.path.join(root, "bin", "bash.exe"), os.path.join(root, "usr", "bin", "bash.exe")]
+    for var in ("ProgramFiles", "ProgramFiles(x86)"):
+        if os.environ.get(var):
+            candidates.append(os.path.join(os.environ[var], "Git", "bin", "bash.exe"))
+    if os.environ.get("LOCALAPPDATA"):
+        candidates.append(os.path.join(os.environ["LOCALAPPDATA"], "Programs", "Git", "bin", "bash.exe"))
+    candidates.append(shutil.which("bash"))
+    for candidate in candidates:
+        if candidate and os.path.isfile(candidate) and not is_wsl_launcher(candidate):
             return candidate
     return None
 
@@ -237,8 +255,14 @@ def build_workspace(case, arm, root):
     if case["scaffold"]:
         shell = bash()
         if not shell:
-            raise SystemExit("bash not found: install Git for Windows, or run from a shell that has bash")
-        subprocess.run([shell, case["scaffold"]], cwd=workspace, check=True)
+            raise SystemExit("no usable bash found: install Git for Windows (Git Bash). The bash.exe in "
+                             "C:\\Windows\\System32 is WSL and cannot run the scaffolds.")
+        # Forward slashes: Git Bash reads C:/a/b, and reads C:\a\b as escape sequences.
+        script = case["scaffold"].replace("\\", "/")
+        try:
+            subprocess.run([shell, script], cwd=workspace, check=True)
+        except subprocess.CalledProcessError as exc:
+            raise SystemExit("the scaffold of %s failed (exit %d, bash: %s)" % (case["name"], exc.returncode, shell))
     return workspace
 
 
@@ -354,6 +378,12 @@ def main(argv=None, answer=input):
     except KeyboardInterrupt:
         partial, reason = True, "interrupted"
         print("\ninterrupted; saving what was graded")
+    except SystemExit:
+        # A scaffold that cannot be built is a setup problem, not a result: leave no empty results folder.
+        if not records:
+            shutil.rmtree(out_dir, ignore_errors=True)
+        shutil.rmtree(scratch, ignore_errors=True)
+        raise
     doc = result_doc(plugin, records, partial, reason, started)
     with open(os.path.join(out_dir, "aggregate-result.json"), "w", encoding="utf-8") as fh:
         json.dump(doc, fh, indent=2)

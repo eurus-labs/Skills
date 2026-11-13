@@ -181,6 +181,62 @@ class MatchModes(unittest.TestCase):
         self.assertFalse(ce.regex_holds(dict(grader, flags=""), "ABC and abc"))
 
 
+class WindowsBash(unittest.TestCase):
+    """The first Windows run failed: `bash` on PATH was WSL, which ate the backslashes of the script path."""
+
+    def test_the_wsl_launchers_are_recognised(self):
+        self.assertTrue(ce.is_wsl_launcher(r"C:\WINDOWS\system32\bash.EXE"))
+        self.assertTrue(ce.is_wsl_launcher(r"C:\Users\a\AppData\Local\Microsoft\WindowsApps\bash.exe"))
+        self.assertFalse(ce.is_wsl_launcher(r"C:\Program Files\Git\bin\bash.exe"))
+        self.assertFalse(ce.is_wsl_launcher("/usr/bin/bash"))
+
+    def test_bash_skips_wsl_and_prefers_the_one_next_to_git(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        git_bash = os.path.join(tmp, "Git", "bin", "bash.exe")
+        os.makedirs(os.path.dirname(git_bash))
+        open(git_bash, "w").close()
+        which = {"git": os.path.join(tmp, "Git", "cmd", "git.exe"), "bash": r"C:\WINDOWS\system32\bash.EXE"}
+        with patch("shutil.which", side_effect=which.get), \
+                patch.object(ce.os.path, "isfile", side_effect=lambda p: p == git_bash or p == which["bash"]):
+            self.assertEqual(ce.bash(), git_bash)
+
+    def test_only_wsl_on_path_means_no_usable_bash(self):
+        wsl = r"C:\WINDOWS\system32\bash.EXE"
+        with patch("shutil.which", side_effect={"bash": wsl}.get), \
+                patch.object(ce.os.path, "isfile", side_effect=lambda p: p == wsl), \
+                patch.dict(os.environ, {}, clear=True):
+            self.assertIsNone(ce.bash())
+
+    def test_the_scaffold_path_is_passed_with_forward_slashes(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        case = {"name": "c", "scaffold": r"C:\Workspace\Skills\plugins\p\scaffold.sh"}
+        with patch.object(ce, "bash", return_value="bash"), patch("subprocess.run") as run:
+            ce.build_workspace(case, "with", tmp)
+        self.assertEqual(run.call_args[0][0], ["bash", "C:/Workspace/Skills/plugins/p/scaffold.sh"])
+
+    def test_a_setup_failure_leaves_no_empty_results_folder(self):
+        results_root = os.path.join(VERIFICATION, "evals", "results")
+        before = set(glob.glob(os.path.join(results_root, "copilot-*")))
+        with patch.object(ce, "bash", return_value=None), patch("time.strftime", return_value="2099-01-03T00-00-00Z"), \
+                contextlib.redirect_stdout(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                ce.main([os.path.relpath(VERIFICATION), "--case", "verify-change-follows-shared-code"])
+        self.assertEqual(set(glob.glob(os.path.join(results_root, "copilot-*"))), before)
+
+    def test_a_failing_scaffold_is_a_message_not_a_traceback(self):
+        import subprocess as sp
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        case = {"name": "c", "scaffold": "/nope/scaffold.sh"}
+        with patch.object(ce, "bash", return_value="bash"), \
+                patch("subprocess.run", side_effect=sp.CalledProcessError(127, "bash")):
+            with self.assertRaises(SystemExit) as caught:
+                ce.build_workspace(case, "with", tmp)
+        self.assertIn("scaffold of c failed", str(caught.exception))
+
+
 class Command(unittest.TestCase):
     def test_a_run_past_its_timeout_is_stopped_and_recorded_as_an_error(self):
         tmp = tempfile.mkdtemp()
