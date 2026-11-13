@@ -11,14 +11,17 @@ there with the plugin (`--plugin-dir`) and without it, and records a pass or fai
     python3 tools/copilot_eval.py plugins/verification --case 'none-*'          # you run Copilot yourself
 
 What it grades itself, and what it asks you:
-- `file_exists` and `regex` over a file: checked in the workspace.
+- `file_exists` (only files created during the run count, as in claude plugin eval) and `regex` over a
+  file, with its `match` mode (`not_contains`, `count:N`) and `flags`: checked in the workspace.
 - `tool_used` and `regex` over the reply: you decide from the transcript. With --run it saves the
   JSONL output and a markdown transcript, and prints the transcript lines that match the grader's
   pattern as a hint; the hint is not a verdict.
 - `llm`: you read the rubric and decide. Grade before you open fixtures/EXPECTED.md.
 
-Each run is scored as the share of graders that passed, leaving out `tool_used: Skill`, which only
-shows whether the plugin fired. The result goes to plugins/<plugin>/evals/results/copilot-<time>/
+Each run is scored as the weighted share of graders that passed, leaving out `tool_used: Skill`,
+which only shows whether the plugin fired. A grader you skip is recorded, and a run with a skipped
+scored grader is marked incomplete, so the board never counts its score as trusted. With --run, a
+Copilot run is stopped at the case's `timeout_seconds` and recorded as an error. The result goes to plugins/<plugin>/evals/results/copilot-<time>/
 aggregate-result.json in the schema `claude plugin eval` writes (schemaVersion 1) plus
 `"host": "copilot"`, so tools/build_eval_board.py shows it beside the Claude runs, never mixed in.
 An interrupted session is saved as partial.
@@ -59,6 +62,10 @@ def load_case(case_dir):
             "tool": g_fields.get("tool", ""),
             "match": unquote(g_fields.get("input_match", "")),
             "pattern": unquote(g_fields.get("pattern", "")),
+            "mode": unquote(g_fields.get("match", "")) or "contains",
+            "flags": unquote(g_fields.get("flags", "")),
+            "exists": unquote(g_fields.get("exists", "true")).lower() != "false",
+            "weight": float(g_fields["weight"]) if re.match(r"^\d+(\.\d+)?$", g_fields.get("weight", "")) else 1.0,
             "path": unquote(g_fields.get("path", "")),
             "target": target.group(1).strip() if target else None,
             "min": int(g_fields["min"]) if g_fields.get("min", "").isdigit() else 1,
@@ -73,6 +80,7 @@ def load_case(case_dir):
         "description": unquote(fields.get("description", "")),
         "tags": re.findall(r"[\w-]+", fields.get("tags", "")),
         "prompt": prompt,
+        "timeout": int(fields["timeout_seconds"]) if fields.get("timeout_seconds", "").isdigit() else 600,
         "graders": graders,
         "scaffold": scaffold if os.path.isfile(scaffold) else None,
     }
@@ -99,16 +107,48 @@ def applies(grader, arm):
     return grader["arm"] != "with-only" or arm == "with"
 
 
-def auto_grade(grader, workspace):
-    """True or False for what can be checked in the workspace itself, else None."""
+FLAGS = {"i": re.IGNORECASE, "m": re.MULTILINE, "s": re.DOTALL}
+
+
+def files_in(workspace):
+    """Every file under the workspace, relative, leaving out .git."""
+    found = set()
+    for root, dirs, names in os.walk(workspace):
+        dirs[:] = [d for d in dirs if d != ".git"]
+        for name in names:
+            found.add(os.path.relpath(os.path.join(root, name), workspace).replace(os.sep, "/"))
+    return found
+
+
+def regex_holds(grader, text):
+    """A regex grader's condition on `text`, honouring `match` (contains, not_contains, count:N) and `flags`."""
+    flags = 0
+    for letter in grader["flags"]:
+        flags |= FLAGS.get(letter, 0)
+    hits = len(re.findall(grader["pattern"], text, flags))
+    mode = grader["mode"]
+    if mode == "not_contains":
+        return hits == 0
+    if mode.startswith("count:") and mode[6:].isdigit():
+        return hits == int(mode[6:])
+    return hits > 0
+
+
+def auto_grade(grader, workspace, before=frozenset()):
+    """True or False for what can be checked in the workspace itself, else None.
+
+    `before` is the set of files the scaffold made: file_exists counts only files created during
+    the run, as claude plugin eval does."""
     if grader["type"] == "file_exists" and grader["path"]:
-        return bool(glob.glob(os.path.join(workspace, grader["path"]), recursive=True))
+        created = files_in(workspace) - set(before)
+        found = any(fnmatch.fnmatch(path, grader["path"]) for path in created)
+        return found if grader["exists"] else not found
     if grader["type"] == "regex" and grader["target"]:
         path = os.path.join(workspace, grader["target"])
         if not os.path.isfile(path):
-            return False
+            return grader["mode"] == "not_contains"
         try:
-            return re.search(grader["pattern"], read(path)) is not None
+            return regex_holds(grader, read(path))
         except re.error:
             return None
     return None
@@ -146,13 +186,13 @@ def ask(question, choices, answer=input):
         print("  answer one of: %s" % "/".join(choices))
 
 
-def grade_run(case, arm, workspace, transcript, answer=input):
-    """[{name, type, passed, how}] for every grader that applies to this arm."""
+def grade_run(case, arm, workspace, transcript, answer=input, before=frozenset()):
+    """[{name, type, passed, how}] for every grader that applies to this arm; passed is None when skipped."""
     results = []
     for grader in case["graders"]:
         if not applies(grader, arm):
             continue
-        verdict = auto_grade(grader, workspace)
+        verdict = auto_grade(grader, workspace, before)
         how = "checked in the workspace"
         if verdict is None:
             print("\n  [%s] %s%s" % (grader["name"], grader["type"],
@@ -161,19 +201,27 @@ def grade_run(case, arm, workspace, transcript, answer=input):
             for line in hints(grader, transcript):
                 print("    transcript: %s" % line)
             reply = ask("  passed? [y/n/s=skip] ", ("y", "n", "s"), answer)
-            if reply == "s":
-                continue
-            verdict, how = reply == "y", "graded by hand"
+            verdict = None if reply == "s" else reply == "y"
+            how = "skipped" if reply == "s" else "graded by hand"
         else:
             print("  [%s] %s -- %s" % (grader["name"], "pass" if verdict else "FAIL", how))
         results.append({"name": grader["name"], "type": grader["type"], "passed": verdict,
-                        "scored": scored(grader), "how": how})
+                        "scored": scored(grader), "weight": grader["weight"], "how": how})
     return results
 
 
+def skipped(results):
+    """Scored graders nobody graded: a run missing any of them is incomplete."""
+    return [r["name"] for r in results if r["scored"] and r["passed"] is None]
+
+
 def score(results):
-    counted = [r for r in results if r["scored"]]
-    return round(sum(1 for r in counted if r["passed"]) / len(counted), 4) if counted else None
+    """Weighted share of the graded, scored graders that passed."""
+    counted = [r for r in results if r["scored"] and r["passed"] is not None]
+    total = sum(r.get("weight", 1.0) for r in counted)
+    if not total:
+        return None
+    return round(sum(r.get("weight", 1.0) for r in counted if r["passed"]) / total, 4)
 
 
 def bash():
@@ -204,12 +252,17 @@ def copilot_command(case, arm, workspace, plugin_dir, out_dir, model=None):
     return command
 
 
-def run_copilot(command, log_path):
+def run_copilot(command, log_path, timeout):
+    """(error or None, seconds). A run past the case's timeout_seconds is stopped and is an error."""
     env = dict(os.environ, COPILOT_PLUGIN_DIR_ONLY="true")
     started = time.time()
     with open(log_path, "w", encoding="utf-8") as log:
-        proc = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, env=env)
-    return proc.returncode, round(time.time() - started, 1)
+        try:
+            proc = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, env=env, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            return "timed out after %ds" % timeout, round(time.time() - started, 1)
+    error = None if proc.returncode == 0 else "copilot exited %d" % proc.returncode
+    return error, round(time.time() - started, 1)
 
 
 def result_doc(plugin, records, partial, reason, started):
@@ -269,13 +322,13 @@ def main(argv=None, answer=input):
             for arm in arms:
                 print("\n=== %s · %s plugin ===" % (case["name"], arm))
                 workspace = build_workspace(case, arm, scratch)
+                before = files_in(workspace)
                 command = copilot_command(case, arm, workspace, plugin_dir, out_dir, args.model)
                 transcript, error = "", None
                 if args.run:
                     log = os.path.join(out_dir, "%s-%s.jsonl" % (case["name"], arm))
-                    code, seconds = run_copilot(command, log)
-                    print("copilot exited %d after %ss" % (code, seconds))
-                    error = None if code == 0 else "copilot exited %d" % code
+                    error, seconds = run_copilot(command, log, case["timeout"])
+                    print("copilot %s after %ss" % (error or "finished", seconds))
                     for path in (log, os.path.join(out_dir, "%s-%s.md" % (case["name"], arm))):
                         if os.path.isfile(path):
                             transcript += read(path)
@@ -290,8 +343,12 @@ def main(argv=None, answer=input):
                               "  copilot -C \"%s\"" % workspace)
                     print("Paste this prompt:\n" + "-" * 60 + "\n" + case["prompt"] + "\n" + "-" * 60)
                     answer("Press Enter when the agent has finished. ")
-                results = grade_run(case, arm, workspace, transcript, answer)
-                run = {"score": score(results), "error": error, "graders": results}
+                results = grade_run(case, arm, workspace, transcript, answer, before)
+                missing = skipped(results)
+                if missing and not error:
+                    # Not an abnormal end, but the score covers less than the case asks: never trusted.
+                    error = "not graded: %s" % ", ".join(missing)
+                run = {"score": score(results), "error": error, "graders": results, "skippedGraders": missing}
                 records.setdefault(case["name"], {}).setdefault(arm, []).append(run)
                 print("  -> score %s" % ("—" if run["score"] is None else "%.2f" % run["score"]))
     except KeyboardInterrupt:

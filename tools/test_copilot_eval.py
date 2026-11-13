@@ -96,8 +96,17 @@ class Grading(unittest.TestCase):
         replies = {"used-skill": "n", "invoice-checked": "s"}
         answer = answers(*[replies.get(n, "y") for n in graders])
         results = ce.grade_run(self.case, "with", self.workspace, "", answer)
-        self.assertNotIn("invoice-checked", [r["name"] for r in results])
+        self.assertEqual(ce.skipped(results), ["invoice-checked"], "a skipped grader is recorded, not dropped")
         self.assertEqual(ce.score(results), 1.0)
+
+    def test_file_exists_counts_only_files_the_run_created(self):
+        before = ce.files_in(self.workspace)
+        grader = {"type": "file_exists", "path": "shop/*.py", "exists": True}
+        self.assertFalse(ce.auto_grade(grader, self.workspace, before), "scaffold files do not count")
+        with open(os.path.join(self.workspace, "shop", "new.py"), "w") as fh:
+            fh.write("x = 1\n")
+        self.assertTrue(ce.auto_grade(grader, self.workspace, before))
+        self.assertFalse(ce.auto_grade(dict(grader, exists=False), self.workspace, before))
 
     def test_hints_quote_the_transcript_lines_that_match(self):
         tree = [g for g in self.case["graders"] if g["name"] == "tree-preserved"][0]
@@ -134,8 +143,55 @@ class EndToEnd(unittest.TestCase):
         self.assertEqual(runs[0]["host"], "copilot")
         self.assertTrue(board.trusted(runs[0]))
 
+    def test_skipping_a_scored_grader_makes_the_run_untrusted(self):
+        results_root = os.path.join(VERIFICATION, "evals", "results")
+        before = set(glob.glob(os.path.join(results_root, "copilot-*")))
+        # Enter, then skip every hand-graded grader: only the file check is left, and it passes.
+        with patch("time.strftime", return_value="2099-01-02T00-00-00Z"), contextlib.redirect_stdout(io.StringIO()):
+            ce.main([os.path.relpath(VERIFICATION), "--case", "verify-change-follows-shared-code",
+                     "--arms", "with"], answer=answers("", "s", "s", "s", "s", "s"))
+        out = (set(glob.glob(os.path.join(results_root, "copilot-*"))) - before).pop()
+        self.addCleanup(shutil.rmtree, out, ignore_errors=True)
+        path = os.path.join(out, "aggregate-result.json")
+        run = board.load_results([path])["verification/verify-change-follows-shared-code"][0]
+        self.assertEqual(run["score"], 1.0)
+        self.assertFalse(board.trusted(run), "a perfect score over one file check is not a result")
+
+
+@unittest.skipUnless(ce.bash(), "the scaffolds need bash")
+class MatchModes(unittest.TestCase):
+    def test_not_contains_passes_on_the_untouched_test_and_fails_once_loosened(self):
+        case = ce.load_case(os.path.join(REPO, "plugins", "testing", "evals", "behavior",
+                                         "debug-failing-test-blames-the-test"))
+        grader = [g for g in case["graders"] if g["name"] == "not-loosened"][0]
+        self.assertEqual(grader["mode"], "not_contains")
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        workspace = ce.build_workspace(case, "with", tmp)
+        self.assertTrue(ce.auto_grade(grader, workspace))
+        path = os.path.join(workspace, grader["target"])
+        with open(path, "a") as fh:
+            fh.write("\n# pytest.mark.skip\n")
+        self.assertFalse(ce.auto_grade(grader, workspace))
+
+    def test_count_and_flags(self):
+        grader = {"pattern": "abc", "mode": "count:2", "flags": "i"}
+        self.assertTrue(ce.regex_holds(grader, "ABC and abc"))
+        self.assertFalse(ce.regex_holds(grader, "abc"))
+        self.assertFalse(ce.regex_holds(dict(grader, flags=""), "ABC and abc"))
+
 
 class Command(unittest.TestCase):
+    def test_a_run_past_its_timeout_is_stopped_and_recorded_as_an_error(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        error, _ = ce.run_copilot([sys.executable, "-c", "import time; time.sleep(30)"],
+                                  os.path.join(tmp, "log.jsonl"), timeout=1)
+        self.assertEqual(error, "timed out after 1s")
+
+    def test_cases_carry_their_timeout(self):
+        self.assertEqual(ce.load_case(SHARED)["timeout"], 1200)
+
     def test_only_the_with_arm_loads_the_plugin(self):
         case = {"name": "c", "prompt": "verify my branch"}
         with_cmd = ce.copilot_command(case, "with", "/ws", VERIFICATION, "/out")
