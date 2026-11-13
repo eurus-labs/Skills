@@ -268,6 +268,10 @@ def build_workspace(case, arm, root):
     return workspace
 
 
+class CopilotFailed(Exception):
+    """The first run ended in a Copilot error: later runs would fail the same way."""
+
+
 def model_flags(model=None, effort=None):
     """The copilot flags that pin the model and its reasoning effort; both arms must get the same ones."""
     return (["--model", model] if model else []) + (["--reasoning-effort", effort] if effort else [])
@@ -292,6 +296,42 @@ def run_copilot(command, log_path, timeout):
             return "timed out after %ds" % timeout, round(time.time() - started, 1)
     error = None if proc.returncode == 0 else "copilot exited %d" % proc.returncode
     return error, round(time.time() - started, 1)
+
+
+def log_tail(path, lines=12):
+    """The last lines of a Copilot log, each cut short: what it said when it refused to run."""
+    try:
+        text = read(path)
+    except OSError:
+        return ""
+    kept = [line.rstrip()[:220] for line in text.splitlines() if line.strip()]
+    return "\n".join("    | " + line for line in kept[-lines:])
+
+
+def preflight(model=None, effort=None, timeout=120):
+    """Run one trivial prompt with the pinned flags before any case: a model the plan does not offer, a
+    reasoning effort the model lacks, or a missing sign-in then fails here, with Copilot's own message,
+    and not once per case. Returns (ok, output)."""
+    workspace = tempfile.mkdtemp(prefix="copilot-eval-check-")
+    command = ["copilot", "-p", "Reply with the single word: ok", "-C", workspace, "-s", "--no-ask-user"]
+    command += model_flags(model, effort)
+    env = dict(os.environ, COPILOT_PLUGIN_DIR_ONLY="true")
+    try:
+        proc = subprocess.run(command, capture_output=True, text=True, env=env, timeout=timeout)
+        output = ((proc.stdout or "") + (proc.stderr or "")).strip()
+        return proc.returncode == 0, output
+    except subprocess.TimeoutExpired:
+        return False, "no answer after %ds" % timeout
+    finally:
+        shutil.rmtree(workspace, ignore_errors=True)
+
+
+PREFLIGHT_HINT = """Copilot did not run the trivial check prompt. Common causes:
+  - the model is not available on your plan or organization: start `copilot`, type /model, and use a name from that list;
+  - the model does not offer that reasoning effort: leave out --reasoning-effort, or try another level;
+  - you are not signed in: run `copilot login`.
+Run the same flags yourself to see the whole message:
+  copilot -p "Reply with the single word: ok"%s"""
 
 
 def result_doc(plugin, records, partial, reason, started, model=None, effort=None):
@@ -336,6 +376,8 @@ def main(argv=None, answer=input):
                         choices=("none", "minimal", "low", "medium", "high", "xhigh", "max"),
                         help="pin the reasoning effort, passed to copilot --reasoning-effort "
                              "(the levels a model offers depend on the model)")
+    parser.add_argument("--no-check", action="store_true",
+                        help="with --run, skip the one-prompt check that copilot accepts the pinned flags")
     parser.add_argument("--keep", action="store_true", help="keep the scratch workspaces")
     args = parser.parse_args(argv)
 
@@ -347,6 +389,13 @@ def main(argv=None, answer=input):
     arms = [a for a in ("with", "without") if a in args.arms.split(",")]
     if args.run and not shutil.which("copilot"):
         raise SystemExit("copilot not found on PATH; install GitHub Copilot CLI or leave out --run")
+    if args.run and not args.no_check:
+        print("checking that copilot runs with %s ..." % (" ".join(model_flags(args.model, args.effort)) or "its defaults"))
+        ok, output = preflight(args.model, args.effort)
+        if not ok:
+            lines = "\n".join("    | " + line[:220] for line in output.splitlines()[-12:])
+            raise SystemExit("%s\n\n%s" % (lines or "    (no output)", PREFLIGHT_HINT
+                                              % "".join(" " + f for f in model_flags(args.model, args.effort))))
 
     started = time.strftime("%Y-%m-%dT%H-%M-%SZ", time.gmtime())
     out_dir = os.path.join(plugin_dir, "evals", "results", "copilot-%s" % started)
@@ -366,7 +415,9 @@ def main(argv=None, answer=input):
                 if args.run:
                     log = os.path.join(out_dir, "%s-%s.jsonl" % (case["name"], arm))
                     error, seconds = run_copilot(command, log, case["timeout"])
-                    print("copilot %s after %ss" % (error or "finished", seconds))
+                    print("%s after %ss" % (error or "copilot finished", seconds))
+                    if error:
+                        print(log_tail(log) or "    (the log is empty)")
                     for path in (log, os.path.join(out_dir, "%s-%s.md" % (case["name"], arm))):
                         if os.path.isfile(path):
                             transcript += read(path)
@@ -381,6 +432,14 @@ def main(argv=None, answer=input):
                               "  copilot -C \"%s\"%s" % (workspace, pinned))
                     print("Paste this prompt:\n" + "-" * 60 + "\n" + case["prompt"] + "\n" + "-" * 60)
                     answer("Press Enter when the agent has finished. ")
+                if error and error.startswith("copilot exited"):
+                    # The agent died: its silence must not pass a grader that asks for silence.
+                    run = {"score": None, "error": error, "graders": [], "skippedGraders": []}
+                    records.setdefault(case["name"], {}).setdefault(arm, []).append(run)
+                    print("  -> not graded: %s" % error)
+                    if not any(r["score"] is not None for a in records.values() for rs in a.values() for r in rs):
+                        raise CopilotFailed(error)
+                    continue
                 results = grade_run(case, arm, workspace, transcript, answer, before)
                 missing = skipped(results)
                 if missing and not error:
@@ -392,6 +451,10 @@ def main(argv=None, answer=input):
     except KeyboardInterrupt:
         partial, reason = True, "interrupted"
         print("\ninterrupted; saving what was graded")
+    except CopilotFailed as exc:
+        # Nothing has worked yet, so the model, the sign-in or the plugin is wrong: stop, as the Claude runner does.
+        partial, reason = True, "copilot_failed"
+        print("\nstopping: no run has worked yet (%s). Fix that, then run again." % exc)
     except SystemExit:
         # A scaffold that cannot be built is a setup problem, not a result: leave no empty results folder.
         if not records:

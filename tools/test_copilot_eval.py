@@ -237,6 +237,102 @@ class WindowsBash(unittest.TestCase):
         self.assertIn("scaffold of c failed", str(caught.exception))
 
 
+REAL_WHICH = shutil.which
+
+
+def with_copilot_on_path(name):
+    """shutil.which that finds a pretend copilot and the real everything else."""
+    return "copilot" if name == "copilot" else REAL_WHICH(name)
+
+
+@unittest.skipUnless(ce.bash(), "the scaffolds need bash")
+class WhenCopilotRefuses(unittest.TestCase):
+    """The first real run: `--model claude-haiku-5.5` made copilot exit 1 after 4.8 s, the script said only
+    "copilot copilot exited 1" and went on to ask whether a dead agent had passed."""
+
+    def setUp(self):
+        self.results_root = os.path.join(VERIFICATION, "evals", "results")
+        self.before = set(glob.glob(os.path.join(self.results_root, "copilot-*")))
+        self.addCleanup(lambda: [shutil.rmtree(p, ignore_errors=True)
+                                 for p in set(glob.glob(os.path.join(self.results_root, "copilot-*"))) - self.before])
+
+    def test_preflight_returns_what_copilot_said_when_it_refuses(self):
+        refused = subprocess_result(1, "", "Error: model 'claude-haiku-5.5' is not available")
+        with patch("subprocess.run", return_value=refused):
+            ok, output = ce.preflight("claude-haiku-5.5", "medium")
+        self.assertFalse(ok)
+        self.assertIn("is not available", output)
+
+    def test_preflight_passes_the_pinned_flags_and_accepts_exit_0(self):
+        with patch("subprocess.run", return_value=subprocess_result(0, "ok", "")) as run:
+            ok, _ = ce.preflight("gpt-5.6-sol", "low")
+        self.assertTrue(ok)
+        command = run.call_args[0][0]
+        self.assertEqual(command[-4:], ["--model", "gpt-5.6-sol", "--reasoning-effort", "low"])
+
+    def test_a_refused_model_stops_before_any_case_and_shows_the_reason(self):
+        refused = subprocess_result(1, "", "Error: model 'claude-haiku-5.5' is not available")
+        with patch("shutil.which", side_effect=with_copilot_on_path), patch("subprocess.run", return_value=refused), \
+                contextlib.redirect_stdout(io.StringIO()):
+            with self.assertRaises(SystemExit) as caught:
+                ce.main([os.path.relpath(VERIFICATION), "--case", "none-implement-feature", "--run",
+                         "--model", "claude-haiku-5.5"])
+        message = str(caught.exception)
+        self.assertIn("is not available", message)
+        self.assertIn("/model", message)
+        self.assertEqual(set(glob.glob(os.path.join(self.results_root, "copilot-*"))), self.before)
+
+    def test_a_dead_run_is_not_graded_and_a_first_failure_stops_the_suite(self):
+        def never(question=""):
+            raise AssertionError("a run that died must not be put to the person for grading: %r" % question)
+        out = io.StringIO()
+        with patch("shutil.which", side_effect=with_copilot_on_path), \
+                patch.object(ce, "preflight", return_value=(True, "ok")), \
+                patch.object(ce, "run_copilot", return_value=("copilot exited 1", 4.8)), \
+                patch("time.strftime", return_value="2099-01-04T00-00-00Z"), contextlib.redirect_stdout(out):
+            ce.main([os.path.relpath(VERIFICATION), "--tag", "trigger", "--run"], answer=never)
+        self.assertIn("copilot exited 1 after 4.8s", out.getvalue())
+        self.assertNotIn("copilot copilot", out.getvalue())
+        path = os.path.join(self.results_root, "copilot-2099-01-04T00-00-00Z", "aggregate-result.json")
+        with open(path) as fh:
+            doc = json.load(fh)
+        self.assertTrue(doc["partial"])
+        self.assertEqual(doc["partialReason"], "copilot_failed")
+        self.assertEqual(len(doc["cases"]), 1, "the suite stops after the first run: nothing had worked yet")
+        run = doc["cases"][0]["arms"]["with"][0]
+        self.assertIsNone(run["score"])
+        self.assertEqual(run["error"], "copilot exited 1")
+
+    def test_a_later_failure_is_recorded_and_the_suite_goes_on(self):
+        calls = []
+
+        def run_copilot(command, log, timeout):
+            calls.append(command)
+            return (None, 1.0) if len(calls) == 1 else ("copilot exited 1", 1.0)
+        with patch("shutil.which", side_effect=with_copilot_on_path), \
+                patch.object(ce, "preflight", return_value=(True, "ok")), \
+                patch.object(ce, "run_copilot", side_effect=run_copilot), \
+                patch("time.strftime", return_value="2099-01-05T00-00-00Z"), contextlib.redirect_stdout(io.StringIO()):
+            ce.main([os.path.relpath(VERIFICATION), "--case", "none-implement-feature", "--run"],
+                    answer=answers(*(["y"] * 10)))
+        self.assertEqual(len(calls), 2, "both arms ran: the first worked, so the second failure does not stop it")
+
+    def test_log_tail_keeps_the_last_lines_and_survives_a_missing_file(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        path = os.path.join(tmp, "log")
+        with open(path, "w") as fh:
+            fh.write("\n".join("line %d" % i for i in range(30)) + "\n")
+        tail = ce.log_tail(path, lines=3).splitlines()
+        self.assertEqual([t.strip() for t in tail], ["| line 27", "| line 28", "| line 29"])
+        self.assertEqual(ce.log_tail(os.path.join(tmp, "missing")), "")
+
+
+def subprocess_result(code, out, err):
+    import subprocess as sp
+    return sp.CompletedProcess([], code, out, err)
+
+
 class Command(unittest.TestCase):
     def test_a_run_past_its_timeout_is_stopped_and_recorded_as_an_error(self):
         tmp = tempfile.mkdtemp()

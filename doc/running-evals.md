@@ -133,8 +133,15 @@ showing the lines of the transcript that match the grader's pattern as a hint.
 python3 tools/copilot_eval.py plugins/verification --case verify-change-follows-shared-code --run
 ```
 
-With `--run` it starts `copilot -p` for each arm in the workspace, stops it at the case's `timeout_seconds`,
-and saves the transcript next to the result. You still grade whatever the script cannot check.
+With `--run` the script first sends Copilot one trivial prompt with the flags you pinned, so a model your plan
+does not offer, a reasoning effort the model lacks, or a missing sign-in fails **once, with Copilot's own
+message**, and not once per case (`--no-check` skips this). Then it starts `copilot -p` for each arm in the
+workspace, stops it at the case's `timeout_seconds`, and saves the transcript next to the result. You still
+grade whatever the script cannot check.
+
+If Copilot exits with an error, the last lines of its log are printed and the run is **not** put to you for
+grading: a dead agent passes every "must stay quiet" grader. If the very first run fails, the suite stops and is
+saved as partial, since nothing has worked yet.
 
 **`--run` lets the agent run any command in a scratch directory as you, and is billed to your Copilot plan.**
 
@@ -233,6 +240,7 @@ English and Vietnamese. Add result files from elsewhere with `--results [plugin=
 | `Not logged in · Please run /login` | Export `ANTHROPIC_API_KEY` in the same shell and run again. |
 | A case scores `1.00` and has an `error:` | The run never started. A grader that asks for silence passes on a dead agent. Fix the error; do not read the score. |
 | `no usable bash found` (Copilot script, Windows) | Install Git for Windows. |
+| `copilot exited 1` right away, or the check prompt fails | Copilot refused to start. Read the lines printed under it. Usually the model is not on your plan (use a name from `/model`), the model has no such `--reasoning-effort` (leave it out), or you are signed out (`copilot login`). |
 | `the scaffold of <case> failed` | The message names the bash used. Run that `bash` on `plugins/.../scaffold.sh` by hand in an empty directory to see the error. |
 | Board shows `untrusted` | The run was partial, errored, or had a skipped grader. Rerun, or grade the skipped graders. |
 
