@@ -204,6 +204,34 @@ class TranscriptPage(unittest.TestCase):
             self.assertIn(name.lower(), allowed, "a tag the agent wrote became markup: <%s%s>" % (name, attrs))
             self.assertRegex(attrs, r'^(\s+class="[a-z ]+")?$', "attributes on <%s>: %r" % (name, attrs))
 
+    def test_list_continuations_stay_with_their_item_and_blocks_keep_their_order(self):
+        page = ebs.render_transcript("\n".join([
+            "Before",
+            "- Run the baseline tests",
+            "  Result: FAILED",
+            "- Run the updated tests",
+            "  Result: PASSED",
+            "After",
+        ]), "t")
+        self.assertIn("<p>Before</p><ul><li>Run the baseline tests<br>Result: FAILED</li>"
+                      "<li>Run the updated tests<br>Result: PASSED</li></ul><p>After</p>",
+                      page.replace("\n", ""))
+
+    def test_a_longer_fence_keeps_inner_fences_and_headings_as_code(self):
+        page = ebs.render_transcript("\n".join([
+            "````markdown",
+            "```bash",
+            "## not a heading",
+            "<details>",
+            "```",
+            "````",
+            "## Copilot",
+        ]), "t")
+        block = page.split("<pre><code>", 1)[1].split("</code></pre>", 1)[0]
+        self.assertEqual(block, "```bash\n## not a heading\n&lt;details&gt;\n```")
+        self.assertIn('<h2 class="role copilot">Copilot</h2>', page, "the outer fence closed")
+        self.assertEqual(page.count("<pre>"), 1)
+
 
 class TranscriptServe(Server):
     def test_markdown_is_served_as_a_page_without_scripts_and_raw_on_request(self):

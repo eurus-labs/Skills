@@ -300,7 +300,7 @@ def transcript_path(rel):
 # the few shapes Copilot's --share Markdown uses are turned back into markup, by this code and never by
 # passing through what the file says. The page that shows it may run no script at all (see TRANSCRIPT_CSP).
 TRANSCRIPT_CSP = "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"
-FENCE = re.compile(r"^\s*```")
+FENCE = re.compile(r"^\s*(`{3,})")
 HEADING = re.compile(r"^(#{1,4})\s+(.*)$")
 SUMMARY = re.compile(r"^\s*<summary>(.*)</summary>\s*$")
 SUB = re.compile(r"^\s*<sub>(.*)</sub>\s*$")
@@ -316,8 +316,10 @@ def inline(text):
 
 def render_transcript(markdown, title):
     """Copilot's --share Markdown as a readable page: roles, tool calls, collapsible arguments and output."""
+    # Only one of para, quote and items holds lines at a time, so blocks keep the order of the file.
+    # items holds one list of lines per item: its label, then its indented continuation lines.
     body, para, quote, items, code = [], [], [], [], []
-    in_code = False
+    fence = ""  # the opening fence while inside a code block; only a bare fence at least as long closes it
 
     def flush():
         if para:
@@ -327,21 +329,23 @@ def render_transcript(markdown, title):
             body.append('<blockquote>%s</blockquote>' % "<br>".join(inline(q) for q in quote))
             quote.clear()
         if items:
-            body.append("<ul>%s</ul>" % "".join("<li>%s</li>" % inline(i) for i in items))
+            body.append("<ul>%s</ul>" % "".join(
+                "<li>%s</li>" % "<br>".join(inline(i) for i in item) for item in items))
             items.clear()
 
     for line in markdown.splitlines():
-        if in_code:
-            if FENCE.match(line):
+        if fence:
+            if re.match(r"^\s*`{%d,}\s*$" % len(fence), line):
                 body.append("<pre><code>%s</code></pre>" % "\n".join(code))
                 code.clear()
-                in_code = False
+                fence = ""
             else:
                 code.append(html.escape(line))
             continue
-        if FENCE.match(line):
+        opening = FENCE.match(line)
+        if opening:
             flush()
-            in_code = True
+            fence = opening.group(1)
             continue
         stripped = line.strip()
         tool = TOOL_HEADING.match(stripped)
@@ -370,15 +374,23 @@ def render_transcript(markdown, title):
             flush()
             body.append("<hr>")
         elif stripped.startswith(">"):
+            if not quote:
+                flush()
             quote.append(stripped.lstrip(">").strip().replace("[!NOTE]", "Note"))
         elif re.match(r"^[-*]\s+", stripped):
-            items.append(re.sub(r"^[-*]\s+", "", stripped))
+            if not items:
+                flush()
+            items.append([re.sub(r"^[-*]\s+", "", stripped)])
         elif not stripped:
             flush()
+        elif items and line[:1].isspace():
+            items[-1].append(stripped)
         else:
+            if not para:
+                flush()
             para.append(stripped)
     flush()
-    if in_code:
+    if fence:
         body.append("<pre><code>%s</code></pre>" % "\n".join(code))
     return TRANSCRIPT_PAGE.replace("__TITLE__", html.escape(title)).replace("__BODY__", "\n".join(body))
 
