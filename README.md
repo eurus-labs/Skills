@@ -18,6 +18,13 @@ Swap `testing` for any plugin below. `add` takes the repository; everything afte
 name, **`eurus-labs`** (case-sensitive), the same as the GitHub org. Inside an interactive session, use
 `/plugin install testing@eurus-labs`.
 
+In Claude Code:
+
+```bash
+claude plugin marketplace add eurus-labs/Skills
+claude plugin install testing@eurus-labs
+```
+
 ## Plugins
 
 | Plugin | Skills | What it's for |

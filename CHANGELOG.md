@@ -122,6 +122,10 @@ capability, and adds three plugins and eval suites.
 
 ### Fixed
 
+- **Claude Code can install the plugins.** `claude plugin marketplace add` failed with "Marketplace file not
+  found": Claude Code reads only `.claude-plugin/marketplace.json`, and refuses a plugin `source` without a
+  leading `./`. The marketplace now uses `./plugins/<name>`, which Copilot also accepts, and an identical
+  `.claude-plugin/marketplace.json`; the validator keeps them identical. The README shows the Claude Code install.
 - **Evals load.** The first real `claude plugin eval` run found that nine eval descriptions were invalid YAML
   (four `verification` cases and five `presentation` cases refused to load) and that no plugin resolved at
   all, because Claude Code reads `.claude-plugin/plugin.json` and the manifests only existed at

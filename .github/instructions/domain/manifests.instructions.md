@@ -11,6 +11,7 @@ description: Rules for plugin.json, marketplace.json, and shared.manifest — ma
 | File | Path |
 | ---- | ---- |
 | Marketplace | `.github/plugin/marketplace.json` |
+| Marketplace, Claude Code's copy | `.claude-plugin/marketplace.json`, byte-identical |
 | Plugin | `plugins/<name>/.github/plugin/plugin.json` |
 | Plugin, Claude Code's copy | `plugins/<name>/.claude-plugin/plugin.json` |
 
@@ -26,7 +27,9 @@ carries the same file at both paths, and the validator fails when either is miss
 - `plugin.json` `name` **must equal** its folder name.
 - `marketplace.json` `plugins[].description` and `version` must be **byte-identical** to the plugin's own
   `plugin.json`. Changing one means changing both.
-- `marketplace.json` `plugins[].source` must be `plugins/<name>`.
+- `marketplace.json` `plugins[].source` must be `./plugins/<name>`: Claude Code refuses a source without the
+  leading `./`, and Copilot accepts it. Keep `.claude-plugin/marketplace.json` identical; Claude Code reads only
+  that file, and `tools/validate.py` fails when the two differ.
 - Every skill folder must appear in the plugin's `skills[]` array, and every `skills[]` path must resolve.
 - Every plugin needs a row in the root `README.md` catalog.
 - Folders prefixed with `_` are scaffolding. They stay out of `marketplace.json` and cannot be installed.

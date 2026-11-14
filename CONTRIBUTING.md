@@ -42,12 +42,14 @@ plugins/<plugin-name>/
 | `agents` | optional | array of paths to custom agent Markdown files |
 | `commands` | optional | array of paths to slash-command Markdown files |
 
-Every plugin must also be registered in [`.github/plugin/marketplace.json`](.github/plugin/marketplace.json):
+Every plugin must also be registered in [`.github/plugin/marketplace.json`](.github/plugin/marketplace.json), and
+that file copied byte for byte to [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json), the only
+one Claude Code reads:
 
 ```json
 {
   "name": "<plugin-name>",
-  "source": "plugins/<plugin-name>",
+  "source": "./plugins/<plugin-name>",
   "description": "same text as plugin.json",
   "version": "same version as plugin.json"
 }
