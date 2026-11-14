@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""tools/eval_board_server.py must run only real cases, only for its own page, and ask the grading on the page.
+"""tools/skill_manager.py must run only real cases, only for its own page, and ask the grading on the page.
 
 The server starts commands on the user's machine from a browser, so the tests pin what a request
 can and cannot do: no token or another Host is refused, unknown cases and odd options are refused,
 one run at a time, `--trust-plugin` never appears. They also drive a whole run through the API with
 the runners replaced, so nothing is billed and no agent runs.
 
-    python3 tools/test_eval_board_server.py
+    python3 tools/test_skill_manager.py
 """
 
 import http.client
@@ -21,7 +21,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import eval_board_server as ebs  # noqa: E402
+import skill_manager as ebs  # noqa: E402
 
 REAL_WHICH = shutil.which
 
@@ -178,11 +178,10 @@ class CopilotRun(Server):
 
 class ClaudeRun(Server):
     def test_the_claude_command_is_built_from_the_case_and_never_trusts_for_you(self):
-        trigger = ebs.claude_command({"plugin": "verification", "case": "none-implement-feature", "arms": "with",
-                                      "model": "", "max_cost_usd": 2.0}, "trigger", "claude")
-        behavior = ebs.claude_command({"plugin": "verification", "case": "verify-change-follows-shared-code",
-                                       "arms": "both", "model": "claude-sonnet-5-5", "max_cost_usd": 5.0},
-                                      "behavior", "claude")
+        trigger = ebs.claude_command({"plugin": "verification", "arms": "with", "model": "", "max_cost_usd": 2.0},
+                                     "none-implement-feature", "trigger", "claude")
+        behavior = ebs.claude_command({"plugin": "verification", "arms": "both", "model": "claude-sonnet-5-5",
+                                       "max_cost_usd": 5.0}, "verify-change-follows-shared-code", "behavior", "claude")
         for cmd in (trigger, behavior):
             self.assertNotIn("--trust-plugin", cmd)
             self.assertIn("--no-publish", cmd)
@@ -209,13 +208,107 @@ class ClaudeRun(Server):
             def terminate(self):
                 pass
 
-        with patch("shutil.which", side_effect=on_path("claude")), patch("subprocess.Popen", FakeProc):
+        with patch("shutil.which", side_effect=on_path("claude")), patch.object(ebs, "spawn", FakeProc):
             self.request("POST", "/api/run", {"plugin": "verification", "case": "none-implement-feature", "host": "claude"})
             job = self.wait_for(lambda j: j["status"] != "running")
         self.assertEqual(job["status"], "failed")
         log = "\n".join(job["log"])
         self.assertIn("Not logged in", log)
         self.assertIn("never passes --trust-plugin", log)
+
+
+class SkillRuns(Server):
+    def test_all_cases_of_a_skill_run_in_turn_and_check_copilot_once(self):
+        calls = []
+
+        def fake_main(argv, answer):
+            calls.append(argv)
+            return 0
+
+        cases = ["verify-change-pr-vs-issue", "verify-change-working-tree"]
+        with patch("shutil.which", side_effect=on_path("copilot")), patch.object(ebs.copilot_eval, "main", fake_main):
+            status, job = self.request("POST", "/api/run", {"plugin": "verification", "cases": cases,
+                                                            "host": "copilot", "label": "verify-change"})
+            self.assertEqual(status, 200)
+            self.assertEqual(job["title"], "verify-change: 2 cases")
+            job = self.wait_for(lambda j: j["status"] != "running")
+        self.assertEqual(job["status"], "done")
+        self.assertEqual([a[a.index("--case") + 1] for a in calls], cases)
+        self.assertNotIn("--no-check", calls[0])
+        self.assertIn("--no-check", calls[1])
+
+    def test_a_list_with_an_unknown_case_is_refused(self):
+        with patch("shutil.which", side_effect=on_path("copilot")):
+            status, data = self.request("POST", "/api/run", {"plugin": "verification", "host": "copilot",
+                                                             "cases": ["verify-change-pr-vs-issue", "rm -rf"]})
+        self.assertEqual(status, 400)
+
+
+class Install(Server):
+    def test_commands_are_built_for_this_marketplace_only(self):
+        with patch("shutil.which", side_effect=on_path("copilot", "claude")):
+            self.assertEqual(ebs.plugin_command("copilot", "install", "testing")[1:],
+                             ["plugin", "install", "testing@eurus-labs"])
+            self.assertEqual(ebs.plugin_command("claude", "uninstall", "docs")[1:],
+                             ["plugin", "uninstall", "docs@eurus-labs"])
+            self.assertEqual(ebs.plugin_command("claude", "marketplace-add", source="checkout")[-1], ebs.REPO)
+            self.assertEqual(ebs.plugin_command("copilot", "marketplace-add", source="github")[-1], "eurus-labs/Skills")
+            self.assertEqual(ebs.plugin_command("copilot", "marketplace-update")[1:],
+                             ["plugin", "marketplace", "update", "eurus-labs"])
+
+    def test_odd_requests_are_refused(self):
+        with patch("shutil.which", side_effect=on_path("copilot", "claude")):
+            for body in ({"host": "copilot", "action": "install", "plugin": "not-a-plugin"},
+                         {"host": "copilot", "action": "rm", "plugin": "testing"},
+                         {"host": "zsh", "action": "install", "plugin": "testing"},
+                         {"host": "claude", "action": "marketplace-add", "source": "https://evil.example/x"}):
+                self.assertEqual(self.request("POST", "/api/install", body)[0], 400, body)
+
+    def test_an_install_job_runs_each_plugin_and_streams_output(self):
+        started = []
+
+        class FakeProc:
+            def __init__(self, command, **kwargs):
+                started.append(command)
+                self.stdout = io.StringIO("Plugin \"%s\" installed successfully.\n" % command[-1])
+
+            def wait(self):
+                return 0
+
+            def poll(self):
+                return 0
+
+            def terminate(self):
+                pass
+
+        with patch("shutil.which", side_effect=on_path("copilot")), patch.object(ebs, "spawn", FakeProc):
+            status, _ = self.request("POST", "/api/install", {"host": "copilot", "action": "install",
+                                                              "plugins": ["testing", "docs"]})
+            self.assertEqual(status, 200)
+            job = self.wait_for(lambda j: j["status"] != "running")
+        self.assertEqual(job["status"], "done")
+        self.assertEqual([c[-1] for c in started], ["testing@eurus-labs", "docs@eurus-labs"])
+        self.assertIn('Plugin "docs@eurus-labs" installed successfully.', job["log"])
+
+    def test_installed_reads_both_hosts_listings(self):
+        listings = {
+            ("copilot", "list"): ([{"name": "testing", "marketplace": "eurus-labs", "version": "0.3.5", "enabled": True},
+                                  {"name": "other", "marketplace": "awesome-copilot", "version": "1", "enabled": True}], None),
+            ("copilot", "marketplace"): ([{"name": "eurus-labs", "source": "GitHub: eurus-labs/Skills"}], None),
+            ("claude", "list"): ([{"id": "docs@eurus-labs", "version": "1.3.6", "enabled": True}], None),
+            ("claude", "marketplace"): ([{"name": "eurus-labs", "source": "directory", "path": "/x"}], None),
+        }
+
+        def fake(command, timeout=60):
+            host = os.path.basename(command[0])
+            return listings[(host, "marketplace" if "marketplace" in command else "list")]
+
+        with patch("shutil.which", side_effect=on_path("copilot", "claude")), patch.object(ebs, "list_json", fake):
+            found = ebs.installed()
+        self.assertEqual(found["copilot"]["plugins"], {"testing": {"version": "0.3.5", "enabled": True}})
+        self.assertEqual(found["copilot"]["marketplace"], "GitHub: eurus-labs/Skills")
+        self.assertEqual(found["claude"]["plugins"], {"docs": {"version": "1.3.6", "enabled": True}})
+        self.assertEqual(found["claude"]["marketplace"], "directory /x")
 
 
 class StaticPage(unittest.TestCase):

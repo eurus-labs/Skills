@@ -38,7 +38,7 @@ class Catalog(unittest.TestCase):
 
     def test_every_case_belongs_to_a_skill_of_its_plugin(self):
         for plugin in self.plugins.values():
-            names = {s for s, _ in plugin["skills"]}
+            names = {s[0] for s in plugin["skills"]}
             for c in plugin["cases"]:
                 self.assertTrue(c["skills"], c["name"])
                 self.assertLessEqual(set(c["skills"]), names, c["name"])
@@ -66,9 +66,20 @@ class Catalog(unittest.TestCase):
         self.assertEqual(tree["tool"], "Bash")
         self.assertIn("stash", tree["match"])
 
+    def test_plugins_carry_their_version_and_skills_their_last_change(self):
+        plugin = self.plugins["verification"]
+        self.assertRegex(plugin["version"], r"^\d+\.\d+\.\d+$")
+        for name, _, changed in plugin["skills"]:
+            self.assertIsInstance(changed, int, "%s: no git time; the 'changed since last run' status needs it" % name)
+
+    def test_a_run_time_comes_from_its_results_folder(self):
+        self.assertEqual(board.stamp_time("copilot-2026-11-14T07-38-16Z"), 1794641896)
+        self.assertEqual(board.stamp_time("2026-11-14T07-38-16-539Z"), 1794641896)
+        self.assertIsNone(board.stamp_time("sample", None))
+
     def test_plugins_without_evals_are_listed_with_their_skills(self):
         self.assertEqual(self.plugins["code-review"]["cases"], [])
-        self.assertIn("review-code", [s for s, _ in self.plugins["code-review"]["skills"]])
+        self.assertIn("review-code", [s[0] for s in self.plugins["code-review"]["skills"]])
 
 
 class Results(unittest.TestCase):
