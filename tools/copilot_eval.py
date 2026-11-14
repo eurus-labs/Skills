@@ -476,6 +476,7 @@ def main(argv=None, answer=input):
                     for path in (log, os.path.join(out_dir, "%s-%s.md" % (case["name"], arm))):
                         if os.path.isfile(path):
                             transcript += read(path)
+                            print("transcript file: %s" % os.path.relpath(path, REPO).replace(os.sep, "/"))
                 else:
                     print("Workspace: %s" % workspace)
                     if arm == "with":
