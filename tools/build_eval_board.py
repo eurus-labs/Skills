@@ -22,6 +22,9 @@ import html
 import json
 import os
 import re
+import subprocess
+import calendar
+import time
 import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -63,15 +66,43 @@ def short(text, limit=170):
     return text[:limit].rsplit(" ", 1)[0].rstrip(",;:") + "…"
 
 
+def last_change(path):
+    """Unix time of the last commit that touched `path`, or None outside git or for an untracked path."""
+    try:
+        out = subprocess.run(["git", "log", "-1", "--format=%ct", "--", path], cwd=REPO,
+                             capture_output=True, text=True, timeout=20).stdout.strip()
+        return int(out) if out else None
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+
+
+STAMP_TIME = re.compile(r"(\d{4}-\d\d-\d\dT\d\d-\d\d-\d\d)")
+
+
+def stamp_time(stamp, path=None):
+    """Unix time of a run, from its results folder name (UTC), else the file's modification time."""
+    found = STAMP_TIME.search(stamp or "")
+    if found:
+        return calendar.timegm(time.strptime(found.group(1), "%Y-%m-%dT%H-%M-%S"))
+    try:
+        return int(os.path.getmtime(path)) if path else None
+    except OSError:
+        return None
+
+
+def plugin_version(plugin_dir):
+    return json.loads(read(os.path.join(plugin_dir, ".github", "plugin", "plugin.json"))).get("version")
+
+
 def skills_of(plugin_dir):
-    """[(skill, one-line description)] in the order the plugin's manifest lists them."""
+    """[(skill, one-line description, last changed)] in the order the plugin's manifest lists them."""
     manifest = json.loads(read(os.path.join(plugin_dir, ".github", "plugin", "plugin.json")))
     found = []
     for entry in manifest.get("skills", []):
         name = os.path.basename(entry.rstrip("/"))
         fields, _ = frontmatter(read(os.path.join(plugin_dir, entry, "SKILL.md")))
         description = unquote(fields.get("description", ""))
-        found.append((name, short(description)))
+        found.append((name, short(description), last_change(os.path.join(plugin_dir, entry))))
     return found
 
 
@@ -96,7 +127,7 @@ def catalog(repo=REPO):
         if plugin.startswith("_") or not os.path.isdir(os.path.join(plugin_dir, "skills")):
             continue
         skills = skills_of(plugin_dir)
-        names = [s for s, _ in skills]
+        names = [s[0] for s in skills]
         cases = []
         for prompt in sorted(glob.glob(os.path.join(plugin_dir, "evals", "*", "*", "prompt.md"))):
             case_dir = os.path.dirname(prompt)
@@ -115,7 +146,7 @@ def catalog(repo=REPO):
                 "quiet": quiet,
                 "skills": sorted(set(fires) | {s for s in quiet if s in names}) or names,
             })
-        plugins.append({"name": plugin, "skills": skills, "cases": cases})
+        plugins.append({"name": plugin, "version": plugin_version(plugin_dir), "skills": skills, "cases": cases})
     return plugins
 
 
@@ -164,6 +195,7 @@ def load_results(entries):
             errors = sorted({r.get("error") for r in with_runs if isinstance(r, dict) and r.get("error")})
             runs.setdefault("%s/%s" % (plugin, case.get("name")), []).append({
                 "stamp": stamp,
+                "time": stamp_time(stamp, path),
                 # claude plugin eval writes no host; tools/copilot_eval.py writes "copilot".
                 "host": doc.get("host") or "claude",
                 "model": doc.get("model"),
@@ -189,10 +221,12 @@ def result_files(repo=REPO):
     return sorted(glob.glob(os.path.join(repo, "plugins", "*", "evals", "results", "*", "aggregate-result.json")))
 
 
-def board(plugins, results):
+def board(plugins, results, server=None):
+    """The page. `server` is set only when tools/skill_manager.py serves it: {"token": ...}. A static
+    file has no server, so it shows no Run controls."""
     data = {"plugins": plugins, "results": results}
     payload = json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
-    return PAGE.replace("__DATA__", payload)
+    return PAGE.replace("__DATA__", payload).replace("__SERVER__", json.dumps(server))
 
 
 def main(argv=None):
@@ -236,6 +270,7 @@ PAGE = r"""<!doctype html>
   --ok:#5fd39a; --ok-soft:#123425; --warn:#f0b656; --warn-soft:#3a2a10; --bad:#ff8a80; --bad-soft:#3d1716;
   --trig:#b89bff; --trig-soft:#2a2148; --beh:#5fd0e0; --beh-soft:#10313a; color-scheme:dark}}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 var(--sans)}
 .wrap{max-width:1120px;margin:0 auto;padding:28px 16px 64px;display:flex;flex-direction:column;gap:32px}
 h1,h2,h3{margin:0;line-height:1.25;text-wrap:balance} h1{font-size:1.9rem} h2{font-size:1.3rem} h3{font-size:1.05rem}
@@ -292,6 +327,36 @@ th{color:var(--muted);font-weight:500} td.num{font-family:var(--mono);font-varia
 .tw{overflow-x:auto}
 .empty{padding:18px 16px;color:var(--muted)}
 .foot{color:var(--muted);font-size:.82rem}
+.runform{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;padding:12px;border:1px dashed var(--line);border-radius:10px}
+.runform label{display:flex;flex-direction:column;gap:3px;font-size:.78rem;color:var(--muted)}
+.runform select,.runform input{font:inherit;font-size:.85rem;padding:5px 8px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);min-width:0}
+.runform input[type=text]{width:12rem;max-width:100%}
+.btn{font:inherit;font-size:.85rem;padding:7px 14px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:var(--panel);cursor:pointer;min-height:36px}
+.btn.ghost{background:var(--panel);color:var(--accent)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.confirm{flex-basis:100%;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.85rem;background:var(--warn-soft);color:var(--ink);padding:8px 10px;border-radius:8px}
+#runpanel{position:fixed;right:16px;bottom:16px;width:min(560px,calc(100vw - 32px));max-height:70vh;display:flex;flex-direction:column;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.18);padding:14px;z-index:5}
+#runpanel .hd{display:flex;justify-content:space-between;gap:8px;align-items:center}
+#runpanel pre{margin:0;flex:1 1 auto;min-height:80px;overflow:auto;font-family:var(--mono);font-size:.74rem;background:var(--bg);border-radius:8px;padding:8px;white-space:pre-wrap;overflow-wrap:anywhere}
+#runq{display:flex;flex-direction:column;gap:8px;background:var(--accent-soft);border-radius:8px;padding:10px}
+#runq .q{font-weight:600}
+#runq .row2{display:flex;gap:8px;flex-wrap:wrap}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tabs button{font:inherit;font-size:.92rem;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);padding:8px 14px;cursor:pointer;min-height:40px}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+.grid{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow-x:auto}
+.grid table{min-width:820px}
+.grid td,.grid th{padding:10px 12px}
+.grid td .sub{display:block;color:var(--muted);font-size:.78rem}
+.cov3{display:flex;gap:4px}
+.cov3 span{font-family:var(--mono);font-size:.74rem;padding:2px 6px;border-radius:6px;background:var(--bg)}
+.cov3 span.zero{color:var(--bad);outline:1px dashed var(--bad)}
+.stack{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.hostcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.hostcard{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+.btn.small{font-size:.78rem;padding:4px 10px;min-height:30px}
+.cmd{font-family:var(--mono);font-size:.8rem;background:var(--bg);padding:2px 6px;border-radius:6px;overflow-wrap:anywhere}
 </style>
 </head>
 <body>
@@ -307,6 +372,19 @@ th{color:var(--muted);font-weight:500} td.num{font-family:var(--mono);font-varia
   </div>
 </header>
 <section><div class="stats" id="stats"></div><p class="foot" id="trustnote"></p></section>
+<nav class="tabs" role="tablist" aria-label="Views">
+  <button type="button" role="tab" data-tab="skills" id="tab-skills"></button>
+  <button type="button" role="tab" data-tab="install" id="tab-install" hidden></button>
+  <button type="button" role="tab" data-tab="evals" id="tab-evals"></button>
+</nav>
+<div data-panel="skills">
+<section><h2 data-i18n="skillsTitle"></h2><p class="muted" data-i18n="skillsLede"></p><div class="grid" id="skilltable"></div></section>
+</div>
+<div data-panel="install" hidden>
+<section><h2 data-i18n="installTitle"></h2><p class="muted" data-i18n="installLede"></p>
+  <div id="installconfirm"></div><div class="hostcards" id="hostcards"></div><div class="grid" id="installtable"></div></section>
+</div>
+<div data-panel="evals" hidden>
 <section><h2 data-i18n="bySkill"></h2><p class="muted" data-i18n="bySkillLede"></p><div class="skills" id="skills"></div></section>
 <section>
   <h2 data-i18n="allCases"></h2>
@@ -314,12 +392,23 @@ th{color:var(--muted);font-weight:500} td.num{font-family:var(--mono);font-varia
   <div class="controls"><div class="controls" id="kchips"></div><input type="search" id="q" aria-label="Search"></div>
   <div class="cases" id="cases"></div>
 </section>
-<p class="foot" data-i18n="foot"></p>
 </div>
+<p class="foot" data-i18n="foot"></p>
+<p class="foot" id="runhint"></p>
+</div>
+<aside id="runpanel" hidden aria-live="polite">
+  <div class="hd"><b id="runtitle"></b><span id="runstate" class="pill idle"></span></div>
+  <div id="runq" hidden><span class="q" id="runqtext"></span><span class="muted" id="runqhint"></span>
+    <div class="row2"><button type="button" class="btn ghost" data-answer="y" id="ansy"></button><button type="button" class="btn ghost" data-answer="n" id="ansn"></button><button type="button" class="btn ghost" data-answer="s" id="anss"></button></div></div>
+  <div id="runlinks" class="controls"></div>
+  <pre id="runlog"></pre>
+  <div class="row2" style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="btn ghost" id="runstop"></button><button type="button" class="btn ghost" id="runclose"></button></div>
+</aside>
 <script>
-const DATA = __DATA__;
+let DATA = __DATA__;
+const SERVER = __SERVER__;
 const T = {
- en:{title:"Skills eval board",
+ en:{title:"Skills eval board", titleManager:"Skill manager",
   lede:"Every eval case in this repository, grouped by the skill it tests, with the latest local run of each on Claude Code and on Copilot CLI, kept apart. A case's score is its with-plugin score; Δ is how far that is above the run without the plugin.",
   cases:"eval cases", skillsCovered:"skills with a case", trusted:"cases with a trusted score", files:"result files read",
   trustnote:"A score counts as trusted only when the suite finished and no run of the case ended in an error. Partial suites (cost ceiling, interrupted, failed sign-in) are shown but never trusted.",
@@ -331,8 +420,24 @@ const T = {
   partial:"partial", error:"error", skippedPaid:"judge graders skipped", none:"No case matches the filters.",
   indicator:"plugin-fired indicator, not scored", mustNot:"must not call", must:"must call",
   matching:"with input matching", lastTrusted:"last trusted", host:"Host",
-  foot:"Generated by tools/build_eval_board.py from plugins/*/evals and the git-ignored plugins/*/evals/results/. Re-run it after each eval run."},
- vi:{title:"Bảng eval của các skill",
+  foot:"Generated by tools/build_eval_board.py from plugins/*/evals and the git-ignored plugins/*/evals/results/. Re-run it after each eval run.",
+  runHint:"To run a case from this page, start the board with: python3 tools/skill_manager.py",
+  runCase:"Run this case", runHost:"Host", runArms:"Arms", armsBoth:"with and without the plugin", armsWith:"with the plugin only",
+  runModel:"Model (blank = default)", runEffort:"Reasoning effort (Copilot)", effortDefault:"default", runCost:"Cost ceiling, USD (Claude)",
+  start:"Run…", confirmRun:"Runs {case} on {host}, {arms}. It is billed to your plan and may take minutes.", confirm:"Start", cancel:"Cancel",
+  stop:"Stop", close:"Close", sRunning:"running", sWaiting:"waiting for you", sDone:"finished", sFailed:"failed", sStopped:"stopped",
+  yes:"Yes", no:"No", skip:"Skip", busy:"Another run is in progress.", stopHint:"Stop takes effect at the next question or when the current run ends.",
+  qHint:"Answer from the transcript: what did the agent actually do?",
+  tabSkills:"Skills", tabInstall:"Install", tabEvals:"Evals",
+  skillsTitle:"Skills and their status", skillsLede:"Each skill's goal, whether its plugin is installed, how many eval cases test it in each direction (fires · quiet · behavior), the latest score per host, and what that adds up to.",
+  colSkill:"Skill", colGoal:"Goal", colInstalled:"Installed", colCoverage:"Eval cases", colLatest:"Latest runs", colStatus:"Status", colActions:"",
+  stNoEvals:"no evals", stNotRun:"not run", stUntrusted:"no trusted run", stPartly:"partly run ({k}/{n})", stNeedsWork:"needs work", stPassing:"passing", stChanged:"changed since last run", stLatestUntrusted:"latest run untrusted ({k})", untrustedN:"{k} untrusted",
+  runAll:"Run all cases…", passOf:"{p}/{n} pass", loading:"Loading…", notFound:"not found on PATH", notInstalled:"not installed",
+  installTitle:"Install plugins", installLede:"Plugins from this marketplace in each host. Install, update or remove one plugin, or all of them, and register the marketplace first if a host does not have it.",
+  marketplace:"Marketplace", notRegistered:"not registered", fromCheckout:"Register from this checkout", fromGithub:"Register from GitHub", updateMarket:"Update marketplace",
+  colPlugin:"Plugin", colHere:"In this checkout", install:"Install", update:"Update", uninstall:"Uninstall", installAll:"Install all", updateAll:"Update all",
+  willRun:"This runs:", outdated:"older than this checkout", refresh:"Refresh", disabled:"disabled"},
+ vi:{title:"Bảng eval của các skill", titleManager:"Quản lý skill",
   lede:"Mọi case eval trong repo, gom theo skill mà nó kiểm, kèm lần chạy local mới nhất của từng case trên Claude Code và trên Copilot CLI, tách riêng từng host. Điểm của case là điểm khi có plugin; Δ là chênh lệch so với lượt chạy không có plugin.",
   cases:"case eval", skillsCovered:"skill có case", trusted:"case có điểm tin được", files:"file kết quả đã đọc",
   trustnote:"Điểm chỉ được tin khi cả suite chạy xong và không lượt nào của case bị lỗi. Suite dở dang (chạm trần chi phí, bị ngắt, đăng nhập lỗi) vẫn hiện nhưng không bao giờ được tin.",
@@ -344,15 +449,34 @@ const T = {
   partial:"dở dang", error:"lỗi", skippedPaid:"bỏ qua grader dùng model", none:"Không có case nào khớp bộ lọc.",
   indicator:"chỉ báo plugin được gọi, không tính điểm", mustNot:"không được gọi", must:"phải gọi",
   matching:"với input khớp", lastTrusted:"tin được gần nhất", host:"Host",
-  foot:"Sinh bởi tools/build_eval_board.py từ plugins/*/evals và thư mục plugins/*/evals/results/ (bị git bỏ qua). Chạy lại sau mỗi lần chạy eval."}
+  foot:"Sinh bởi tools/build_eval_board.py từ plugins/*/evals và thư mục plugins/*/evals/results/ (bị git bỏ qua). Chạy lại sau mỗi lần chạy eval.",
+  runHint:"Để chạy case ngay trên trang này, mở board bằng: python3 tools/skill_manager.py",
+  runCase:"Chạy case này", runHost:"Host", runArms:"Lượt", armsBoth:"có và không có plugin", armsWith:"chỉ có plugin",
+  runModel:"Model (để trống = mặc định)", runEffort:"Reasoning effort (Copilot)", effortDefault:"mặc định", runCost:"Trần chi phí, USD (Claude)",
+  start:"Chạy…", confirmRun:"Chạy {case} trên {host}, {arms}. Lần chạy tính phí vào gói của bạn và có thể mất vài phút.", confirm:"Bắt đầu", cancel:"Huỷ",
+  stop:"Dừng", close:"Đóng", sRunning:"đang chạy", sWaiting:"chờ bạn trả lời", sDone:"xong", sFailed:"lỗi", sStopped:"đã dừng",
+  yes:"Có", no:"Không", skip:"Bỏ qua", busy:"Đang có một lần chạy khác.", stopHint:"Dừng có hiệu lực ở câu hỏi tiếp theo hoặc khi lượt chạy hiện tại kết thúc.",
+  qHint:"Trả lời theo transcript: agent đã thực sự làm gì?",
+  tabSkills:"Skills", tabInstall:"Cài đặt", tabEvals:"Evals",
+  skillsTitle:"Các skill và tình trạng", skillsLede:"Mục tiêu của từng skill, plugin đã được cài chưa, số case eval kiểm nó theo từng chiều (phải gọi · phải im · hành vi), điểm mới nhất theo host, và kết luận chung.",
+  colSkill:"Skill", colGoal:"Mục tiêu", colInstalled:"Đã cài", colCoverage:"Case eval", colLatest:"Lần chạy gần nhất", colStatus:"Tình trạng", colActions:"",
+  stNoEvals:"chưa có eval", stNotRun:"chưa chạy", stUntrusted:"chưa có lần chạy tin được", stPartly:"chạy một phần ({k}/{n})", stNeedsWork:"cần sửa", stPassing:"đạt", stChanged:"đã đổi từ lần chạy cuối", stLatestUntrusted:"lần chạy mới nhất không tin được ({k})", untrustedN:"{k} không tin được",
+  runAll:"Chạy mọi case…", passOf:"{p}/{n} đạt", loading:"Đang tải…", notFound:"không có trong PATH", notInstalled:"chưa cài",
+  installTitle:"Cài plugin", installLede:"Các plugin của marketplace này trong từng host. Cài, cập nhật hoặc gỡ một plugin hay tất cả; đăng ký marketplace trước nếu host chưa có.",
+  marketplace:"Marketplace", notRegistered:"chưa đăng ký", fromCheckout:"Đăng ký từ bản checkout này", fromGithub:"Đăng ký từ GitHub", updateMarket:"Cập nhật marketplace",
+  colPlugin:"Plugin", colHere:"Trong checkout này", install:"Cài", update:"Cập nhật", uninstall:"Gỡ", installAll:"Cài tất cả", updateAll:"Cập nhật tất cả",
+  willRun:"Sẽ chạy:", outdated:"cũ hơn bản checkout", refresh:"Tải lại", disabled:"đang tắt"}
 };
 let lang = "en";
 try { const saved = localStorage.getItem("eval-board-lang"); if (saved === "vi" || saved === "en") lang = saved; } catch (e) {}
-const state = {plugin:"all", kind:"all", q:""};
+const state = {plugin:"all", kind:"all", q:"", open:new Set(), form:{}, confirming:null, tab:"skills", skillOpen:null, installing:null};
+let INSTALLED = null;
 const t = k => T[lang][k];
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const $ = id => document.getElementById(id);
-const ALL = DATA.plugins.flatMap(p => p.cases.map(c => Object.assign({plugin:p.name}, c)));
+let ALL = [];
+function setData(d){ DATA = d; ALL = DATA.plugins.flatMap(p => p.cases.map(c => Object.assign({plugin:p.name}, c))); }
+setData(DATA);
 const trusted = r => r.score != null && !r.partial && !r.errors.length && !r.skippedPaid;
 const keyOf = c => c.plugin + "/" + c.name;
 const f2 = v => v == null ? "—" : (+v).toFixed(2);
@@ -450,19 +574,272 @@ function render(){
   const q = state.q.toLowerCase();
   const list = ALL.filter(c => (state.plugin === "all" || c.plugin === state.plugin) && (state.kind === "all" || c.kind === state.kind)
     && (!q || (c.name + " " + c.description + " " + c.prompt).toLowerCase().includes(q)));
-  $("cases").innerHTML = list.length ? list.map(c => `<details class="case"><summary><span class="cn">${esc(c.name)}</span>
+  $("cases").innerHTML = list.length ? list.map(c => `<details class="case" data-key="${esc(keyOf(c))}"${state.open.has(keyOf(c)) ? " open" : ""}><summary><span class="cn">${esc(c.name)}</span>
       <span class="tags"><span class="pill idle">${esc(c.plugin)}</span><span class="pill ${c.kind === "trigger" ? "trig" : "beh"}">${c.kind}</span>${scorePill(keyOf(c))}</span>
       <span class="cd">${esc(c.description)}</span></summary>
       <div class="body"><div><span class="eyebrow">${t("prompt")}</span><div class="prompt">${esc(c.prompt)}</div></div>
       <div><span class="eyebrow">${t("graders")} (${c.graders.length})</span><div class="tw"><table><tbody>${c.graders.map(graderLine).join("")}</tbody></table></div></div>
-      ${historyTable(keyOf(c))}</div></details>`).join("") : `<div class="empty">${t("none")}</div>`;
+      ${historyTable(keyOf(c))}${SERVER ? runForm(c) : ""}</div></details>`).join("") : `<div class="empty">${t("none")}</div>`;
 }
+
+/* Running a case: only when tools/skill_manager.py serves this page. */
+function runForm(c){ return runFormFor(keyOf(c), c.name); }
+function runFormFor(k, name){
+  const f = state.form[k] || {host:"copilot", arms:"both", model:"", effort:"", cost:"2"};
+  const opt = (v, l, cur) => `<option value="${v}"${v === cur ? " selected" : ""}>${esc(l)}</option>`;
+  const confirming = state.confirming === k;
+  const armsText = f.arms === "with" ? t("armsWith") : t("armsBoth");
+  return `<div><span class="eyebrow">${t("runCase")}</span><form class="runform" data-run="${esc(k)}">
+    <label>${t("runHost")}<select name="host">${opt("copilot", "Copilot", f.host)}${opt("claude", "Claude Code", f.host)}</select></label>
+    <label>${t("runArms")}<select name="arms">${opt("both", t("armsBoth"), f.arms)}${opt("with", t("armsWith"), f.arms)}</select></label>
+    <label>${t("runModel")}<input type="text" name="model" value="${esc(f.model)}" autocomplete="off" spellcheck="false"></label>
+    <label>${t("runEffort")}<select name="effort">${opt("", t("effortDefault"), f.effort)}${["none","minimal","low","medium","high","xhigh","max"].map(e => opt(e, e, f.effort)).join("")}</select></label>
+    <label>${t("runCost")}<input type="number" name="cost" min="0.1" max="50" step="0.1" value="${esc(f.cost)}" style="width:6rem"></label>
+    <button type="submit" class="btn"${JOB.active ? " disabled" : ""}>${t("start")}</button>
+    ${confirming ? `<div class="confirm"><span>${esc(t("confirmRun").replace("{case}", name).replace("{host}", f.host === "claude" ? "Claude Code" : "Copilot").replace("{arms}", armsText))}</span>
+      <button type="button" class="btn" data-go="${esc(k)}">${t("confirm")}</button><button type="button" class="btn ghost" data-nogo="1">${t("cancel")}</button></div>` : ""}
+  </form></div>`;
+}
+
+const JOB = {active:false, timer:null, shown:false, refresh:null, questionId:null, answered:null};
+async function api(path, body){
+  const res = await fetch(path, {method: body ? "POST" : "GET", headers: {"X-Board-Token": SERVER.token, "Content-Type": "application/json"},
+    body: body ? JSON.stringify(body) : undefined});
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+function showJob(j){
+  const panel = $("runpanel");
+  if (!j || j.status === "idle") { if (!JOB.shown) panel.hidden = true; return; }
+  panel.hidden = false; JOB.shown = true;
+  $("runtitle").textContent = `${j.title} · ${j.host === "claude" ? "Claude Code" : "Copilot"}`;
+  const label = j.question ? t("sWaiting") : ({running:t("sRunning"), done:t("sDone"), failed:t("sFailed"), stopped:t("sStopped")})[j.status] || j.status;
+  const st = $("runstate"); st.textContent = label;
+  st.className = "pill " + (j.status === "done" ? "ok" : j.status === "failed" ? "bad" : j.question ? "warn" : "idle");
+  const log = $("runlog"), atEnd = log.scrollTop + log.clientHeight >= log.scrollHeight - 8;
+  log.textContent = (j.log || []).join("\n");
+  const files = (j.log || []).map(l => (l.match(/^transcript file: (.+)$/) || [])[1]).filter(Boolean);
+  $("runlinks").innerHTML = files.map(f => `<a class="chip" target="_blank" rel="noopener" href="/transcript?token=${encodeURIComponent(SERVER.token)}&file=${encodeURIComponent(f)}">${esc(f.split("/").pop())}</a>`).join("");
+  if (atEnd) log.scrollTop = log.scrollHeight;
+  $("runq").hidden = !j.question;
+  if (j.question) {
+    $("runqtext").textContent = j.question.text; $("runqhint").textContent = t("qHint");
+    const fresh = JOB.questionId !== j.question.id;
+    JOB.questionId = j.question.id;
+    if (fresh) JOB.answered = null;
+    document.querySelectorAll("[data-answer]").forEach(b => { b.disabled = JOB.answered === j.question.id; });
+  }
+  $("ansy").textContent = t("yes"); $("ansn").textContent = t("no"); $("anss").textContent = t("skip");
+  $("runstop").textContent = t("stop"); $("runstop").title = t("stopHint"); $("runstop").hidden = j.status !== "running";
+  $("runclose").textContent = t("close"); $("runclose").hidden = j.status === "running";
+}
+async function poll(){
+  try {
+    const j = await api("/api/job");
+    const was = JOB.active; JOB.active = j.status === "running";
+    showJob(j);
+    if (was !== JOB.active) renderAll();
+    if (JOB.active) { JOB.timer = setTimeout(poll, 1000); return; }
+    /* A job can end before the first poll sees it running, so refresh on the job we started, not on a change seen. */
+    if (was || JOB.refresh) {
+      const kind = JOB.refresh || j.kind; JOB.refresh = null;
+      setData(await api("/api/state")); if (kind === "install") await loadInstalled(); renderAll();
+    }
+  } catch (err) { $("runlog").textContent += "\n" + err.message; }
+}
+function formOf(k){
+  const el = document.querySelector(`form[data-run="${CSS.escape(k)}"]`);
+  if (!el) return state.form[k];
+  const fd = new FormData(el), f = {};
+  for (const [name, v] of fd.entries()) f[name] = String(v).trim();
+  state.form[k] = f; return f;
+}
+document.addEventListener("submit", e => {
+  const form = e.target.closest("form[data-run]"); if (!form) return;
+  e.preventDefault(); const k = form.dataset.run; formOf(k); state.confirming = k; renderAll();
+});
+document.addEventListener("change", e => { const form = e.target.closest("form[data-run]"); if (form) formOf(form.dataset.run); });
+document.addEventListener("toggle", e => {
+  const d = e.target; if (!d.matches || !d.matches("details[data-key]")) return;
+  if (d.open) state.open.add(d.dataset.key); else state.open.delete(d.dataset.key);
+}, true);
+document.addEventListener("click", async e => {
+  if (!SERVER) return;
+  if (e.target.closest("[data-nogo]")) { state.confirming = null; renderAll(); return; }
+  const go = e.target.closest("[data-go]");
+  if (go) {
+    const k = go.dataset.go, f = formOf(k) || {};
+    state.confirming = null;
+    const opts = {host: f.host || "copilot", arms: f.arms || "both", model: f.model || "", effort: f.effort || "",
+      max_cost_usd: parseFloat(f.cost || "2")};
+    try {
+      if (k.startsWith("skill:")) {
+        const [plugin, skill] = k.slice(6).split("/"), p = DATA.plugins.find(x => x.name === plugin);
+        const cases = p.cases.filter(c => c.skills.includes(skill)).map(c => c.name);
+        await api("/api/run", Object.assign({plugin, cases, label: skill}, opts));
+      } else {
+        const [plugin, ...rest] = k.split("/");
+        await api("/api/run", Object.assign({plugin, case: rest.join("/")}, opts));
+      }
+      JOB.shown = false; JOB.refresh = "eval"; poll();
+    } catch (err) { alertInPanel(err.message); }
+    renderAll(); return;
+  }
+  const ans = e.target.closest("[data-answer]");
+  if (ans) {
+    /* One answer per question: the buttons stay disabled until the next question arrives. */
+    const id = JOB.questionId; if (id == null || JOB.answered === id) return;
+    JOB.answered = id; document.querySelectorAll("[data-answer]").forEach(b => { b.disabled = true; });
+    try { await api("/api/answer", {id, reply: ans.dataset.answer}); poll(); } catch (err) { alertInPanel(err.message); }
+    return;
+  }
+  if (e.target.closest("#runstop")) { try { await api("/api/stop", {}); } catch (err) { alertInPanel(err.message); } return; }
+  if (e.target.closest("#runclose")) { $("runpanel").hidden = true; JOB.shown = false; }
+});
+/* Skills tab: one row per skill, with what its eval results add up to. */
+function skillStatus(p, skill, changed){
+  const mine = p.cases.filter(c => c.skills.includes(skill));
+  if (!mine.length) return {chips:[["bad", t("stNoEvals")]], hosts:{}};
+  const hosts = {};
+  let anyRun = false, newest = 0;
+  const trustedCases = new Set(), failing = new Set(), untrustedLatest = new Set();
+  for (const c of mine) {
+    const runs = DATA.results[p.name + "/" + c.name] || [];
+    if (runs.length) anyRun = true;
+    for (const r of runs) newest = Math.max(newest, r.time || 0);
+    for (const host of new Set(runs.map(r => r.host))) {
+      /* The newest run decides, as on the Evals tab: an older pass never stands in for a newer untrusted run. */
+      const latest = runs.filter(r => r.host === host)[0];
+      const slot = hosts[host] = hosts[host] || {pass:0, n:0, untrusted:0};
+      if (!trusted(latest)) { slot.untrusted++; untrustedLatest.add(c.name); continue; }
+      slot.n++; trustedCases.add(c.name);
+      if (latest.score >= 0.8) slot.pass++; else failing.add(c.name);
+    }
+  }
+  const chips = [];
+  if (!anyRun) chips.push(["idle", t("stNotRun")]);
+  else if (failing.size) chips.push(["bad", t("stNeedsWork")]);
+  else if (!trustedCases.size) chips.push(["warn", t("stUntrusted")]);
+  else if (untrustedLatest.size) chips.push(["warn", t("stLatestUntrusted").replace("{k}", untrustedLatest.size)]);
+  else if (trustedCases.size < mine.length) chips.push(["warn", t("stPartly").replace("{k}", trustedCases.size).replace("{n}", mine.length)]);
+  else chips.push(["ok", t("stPassing")]);
+  if (anyRun && changed && newest && changed > newest) chips.push(["warn", t("stChanged")]);
+  return {chips, hosts};
+}
+function installedChips(plugin, version){
+  if (!SERVER) return "";
+  if (!INSTALLED) return `<span class="muted">${t("loading")}</span>`;
+  return HOSTS.map(host => {
+    const h = INSTALLED[host]; if (!h || !h.available) return "";
+    const got = h.plugins[plugin];
+    if (!got) return `<span class="pill idle">${hostName(host)} · ${t("notInstalled")}</span>`;
+    const cls = !got.enabled ? "warn" : got.version === version ? "ok" : "warn";
+    const note = !got.enabled ? " · " + t("disabled") : got.version !== version ? " · " + t("outdated") : "";
+    return `<span class="pill ${cls}" title="${esc(got.version)}">${hostName(host)} ${esc(got.version)}${note}</span>`;
+  }).join("");
+}
+function skillTable(){
+  const rows = DATA.plugins.flatMap(p => p.skills.map(([skill, desc, changed]) => {
+    const mine = p.cases.filter(c => c.skills.includes(skill));
+    const fire = mine.filter(c => c.kind === "trigger" && c.fires.includes(skill)).length;
+    const quiet = mine.filter(c => c.kind === "trigger" && !c.fires.includes(skill)).length;
+    const beh = mine.filter(c => c.kind === "behavior").length;
+    const st = skillStatus(p, skill, changed), key = "skill:" + p.name + "/" + skill;
+    const cov = [[fire, t("fires")], [quiet, t("quiet")], [beh, t("behavior")]].map(([n, l]) => `<span class="${n ? "" : "zero"}" title="${esc(l)}">${n}</span>`).join("");
+    const latest = Object.entries(st.hosts).map(([host, s]) => `<span class="pill ${s.n && s.pass === s.n && !s.untrusted ? "ok" : s.n || s.untrusted ? "warn" : "idle"}">${hostName(host)} ${t("passOf").replace("{p}", s.pass).replace("{n}", s.n)}${s.untrusted ? " · " + t("untrustedN").replace("{k}", s.untrusted) : ""}</span>`).join("") || `<span class="muted">—</span>`;
+    const action = SERVER && mine.length ? `<button type="button" class="btn ghost small" data-skillrun="${esc(key)}"${JOB.active ? " disabled" : ""}>${t("runAll")}</button>` : "";
+    const form = state.skillOpen === key ? `<tr><td colspan="${SERVER ? 7 : 5}">${runFormFor(key, skill)}</td></tr>` : "";
+    return `<tr><td><b class="mono">${esc(skill)}</b><span class="sub">${esc(p.name)} ${esc(p.version || "")}</span></td>
+      <td>${esc(desc)}</td>${SERVER ? `<td><div class="stack">${installedChips(p.name, p.version)}</div></td>` : ""}
+      <td><div class="cov3">${cov}</div></td><td><div class="stack">${latest}</div></td>
+      <td><div class="stack">${st.chips.map(([cls, txt]) => `<span class="pill ${cls}">${esc(txt)}</span>`).join("")}</div></td>
+      ${SERVER ? `<td>${action}</td>` : ""}</tr>${form}`;
+  })).join("");
+  $("skilltable").innerHTML = `<table><thead><tr><th>${t("colSkill")}</th><th>${t("colGoal")}</th>${SERVER ? `<th>${t("colInstalled")}</th>` : ""}<th>${t("colCoverage")}</th><th>${t("colLatest")}</th><th>${t("colStatus")}</th>${SERVER ? "<th></th>" : ""}</tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+/* Install tab: only when served. */
+async function loadInstalled(){
+  if (!SERVER) return;
+  try { INSTALLED = await api("/api/installed"); } catch (err) { INSTALLED = {error: err.message}; }
+}
+function commandText(host, action, plugin, source){
+  const exe = host === "claude" ? "claude" : "copilot";
+  if (action === "marketplace-add") return `${exe} plugin marketplace add ${source === "checkout" ? "<this checkout>" : "eurus-labs/Skills"}`;
+  if (action === "marketplace-update") return `${exe} plugin marketplace update eurus-labs`;
+  return (Array.isArray(plugin) ? plugin : [plugin]).map(p => `${exe} plugin ${action} ${p}@eurus-labs`).join("\n");
+}
+function installTab(){
+  if (!SERVER) return;
+  const c = state.installing;
+  $("installconfirm").innerHTML = c ? `<div class="confirm"><span>${t("willRun")}</span><span class="cmd" style="white-space:pre-wrap">${esc(commandText(c.host, c.action, c.plugins || c.plugin, c.source))}</span>
+    <button type="button" class="btn" data-installgo="1"${JOB.active ? " disabled" : ""}>${t("confirm")}</button><button type="button" class="btn ghost" data-installno="1">${t("cancel")}</button></div>` : "";
+  if (!INSTALLED) { $("hostcards").innerHTML = `<span class="muted">${t("loading")}</span>`; $("installtable").innerHTML = ""; return; }
+  if (INSTALLED.error) { $("hostcards").innerHTML = `<span class="pill bad">${esc(INSTALLED.error)}</span>`; return; }
+  const names = DATA.plugins.map(p => p.name);
+  $("hostcards").innerHTML = HOSTS.map(host => {
+    const h = INSTALLED[host] || {};
+    const title = host === "claude" ? "Claude Code" : "Copilot CLI";
+    if (!h.available) return `<div class="hostcard"><b>${title}</b><span class="pill idle">${t("notFound")}</span></div>`;
+    const b = (action, label, extra) => `<button type="button" class="btn ghost small" data-install="${action}" data-host="${host}" ${extra || ""}${JOB.active ? " disabled" : ""}>${label}</button>`;
+    return `<div class="hostcard"><b>${title}</b>
+      <span>${t("marketplace")}: ${h.marketplace ? `<span class="cmd">${esc(h.marketplace)}</span>` : `<span class="pill warn">${t("notRegistered")}</span>`}</span>
+      ${h.error ? `<span class="pill warn" title="${esc(h.error)}">${esc(h.error.slice(0, 80))}</span>` : ""}
+      <div class="actions">${b("marketplace-add", t("fromCheckout"), 'data-source="checkout"')}${b("marketplace-add", t("fromGithub"), 'data-source="github"')}${h.marketplace ? b("marketplace-update", t("updateMarket")) : ""}</div>
+      ${h.marketplace ? `<div class="actions">${b("install", t("installAll"), 'data-all="1"')}${b("update", t("updateAll"), 'data-all="1"')}</div>` : ""}</div>`;
+  }).join("") + `<div class="hostcard"><button type="button" class="btn ghost small" data-refresh="1">${t("refresh")}</button></div>`;
+  const cell = (host, p) => {
+    const h = INSTALLED[host] || {};
+    if (!h.available) return `<td><span class="muted">—</span></td>`;
+    const got = h.plugins[p.name];
+    const b = (action, label) => `<button type="button" class="btn ghost small" data-install="${action}" data-host="${host}" data-iplugin="${esc(p.name)}"${JOB.active || !h.marketplace ? " disabled" : ""}>${label}</button>`;
+    const status = got ? `<span class="pill ${got.enabled && got.version === p.version ? "ok" : "warn"}">${esc(got.version)}${got.version !== p.version ? " · " + t("outdated") : ""}${got.enabled ? "" : " · " + t("disabled")}</span>` : `<span class="pill idle">${t("notInstalled")}</span>`;
+    return `<td><div class="stack">${status}<div class="actions">${got ? b("update", t("update")) + b("uninstall", t("uninstall")) : b("install", t("install"))}</div></div></td>`;
+  };
+  $("installtable").innerHTML = `<table><thead><tr><th>${t("colPlugin")}</th><th>${t("colHere")}</th><th>Copilot CLI</th><th>Claude Code</th></tr></thead><tbody>${
+    DATA.plugins.map(p => `<tr><td><b class="mono">${esc(p.name)}</b><span class="sub">${p.skills.map(s => esc(s[0])).join(", ")}</span></td><td class="mono">${esc(p.version || "")}</td>${cell("copilot", p)}${cell("claude", p)}</tr>`).join("")
+  }</tbody></table>`;
+}
+function setTab(tab){
+  state.tab = tab;
+  try { localStorage.setItem("eval-board-tab", tab); } catch (e) {}
+  document.querySelectorAll("[data-tab]").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === tab));
+  document.querySelectorAll("[data-panel]").forEach(p => { p.hidden = p.dataset.panel !== tab; });
+  if (tab === "install" && SERVER && !INSTALLED) loadInstalled().then(renderAll);
+}
+function renderAll(){ stats(); skillTable(); skillCards(); render(); installTab(); }
+document.addEventListener("click", async e => {
+  const tab = e.target.closest("[data-tab]"); if (tab) { setTab(tab.dataset.tab); return; }
+  if (!SERVER) return;
+  const sr = e.target.closest("[data-skillrun]");
+  if (sr) { state.skillOpen = state.skillOpen === sr.dataset.skillrun ? null : sr.dataset.skillrun; skillTable(); return; }
+  const ins = e.target.closest("[data-install]");
+  if (ins) {
+    const host = ins.dataset.host, action = ins.dataset.install;
+    const plugins = ins.dataset.all ? DATA.plugins.map(p => p.name) : ins.dataset.iplugin ? [ins.dataset.iplugin] : null;
+    state.installing = {host, action, plugins, source: ins.dataset.source}; installTab(); window.scrollTo({top: $("installconfirm").offsetTop - 80, behavior: "smooth"}); return;
+  }
+  if (e.target.closest("[data-installno]")) { state.installing = null; installTab(); return; }
+  if (e.target.closest("[data-installgo]")) {
+    const c = state.installing; state.installing = null;
+    try { await api("/api/install", c.plugins ? {host: c.host, action: c.action, plugins: c.plugins} : {host: c.host, action: c.action, source: c.source}); JOB.shown = false; JOB.refresh = "install"; poll(); }
+    catch (err) { alertInPanel(err.message); }
+    installTab(); return;
+  }
+  if (e.target.closest("[data-refresh]")) { INSTALLED = null; installTab(); await loadInstalled(); renderAll(); }
+});
+function alertInPanel(msg){ $("runpanel").hidden = false; $("runlog").textContent += (($("runlog").textContent ? "\n" : "") + msg); }
 
 function applyLang(){
   document.documentElement.lang = lang;
   document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
   document.querySelectorAll("[data-lang]").forEach(b => b.setAttribute("aria-pressed", b.dataset.lang === lang));
-  stats(); skillCards(); chips(); render();
+  if (SERVER) { document.querySelector("h1").textContent = t("titleManager"); document.title = t("titleManager"); }
+  $("tab-skills").textContent = t("tabSkills"); $("tab-install").textContent = t("tabInstall"); $("tab-evals").textContent = t("tabEvals");
+  $("tab-install").hidden = !SERVER;
+  chips(); renderAll();
+  $("runhint").textContent = SERVER ? "" : t("runHint");
 }
 
 document.addEventListener("click", e => {
@@ -472,7 +849,11 @@ document.addEventListener("click", e => {
   const k = e.target.closest("[data-kind]"); if (k) { state.kind = k.dataset.kind; render(); }
 });
 $("q").addEventListener("input", e => { state.q = e.target.value; render(); });
+let savedTab = "skills";
+try { const v = localStorage.getItem("eval-board-tab"); if (["skills", "install", "evals"].includes(v)) savedTab = v; } catch (e) {}
 applyLang();
+setTab(savedTab === "install" && !SERVER ? "skills" : savedTab);
+if (SERVER) { poll(); loadInstalled().then(renderAll); }
 </script>
 </body>
 </html>

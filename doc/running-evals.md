@@ -199,7 +199,8 @@ the plan details before running the whole behavior suite.
 | Grader type | Who decides |
 | ----------- | ----------- |
 | `file_exists`, `regex` over a file | the script, in the workspace (honours `match: not_contains`, `count:N`, `flags`; `file_exists` counts only files created during the run) |
-| `tool_used`, `regex` over the reply | you, from the transcript |
+| `tool_used` | you, from the transcript, asked as a plain fact ("Did Copilot use the skill `verify-change`?"); the script works out whether that passes |
+| `regex` over the reply | you, from the transcript |
 | `llm` | you, from the rubric in the grader file |
 
 - Grade **before** you open `fixtures/EXPECTED.md`.
@@ -218,6 +219,41 @@ The result is written to `plugins/<plugin>/evals/results/copilot-<time>/aggregat
   as hints and does not grade `tool_used` graders itself.
 - Whether Copilot reports which skill it used. If it does not, judge from the reply: a table of checks, one
   verdict and a JSON block mean `verify-change` ran.
+
+## The skill manager
+
+```bash
+python3 tools/skill_manager.py        # opens the manager in your browser
+```
+
+One local page with three tabs, for people who develop the skills:
+
+- **Skills**: one row per skill with its goal, its plugin's version, whether that plugin is installed in Copilot CLI
+  and Claude Code (and whether the installed copy is older than this checkout), how many eval cases test it in each
+  direction (must fire · must stay quiet · behavior; a dashed red zero is an untested direction), the latest result
+  per host as "passing out of trusted", and a status: *no evals*, *not run*, *no trusted run*, *partly run*,
+  *needs work*, *passing*, plus *changed since last run* when the skill was committed after its newest result.
+  **Run all cases…** runs every case of that skill in turn.
+- **Install**: each plugin's version in this checkout and in each host, with **Install**, **Update** and
+  **Uninstall** per plugin or for all, and **Register** the marketplace from this checkout or from GitHub. Each
+  action shows the exact command and runs only after you confirm.
+- **Evals**: the eval board, with a **Run this case** form on every case: host, arms, model, reasoning effort
+  (Copilot) and cost ceiling (Claude).
+
+A run starts the same runner you would start from a terminal (`tools/copilot_eval.py --run` or
+`claude plugin eval`), streams its output into a panel, and asks each grading question there with
+**Yes / No / Skip** buttons and links to the run's transcripts. When a job ends the page reloads.
+
+- It listens on `127.0.0.1` only, accepts only `Host: 127.0.0.1` or `localhost`, and needs the random token in the
+  URL it prints, so no other web page can drive it.
+- It runs only the cases under `plugins/*/evals` and plugin commands it builds itself for plugins in the
+  marketplace, with validated options, one job at a time, and serves only transcripts under
+  `plugins/*/evals/results/`. It never runs a command the page sends.
+- **Stop** takes effect at the next question or when the current command ends.
+- An eval run costs what it costs from the terminal, and lets the agent run commands in a scratch workspace as
+  you. Installing changes your Copilot or Claude Code configuration.
+- It never passes `--trust-plugin`: if `claude plugin eval` refuses an untrusted directory, run it once in a
+  terminal and answer the prompt.
 
 ## See every skill's results
 

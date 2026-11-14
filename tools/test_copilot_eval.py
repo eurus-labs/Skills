@@ -91,10 +91,11 @@ class Grading(unittest.TestCase):
         self.assertFalse([r for r in results if r["name"] == "money-unchanged"][0]["passed"])
 
     def test_score_leaves_out_the_skill_indicator_and_skips(self):
-        # used-skill answered "n": it must not lower the score. One rubric skipped.
-        graders = [g["name"] for g in self.case["graders"] if ce.auto_grade(g, self.workspace) is None]
-        replies = {"used-skill": "n", "invoice-checked": "s"}
-        answer = answers(*[replies.get(n, "y") for n in graders])
+        # used-skill fails: it must not lower the score. One rubric skipped; every other grader passes.
+        hand = [g for g in self.case["graders"] if ce.auto_grade(g, self.workspace) is None]
+        replies = {"used-skill": ce.reply_for([g for g in hand if g["name"] == "used-skill"][0], False),
+                   "invoice-checked": "s"}
+        answer = answers(*[replies.get(g["name"], ce.reply_for(g, True)) for g in hand])
         results = ce.grade_run(self.case, "with", self.workspace, "", answer)
         self.assertEqual(ce.skipped(results), ["invoice-checked"], "a skipped grader is recorded, not dropped")
         self.assertEqual(ce.score(results), 1.0)
@@ -107,6 +108,34 @@ class Grading(unittest.TestCase):
             fh.write("x = 1\n")
         self.assertTrue(ce.auto_grade(grader, self.workspace, before))
         self.assertFalse(ce.auto_grade(dict(grader, exists=False), self.workspace, before))
+
+    def test_rule_graders_are_asked_as_plain_facts(self):
+        # The first real Copilot run asked "must NOT call Skill … setup-verification — passed?",
+        # which the person had to invert in their head.
+        quiet = {"type": "tool_used", "tool": "Skill", "min": 0, "max": 0,
+                 "match": '"skill"\\s*:\\s*"(?:[\\w-]+:)?setup-verification"'}
+        fires = dict(quiet, min=1, max=None)
+        no_edit = {"type": "tool_used", "tool": "Edit", "min": 0, "max": 0, "match": ""}
+        self.assertEqual(ce.fact_question(quiet), ("Did Copilot use the skill `setup-verification`?", "n"))
+        self.assertEqual(ce.fact_question(fires), ("Did Copilot use the skill `setup-verification`?", "y"))
+        self.assertEqual(ce.fact_question(no_edit), ("Did Copilot change or create any file?", "n"))
+        self.assertIsNone(ce.fact_question({"type": "llm"}))
+
+    def test_answering_the_fact_decides_the_grade(self):
+        case = {"graders": [{"name": "quiet", "type": "tool_used", "tool": "Skill", "min": 0, "max": 0,
+                             "match": '"skill"\\s*:\\s*"(?:[\\w-]+:)?setup-verification"', "arm": "both",
+                             "weight": 1.0}]}
+        asked = answers("n")
+        not_used = ce.grade_run(case, "with", self.workspace, "", asked)[0]
+        self.assertTrue(not_used["passed"], "the skill was not used, so 'must not use it' passes")
+        self.assertIn("Did Copilot use the skill `setup-verification`?", asked.asked[0])
+        used = ce.grade_run(case, "with", self.workspace, "", answers("y"))[0]
+        self.assertFalse(used["passed"])
+
+    def test_skill_hints_look_for_the_skill_name_not_claude_json(self):
+        grader = {"type": "tool_used", "tool": "Skill", "match": '"skill"\\s*:\\s*"(?:[\\w-]+:)?verify-change"'}
+        transcript = '{"type":"tool.call","name":"skill","arguments":{"name":"verify-change"}}\nother line\n'
+        self.assertEqual(len(ce.hints(grader, transcript)), 1)
 
     def test_hints_quote_the_transcript_lines_that_match(self):
         tree = [g for g in self.case["graders"] if g["name"] == "tree-preserved"][0]
@@ -122,8 +151,8 @@ class EndToEnd(unittest.TestCase):
         # Enter after each arm, then every hand-graded grader: all pass with, all fail without.
         case = ce.load_case(SHARED)
         hand = lambda arm: [g for g in case["graders"] if ce.applies(g, arm) and g["type"] in ("tool_used", "llm")]
-        with_arm = [""] + ["y"] * len(hand("with"))
-        without_arm = [""] + ["n"] * len(hand("without"))
+        with_arm = [""] + [ce.reply_for(g, True) for g in hand("with")]
+        without_arm = [""] + [ce.reply_for(g, False) for g in hand("without")]
         with patch("time.strftime", return_value="2099-01-01T00-00-00Z"), contextlib.redirect_stdout(io.StringIO()):
             ce.main([os.path.relpath(VERIFICATION), "--case", "verify-change-follows-shared-code"],
                     answer=answers(*(with_arm + without_arm)))
@@ -331,6 +360,17 @@ class WhenCopilotRefuses(unittest.TestCase):
 def subprocess_result(code, out, err):
     import subprocess as sp
     return sp.CompletedProcess([], code, out, err)
+
+
+class ResultFolders(unittest.TestCase):
+    def test_two_runs_in_the_same_second_get_their_own_folder(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        base = os.path.join(tmp, "copilot-2099-01-01T00-00-00Z")
+        first, second, third = ce.unique_dir(base), ce.unique_dir(base), ce.unique_dir(base)
+        self.assertEqual((first, second, third), (base, base + "-2", base + "-3"))
+        for path in (first, second, third):
+            self.assertTrue(os.path.isdir(path))
 
 
 class Command(unittest.TestCase):

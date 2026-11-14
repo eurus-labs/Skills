@@ -20,6 +20,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   arms the same flags, and records them in the result, and the eval board shows the model beside the host. With `--run` it
   first checks that Copilot accepts the pinned flags, prints the last lines of Copilot's log when a run fails,
   and never grades a run whose Copilot process died.
+- **Skill manager** (for contributors): `python3 tools/skill_manager.py` serves one local page with three tabs.
+  *Skills* shows each skill's goal, install state per host, eval coverage, latest results and a status, including
+  "changed since last run". *Install* installs, updates or removes plugins in Copilot CLI and Claude Code and
+  registers the marketplace. *Evals* is the eval board with a Run form on every case. Runs and installs stream to
+  the page, which asks grading questions with Yes, No and Skip. It listens on `127.0.0.1` with a token. The
+  Copilot runner now asks `tool_used` graders as plain facts ("Did Copilot use the skill …?").
 - **Copilot eval runner** (for contributors): `python3 tools/copilot_eval.py plugins/<plugin>` runs a plugin's
   eval cases on GitHub Copilot CLI, with and without the plugin, each in a fresh scaffolded workspace. It
   checks file graders itself, asks a person for the rest, and records the scores for the eval board.
