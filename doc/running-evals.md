@@ -220,6 +220,27 @@ The result is written to `plugins/<plugin>/evals/results/copilot-<time>/aggregat
 - Whether Copilot reports which skill it used. If it does not, judge from the reply: a table of checks, one
   verdict and a JSON block mean `verify-change` ran.
 
+## Run a case from the board
+
+```bash
+python3 tools/eval_board_server.py        # opens the board in your browser
+```
+
+The server shows the same board with a **Run this case** form on every case: host (Copilot or Claude Code),
+arms, model, reasoning effort (Copilot) and cost ceiling (Claude). After you confirm, it starts the same runner
+you would start from a terminal (`tools/copilot_eval.py --run` or `claude plugin eval`), streams its output into a
+panel, and asks each grading question there with **Yes / No / Skip** buttons and links to the run's transcripts.
+When the run ends the board reloads its scores.
+
+- It listens on `127.0.0.1` only, accepts only `Host: 127.0.0.1` or `localhost`, and needs the random token in the
+  URL it prints, so no other web page can drive it.
+- It runs only the cases under `plugins/*/evals`, with validated options, one at a time, and serves only
+  transcripts under `plugins/*/evals/results/`. It never runs a command the page sends.
+- **Stop** takes effect at the next question or when the current agent run ends.
+- A run costs what it costs from the terminal, and lets the agent run commands in a scratch workspace as you.
+- It never passes `--trust-plugin`: if `claude plugin eval` refuses an untrusted directory, run it once in a
+  terminal and answer the prompt.
+
 ## See every skill's results
 
 ```bash

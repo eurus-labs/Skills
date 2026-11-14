@@ -354,6 +354,8 @@ an author from a subject, so any rule placed there contaminates the measurement 
   The script checks the file graders itself and asks you to grade the rest, so grade before you open
   `fixtures/EXPECTED.md`. Results land beside the Claude ones, marked `"host": "copilot"`, and the eval
   board shows each host's score apart.
+- **Run a case with one click:** `python3 tools/eval_board_server.py` serves the eval board locally with a Run
+  form on every case and asks the grading questions on the page.
 - **Step by step, with troubleshooting:** [`doc/running-evals.md`](doc/running-evals.md) covers both runners,
   the credential, the Windows setup, how a run is graded, and what each error means.
 - `fixtures/04-security/app.py` is genuinely exploitable. Never copy from it, never run it against real data,

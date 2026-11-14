@@ -20,6 +20,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   arms the same flags, and records them in the result, and the eval board shows the model beside the host. With `--run` it
   first checks that Copilot accepts the pinned flags, prints the last lines of Copilot's log when a run fails,
   and never grades a run whose Copilot process died.
+- **Run cases from the eval board** (for contributors): `python3 tools/eval_board_server.py` serves the board
+  on `127.0.0.1` with a token and a Run form on every case. It starts the Copilot or Claude runner, streams its
+  output to the page, and asks the grading questions there with Yes, No and Skip buttons. The Copilot runner
+  now asks `tool_used` graders as plain facts ("Did Copilot use the skill …?") instead of inverted rules.
 - **Copilot eval runner** (for contributors): `python3 tools/copilot_eval.py plugins/<plugin>` runs a plugin's
   eval cases on GitHub Copilot CLI, with and without the plugin, each in a fresh scaffolded workspace. It
   checks file graders itself, asks a person for the rest, and records the scores for the eval board.
