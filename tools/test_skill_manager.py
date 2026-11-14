@@ -311,6 +311,15 @@ class Install(Server):
         self.assertEqual(found["claude"]["marketplace"], "directory /x")
 
 
+class Choices(unittest.TestCase):
+    def test_choices_parse_and_a_hostile_prompt_cannot_stall_the_parser(self):
+        self.assertEqual(ebs.CHOICES.search("  passed? [y/n/s=skip] ").group(1), "y/n/s=skip")
+        hostile = "[a/a=" + "/a=" * 20000 + "x"
+        started = time.time()
+        self.assertIsNone(ebs.CHOICES.search(hostile))
+        self.assertLess(time.time() - started, 1.0)
+
+
 class StaticPage(unittest.TestCase):
     def test_the_static_board_has_no_run_controls(self):
         import build_eval_board as board

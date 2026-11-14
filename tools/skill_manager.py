@@ -60,7 +60,8 @@ MARKETPLACE = "eurus-labs"
 GITHUB_SOURCE = "eurus-labs/Skills"
 MODEL = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$")
 EFFORTS = ("", "none", "minimal", "low", "medium", "high", "xhigh", "max")
-CHOICES = re.compile(r"\[([a-z](?:/[a-z](?:=[^\]]*)?)+)\]\s*$")
+# "[y/n/s=skip]": a label may not contain "/" or "]", so each option matches one way only (no backtracking).
+CHOICES = re.compile(r"\[([a-z](?:/[a-z](?:=[^\]/]*)?)+)\]\s*$")
 HOSTS = {"copilot": "copilot", "claude": "claude"}
 STOP = object()
 spawn = subprocess.Popen  # the one place a long-running command starts; the tests replace it
