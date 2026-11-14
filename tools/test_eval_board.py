@@ -130,6 +130,12 @@ class Results(unittest.TestCase):
         self.assertIn("docs/a", loaded)
         self.assertEqual([k for k in loaded if k.endswith("/b")], [])
 
+    def test_each_run_carries_its_host(self):
+        claude = self.write("c1", result([case("a", 0.9)]))
+        copilot = self.write("p1", dict(result([case("a", 0.4)]), host="copilot"))
+        runs = board.load_results([("p", claude), ("p", copilot)])["p/a"]
+        self.assertEqual(sorted(r["host"] for r in runs), ["claude", "copilot"])
+
     def test_a_file_that_is_not_a_result_is_skipped(self):
         bad = os.path.join(self.tmp.name, "other.json")
         with open(bad, "w") as fh:
@@ -144,7 +150,7 @@ class Page(unittest.TestCase):
                                "graders": [], "fires": ["s"], "quiet": [], "skills": ["s"]}]}]
         page = board.board(plugins, {})
         self.assertEqual(page.count("</script>"), 1)
-        self.assertIn("const r = h[0];", page, "the badge shows the newest run, trusted or not")
+        self.assertIn("const r = h[0],", page, "the badge shows the newest run, trusted or not")
         self.assertNotIn("scorePill(c.name)", page, "results are keyed by plugin and case, never case alone")
         self.assertIn('data-lang="en"', page)
         self.assertIn('data-lang="vi"', page)

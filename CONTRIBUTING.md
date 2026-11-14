@@ -346,6 +346,14 @@ an author from a subject, so any rule placed there contaminates the measurement 
   `eval-board.html` (git-ignored): one card per skill with the cases that must fire it, keep it quiet, or
   grade its behavior, and each case's latest score from the local `plugins/*/evals/results/`. A score from
   a partial suite or an errored run is shown but never counted as trusted.
+- **Run the same cases on GitHub Copilot CLI** with `python3 tools/copilot_eval.py plugins/<plugin>`. Each
+  case runs in a fresh workspace from its `scaffold.sh`, with the plugin (`--plugin-dir`) and without it.
+  Add `--run` to have the script start `copilot -p` for each arm. Without it, you start Copilot yourself.
+  The script checks the file graders itself and asks you to grade the rest, so grade before you open
+  `fixtures/EXPECTED.md`. Results land beside the Claude ones, marked `"host": "copilot"`, and the eval
+  board shows each host's score apart.
+- **Step by step, with troubleshooting:** [`doc/running-evals.md`](doc/running-evals.md) covers both runners,
+  the credential, the Windows setup, how a run is graded, and what each error means.
 - `fixtures/04-security/app.py` is genuinely exploitable. Never copy from it, never run it against real data,
   and leave its file-level warning banner intact.
 

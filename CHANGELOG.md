@@ -12,7 +12,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Eval board** (for contributors): `python3 tools/build_eval_board.py` writes `eval-board.html`, one page
   showing every skill's eval cases (must fire, must stay quiet, behavior) with the latest local result of
   each and the runs before it. Partial suites and errored runs are never counted as trusted scores. The
-  interface switches between English and Vietnamese.
+  interface switches between English and Vietnamese. Each host's results get their own badge: Claude Code
+  and Copilot CLI are never mixed.
+- **How to run the evals** (for contributors): `doc/running-evals.md` covers `claude plugin eval` and the
+  Copilot runner, the credential, Windows setup, grading, reading results, and common errors. It explains how to choose
+  and pin the model on each host. `tools/copilot_eval.py` takes `--model` and `--reasoning-effort`, gives both
+  arms the same flags, and records them in the result, and the eval board shows the model beside the host. With `--run` it
+  first checks that Copilot accepts the pinned flags, prints the last lines of Copilot's log when a run fails,
+  and never grades a run whose Copilot process died.
+- **Copilot eval runner** (for contributors): `python3 tools/copilot_eval.py plugins/<plugin>` runs a plugin's
+  eval cases on GitHub Copilot CLI, with and without the plugin, each in a fresh scaffolded workspace. It
+  checks file graders itself, asks a person for the rest, and records the scores for the eval board.
 
 - **`verification`** (0.1.3): five eval cases for the failures a pilot of the plugin found or could not
   exercise: a required check that cannot run (`fixtures/10`), tests skipped by default that hide a bug
