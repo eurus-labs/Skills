@@ -15,6 +15,10 @@ import sys
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PLUGINS = os.path.join(REPO, "plugins")
 MARKETPLACE = os.path.join(REPO, ".github", "plugin", "marketplace.json")
+# Claude Code reads its marketplace only from .claude-plugin/marketplace.json, and refuses a plugin
+# whose `source` does not start with "./". Copilot accepts "./plugins/<name>" too, so the two files
+# are kept byte-identical, like the two plugin.json copies.
+CLAUDE_MARKETPLACE = os.path.join(REPO, ".claude-plugin", "marketplace.json")
 README = os.path.join(REPO, "README.md")
 SKILL_LINE_BUDGET = 500
 
@@ -444,7 +448,7 @@ def check_marketplace(manifests):
         if entry is None:
             fail(rel(MARKETPLACE), "has no entry for plugin %r" % name)
             continue
-        expected_source = "plugins/%s" % name
+        expected_source = "./plugins/%s" % name
         if entry.get("source") != expected_source:
             fail(rel(MARKETPLACE), "%s source is %r, expected %r"
                  % (name, entry.get("source"), expected_source))
@@ -464,6 +468,16 @@ def check_marketplace(manifests):
 # marketplace that does not exist. Only the `@` form is checked: the troubleshooting
 # table deliberately names the *old* marketplace in a `remove` command.
 INSTALL_REF = re.compile(r"plugin install\s+\S+?@([A-Za-z0-9_.-]+)")
+
+
+def check_claude_marketplace():
+    if not os.path.isfile(CLAUDE_MARKETPLACE):
+        fail(rel(CLAUDE_MARKETPLACE), "is missing -- Claude Code reads only this file; copy "
+             ".github/plugin/marketplace.json over it")
+        return
+    with open(MARKETPLACE, "rb") as a, open(CLAUDE_MARKETPLACE, "rb") as b:
+        if a.read() != b.read():
+            fail(rel(CLAUDE_MARKETPLACE), "differs from .github/plugin/marketplace.json -- copy that file over it")
 
 
 def check_marketplace_name():
@@ -607,6 +621,7 @@ def main():
             manifests[name] = manifest
 
     check_marketplace(manifests)
+    check_claude_marketplace()
     check_marketplace_name()
     check_skill_collisions()
     check_readme(names)
