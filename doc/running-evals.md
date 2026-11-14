@@ -199,7 +199,8 @@ the plan details before running the whole behavior suite.
 | Grader type | Who decides |
 | ----------- | ----------- |
 | `file_exists`, `regex` over a file | the script, in the workspace (honours `match: not_contains`, `count:N`, `flags`; `file_exists` counts only files created during the run) |
-| `tool_used`, `regex` over the reply | you, from the transcript |
+| `tool_used` | you, from the transcript, asked as a plain fact ("Did Copilot use the skill `verify-change`?"); the script works out whether that passes |
+| `regex` over the reply | you, from the transcript |
 | `llm` | you, from the rubric in the grader file |
 
 - Grade **before** you open `fixtures/EXPECTED.md`.
