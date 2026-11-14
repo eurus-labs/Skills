@@ -418,6 +418,18 @@ def result_doc(plugin, records, partial, reason, started, model=None, effort=Non
     }
 
 
+def unique_dir(path):
+    """Create and return `path`, or `path-2`, `path-3`… when two runs start within the same second."""
+    candidate, n = path, 1
+    while True:
+        try:
+            os.makedirs(candidate)
+            return candidate
+        except FileExistsError:
+            n += 1
+            candidate = "%s-%d" % (path, n)
+
+
 def main(argv=None, answer=input):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("plugin_dir", help="plugins/<plugin>")
@@ -453,8 +465,7 @@ def main(argv=None, answer=input):
                                               % "".join(" " + f for f in model_flags(args.model, args.effort))))
 
     started = time.strftime("%Y-%m-%dT%H-%M-%SZ", time.gmtime())
-    out_dir = os.path.join(plugin_dir, "evals", "results", "copilot-%s" % started)
-    os.makedirs(out_dir)
+    out_dir = unique_dir(os.path.join(plugin_dir, "evals", "results", "copilot-%s" % started))
     scratch = tempfile.mkdtemp(prefix="copilot-eval-")
     records, partial, reason = {}, False, None
     print("%d case(s) x %d arm(s); results go to %s" % (len(cases), len(arms), os.path.relpath(out_dir)))

@@ -362,6 +362,17 @@ def subprocess_result(code, out, err):
     return sp.CompletedProcess([], code, out, err)
 
 
+class ResultFolders(unittest.TestCase):
+    def test_two_runs_in_the_same_second_get_their_own_folder(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        base = os.path.join(tmp, "copilot-2099-01-01T00-00-00Z")
+        first, second, third = ce.unique_dir(base), ce.unique_dir(base), ce.unique_dir(base)
+        self.assertEqual((first, second, third), (base, base + "-2", base + "-3"))
+        for path in (first, second, third):
+            self.assertTrue(os.path.isdir(path))
+
+
 class Command(unittest.TestCase):
     def test_a_run_past_its_timeout_is_stopped_and_recorded_as_an_error(self):
         tmp = tempfile.mkdtemp()

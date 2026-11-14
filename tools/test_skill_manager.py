@@ -138,8 +138,9 @@ class CopilotRun(Server):
             job = self.wait_for(lambda j: j.get("question"))
             self.assertEqual(job["question"]["text"], "Did Copilot use the skill `setup-verification`?")
             self.assertEqual(job["question"]["choices"], ["y", "n", "s"])
-            self.assertEqual(self.request("POST", "/api/answer", {"reply": "maybe"})[0], 400)
-            self.assertEqual(self.request("POST", "/api/answer", {"reply": "n"})[0], 200)
+            qid = job["question"]["id"]
+            self.assertEqual(self.request("POST", "/api/answer", {"id": qid, "reply": "maybe"})[0], 400)
+            self.assertEqual(self.request("POST", "/api/answer", {"id": qid, "reply": "n"})[0], 200)
             job = self.wait_for(lambda j: j["status"] != "running")
         self.assertEqual(job["status"], "done")
         self.assertEqual(seen["reply"], "n")
@@ -242,6 +243,41 @@ class SkillRuns(Server):
             status, data = self.request("POST", "/api/run", {"plugin": "verification", "host": "copilot",
                                                              "cases": ["verify-change-pr-vs-issue", "rm -rf"]})
         self.assertEqual(status, 400)
+
+
+class Answers(Server):
+    def test_an_answer_counts_once_and_only_for_the_question_shown(self):
+        seen = []
+
+        def fake_main(argv, answer):
+            seen.append(answer("  Did Copilot use the skill `a`? [y/n/s=skip] "))
+            seen.append(answer("  Did Copilot use the skill `b`? [y/n/s=skip] "))
+            return 0
+
+        with patch("shutil.which", side_effect=on_path("copilot")), patch.object(ebs.copilot_eval, "main", fake_main):
+            self.request("POST", "/api/run", {"plugin": "verification", "case": "none-implement-feature", "host": "copilot"})
+            first = self.wait_for(lambda j: j.get("question"))["question"]
+            self.assertEqual(self.request("POST", "/api/answer", {"id": first["id"], "reply": "n"})[0], 200)
+            # A double click: the same question again is refused, never applied to the next one.
+            self.assertEqual(self.request("POST", "/api/answer", {"id": first["id"], "reply": "y"})[0], 409)
+            second = self.wait_for(lambda j: j.get("question") and j["question"]["id"] != first["id"])["question"]
+            self.assertIn("`b`", second["text"])
+            self.assertEqual(self.request("POST", "/api/answer", {"id": 999, "reply": "y"})[0], 409)
+            self.assertEqual(self.request("POST", "/api/answer", {"id": second["id"], "reply": "s"})[0], 200)
+            self.wait_for(lambda j: j["status"] != "running")
+        self.assertEqual(seen, ["n", "s"])
+
+    def test_an_unexpected_error_ends_the_job_instead_of_blocking_the_next(self):
+        def fake_main(argv, answer):
+            raise FileExistsError("results/copilot-2099")
+
+        body = {"plugin": "verification", "case": "none-implement-feature", "host": "copilot"}
+        with patch("shutil.which", side_effect=on_path("copilot")), patch.object(ebs.copilot_eval, "main", fake_main):
+            self.request("POST", "/api/run", body)
+            job = self.wait_for(lambda j: j["status"] != "running")
+            self.assertEqual(job["status"], "failed")
+            self.assertIn("FileExistsError", "\n".join(job["log"]))
+            self.assertEqual(self.request("POST", "/api/run", body)[0], 200, "the next job can start")
 
 
 class Install(Server):

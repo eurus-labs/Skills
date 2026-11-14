@@ -431,7 +431,7 @@ const T = {
   tabSkills:"Skills", tabInstall:"Install", tabEvals:"Evals",
   skillsTitle:"Skills and their status", skillsLede:"Each skill's goal, whether its plugin is installed, how many eval cases test it in each direction (fires · quiet · behavior), the latest score per host, and what that adds up to.",
   colSkill:"Skill", colGoal:"Goal", colInstalled:"Installed", colCoverage:"Eval cases", colLatest:"Latest runs", colStatus:"Status", colActions:"",
-  stNoEvals:"no evals", stNotRun:"not run", stUntrusted:"no trusted run", stPartly:"partly run ({k}/{n})", stNeedsWork:"needs work", stPassing:"passing", stChanged:"changed since last run",
+  stNoEvals:"no evals", stNotRun:"not run", stUntrusted:"no trusted run", stPartly:"partly run ({k}/{n})", stNeedsWork:"needs work", stPassing:"passing", stChanged:"changed since last run", stLatestUntrusted:"latest run untrusted ({k})", untrustedN:"{k} untrusted",
   runAll:"Run all cases…", passOf:"{p}/{n} pass", loading:"Loading…", notFound:"not found on PATH", notInstalled:"not installed",
   installTitle:"Install plugins", installLede:"Plugins from this marketplace in each host. Install, update or remove one plugin, or all of them, and register the marketplace first if a host does not have it.",
   marketplace:"Marketplace", notRegistered:"not registered", fromCheckout:"Register from this checkout", fromGithub:"Register from GitHub", updateMarket:"Update marketplace",
@@ -460,7 +460,7 @@ const T = {
   tabSkills:"Skills", tabInstall:"Cài đặt", tabEvals:"Evals",
   skillsTitle:"Các skill và tình trạng", skillsLede:"Mục tiêu của từng skill, plugin đã được cài chưa, số case eval kiểm nó theo từng chiều (phải gọi · phải im · hành vi), điểm mới nhất theo host, và kết luận chung.",
   colSkill:"Skill", colGoal:"Mục tiêu", colInstalled:"Đã cài", colCoverage:"Case eval", colLatest:"Lần chạy gần nhất", colStatus:"Tình trạng", colActions:"",
-  stNoEvals:"chưa có eval", stNotRun:"chưa chạy", stUntrusted:"chưa có lần chạy tin được", stPartly:"chạy một phần ({k}/{n})", stNeedsWork:"cần sửa", stPassing:"đạt", stChanged:"đã đổi từ lần chạy cuối",
+  stNoEvals:"chưa có eval", stNotRun:"chưa chạy", stUntrusted:"chưa có lần chạy tin được", stPartly:"chạy một phần ({k}/{n})", stNeedsWork:"cần sửa", stPassing:"đạt", stChanged:"đã đổi từ lần chạy cuối", stLatestUntrusted:"lần chạy mới nhất không tin được ({k})", untrustedN:"{k} không tin được",
   runAll:"Chạy mọi case…", passOf:"{p}/{n} đạt", loading:"Đang tải…", notFound:"không có trong PATH", notInstalled:"chưa cài",
   installTitle:"Cài plugin", installLede:"Các plugin của marketplace này trong từng host. Cài, cập nhật hoặc gỡ một plugin hay tất cả; đăng ký marketplace trước nếu host chưa có.",
   marketplace:"Marketplace", notRegistered:"chưa đăng ký", fromCheckout:"Đăng ký từ bản checkout này", fromGithub:"Đăng ký từ GitHub", updateMarket:"Cập nhật marketplace",
@@ -601,7 +601,7 @@ function runFormFor(k, name){
   </form></div>`;
 }
 
-const JOB = {active:false, timer:null, shown:false, refresh:null};
+const JOB = {active:false, timer:null, shown:false, refresh:null, questionId:null, answered:null};
 async function api(path, body){
   const res = await fetch(path, {method: body ? "POST" : "GET", headers: {"X-Board-Token": SERVER.token, "Content-Type": "application/json"},
     body: body ? JSON.stringify(body) : undefined});
@@ -623,7 +623,13 @@ function showJob(j){
   $("runlinks").innerHTML = files.map(f => `<a class="chip" target="_blank" rel="noopener" href="/transcript?token=${encodeURIComponent(SERVER.token)}&file=${encodeURIComponent(f)}">${esc(f.split("/").pop())}</a>`).join("");
   if (atEnd) log.scrollTop = log.scrollHeight;
   $("runq").hidden = !j.question;
-  if (j.question) { $("runqtext").textContent = j.question.text; $("runqhint").textContent = t("qHint"); }
+  if (j.question) {
+    $("runqtext").textContent = j.question.text; $("runqhint").textContent = t("qHint");
+    const fresh = JOB.questionId !== j.question.id;
+    JOB.questionId = j.question.id;
+    if (fresh) JOB.answered = null;
+    document.querySelectorAll("[data-answer]").forEach(b => { b.disabled = JOB.answered === j.question.id; });
+  }
   $("ansy").textContent = t("yes"); $("ansn").textContent = t("no"); $("anss").textContent = t("skip");
   $("runstop").textContent = t("stop"); $("runstop").title = t("stopHint"); $("runstop").hidden = j.status !== "running";
   $("runclose").textContent = t("close"); $("runclose").hidden = j.status === "running";
@@ -681,7 +687,13 @@ document.addEventListener("click", async e => {
     renderAll(); return;
   }
   const ans = e.target.closest("[data-answer]");
-  if (ans) { try { await api("/api/answer", {reply: ans.dataset.answer}); } catch (err) { alertInPanel(err.message); } return; }
+  if (ans) {
+    /* One answer per question: the buttons stay disabled until the next question arrives. */
+    const id = JOB.questionId; if (id == null || JOB.answered === id) return;
+    JOB.answered = id; document.querySelectorAll("[data-answer]").forEach(b => { b.disabled = true; });
+    try { await api("/api/answer", {id, reply: ans.dataset.answer}); poll(); } catch (err) { alertInPanel(err.message); }
+    return;
+  }
   if (e.target.closest("#runstop")) { try { await api("/api/stop", {}); } catch (err) { alertInPanel(err.message); } return; }
   if (e.target.closest("#runclose")) { $("runpanel").hidden = true; JOB.shown = false; }
 });
@@ -691,21 +703,25 @@ function skillStatus(p, skill, changed){
   if (!mine.length) return {chips:[["bad", t("stNoEvals")]], hosts:{}};
   const hosts = {};
   let anyRun = false, newest = 0;
-  const trustedCases = new Set(), failing = new Set();
+  const trustedCases = new Set(), failing = new Set(), untrustedLatest = new Set();
   for (const c of mine) {
     const runs = DATA.results[p.name + "/" + c.name] || [];
     if (runs.length) anyRun = true;
     for (const r of runs) newest = Math.max(newest, r.time || 0);
     for (const host of new Set(runs.map(r => r.host))) {
-      const h = runs.filter(r => r.host === host), latest = h.find(trusted);
-      const slot = hosts[host] = hosts[host] || {pass:0, n:0};
-      if (latest) { slot.n++; trustedCases.add(c.name); if (latest.score >= 0.8) slot.pass++; else failing.add(c.name); }
+      /* The newest run decides, as on the Evals tab: an older pass never stands in for a newer untrusted run. */
+      const latest = runs.filter(r => r.host === host)[0];
+      const slot = hosts[host] = hosts[host] || {pass:0, n:0, untrusted:0};
+      if (!trusted(latest)) { slot.untrusted++; untrustedLatest.add(c.name); continue; }
+      slot.n++; trustedCases.add(c.name);
+      if (latest.score >= 0.8) slot.pass++; else failing.add(c.name);
     }
   }
   const chips = [];
   if (!anyRun) chips.push(["idle", t("stNotRun")]);
-  else if (!trustedCases.size) chips.push(["warn", t("stUntrusted")]);
   else if (failing.size) chips.push(["bad", t("stNeedsWork")]);
+  else if (!trustedCases.size) chips.push(["warn", t("stUntrusted")]);
+  else if (untrustedLatest.size) chips.push(["warn", t("stLatestUntrusted").replace("{k}", untrustedLatest.size)]);
   else if (trustedCases.size < mine.length) chips.push(["warn", t("stPartly").replace("{k}", trustedCases.size).replace("{n}", mine.length)]);
   else chips.push(["ok", t("stPassing")]);
   if (anyRun && changed && newest && changed > newest) chips.push(["warn", t("stChanged")]);
@@ -731,7 +747,7 @@ function skillTable(){
     const beh = mine.filter(c => c.kind === "behavior").length;
     const st = skillStatus(p, skill, changed), key = "skill:" + p.name + "/" + skill;
     const cov = [[fire, t("fires")], [quiet, t("quiet")], [beh, t("behavior")]].map(([n, l]) => `<span class="${n ? "" : "zero"}" title="${esc(l)}">${n}</span>`).join("");
-    const latest = Object.entries(st.hosts).map(([host, s]) => `<span class="pill ${s.n && s.pass === s.n ? "ok" : s.n ? "warn" : "idle"}">${hostName(host)} ${t("passOf").replace("{p}", s.pass).replace("{n}", s.n)}</span>`).join("") || `<span class="muted">—</span>`;
+    const latest = Object.entries(st.hosts).map(([host, s]) => `<span class="pill ${s.n && s.pass === s.n && !s.untrusted ? "ok" : s.n || s.untrusted ? "warn" : "idle"}">${hostName(host)} ${t("passOf").replace("{p}", s.pass).replace("{n}", s.n)}${s.untrusted ? " · " + t("untrustedN").replace("{k}", s.untrusted) : ""}</span>`).join("") || `<span class="muted">—</span>`;
     const action = SERVER && mine.length ? `<button type="button" class="btn ghost small" data-skillrun="${esc(key)}"${JOB.active ? " disabled" : ""}>${t("runAll")}</button>` : "";
     const form = state.skillOpen === key ? `<tr><td colspan="${SERVER ? 7 : 5}">${runFormFor(key, skill)}</td></tr>` : "";
     return `<tr><td><b class="mono">${esc(skill)}</b><span class="sub">${esc(p.name)} ${esc(p.version || "")}</span></td>

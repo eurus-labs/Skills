@@ -94,6 +94,8 @@ class Job:
         self.status = "running"
         self.lines = deque(maxlen=5000)
         self.question = None
+        self.asked = 0
+        self.answer_lock = threading.Lock()
         self.answers = queue.Queue()
         self.stopping = threading.Event()
         self.proc = None
@@ -110,13 +112,29 @@ class Job:
         if text.lower().startswith("press enter"):
             return ""
         found = CHOICES.search(text)
-        self.question = {"text": CHOICES.sub("", text).strip(),
-                         "choices": [c.split("=")[0] for c in found.group(1).split("/")] if found else ["y", "n"]}
+        with self.answer_lock:
+            self.asked += 1
+            self.question = {"id": self.asked, "text": CHOICES.sub("", text).strip(),
+                             "choices": [c.split("=")[0] for c in found.group(1).split("/")] if found else ["y", "n"]}
         reply = self.answers.get()
-        self.question = None
         if reply is STOP:
             raise KeyboardInterrupt
         return reply
+
+    def answer(self, question_id, reply):
+        """Accept one answer for the question the person saw, once. Returns None, or why it was refused.
+
+        The id ties an answer to the question shown: a second click, or a click that reaches the server after
+        the runner moved on, must not grade a question the person never saw."""
+        with self.answer_lock:
+            question = self.question
+            if not question or question["id"] != question_id:
+                return "that question is no longer waiting"
+            if reply not in question["choices"]:
+                return "answer one of %s" % "/".join(question["choices"])
+            self.question = None
+            self.answers.put(reply)
+        return None
 
     def stop(self):
         self.stopping.set()
@@ -297,7 +315,17 @@ class Manager:
                 raise RuntimeError("another job is in progress")
             job = Job(spec)
             self.job = job
-        threading.Thread(target=lambda: target(job), daemon=True).start()
+        def guarded():
+            # Whatever goes wrong, the job ends: a job left "running" would block every later one.
+            try:
+                target(job)
+            except BaseException as exc:  # noqa: B902 -- report it, never leave the job running
+                job.log("the job stopped on an unexpected error: %s: %s" % (type(exc).__name__, exc))
+                job.status = "failed"
+            finally:
+                if job.status == "running":
+                    job.status = "failed"
+        threading.Thread(target=guarded, daemon=True).start()
         return job.snapshot()
 
     def run_eval(self, body):
@@ -446,12 +474,11 @@ def make_handler(state, port_ref):
                     return self._send(409, {"error": str(exc)})
             job = state.job
             if url.path == "/api/answer":
-                reply = body.get("reply")
-                if not job or not job.question:
+                if not job:
                     return self._send(409, {"error": "no question is waiting"})
-                if reply not in job.question["choices"]:
-                    return self._send(400, {"error": "answer one of %s" % "/".join(job.question["choices"])})
-                job.answers.put(reply)
+                refused = job.answer(body.get("id"), body.get("reply"))
+                if refused:
+                    return self._send(400 if refused.startswith("answer one of") else 409, {"error": refused})
                 return self._send(200, {"ok": True})
             if url.path == "/api/stop":
                 if not job or job.status != "running":
