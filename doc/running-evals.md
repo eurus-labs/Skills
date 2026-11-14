@@ -242,7 +242,9 @@ One local page with three tabs, for people who develop the skills:
 
 A run starts the same runner you would start from a terminal (`tools/copilot_eval.py --run` or
 `claude plugin eval`), streams its output into a panel, and asks each grading question there with
-**Yes / No / Skip** buttons and links to the run's transcripts. When a job ends the page reloads.
+**Yes / No / Skip** buttons and links to the run's transcripts. A Markdown transcript opens as a readable page:
+roles, each tool call with its arguments and output folded, and timings; add `&raw=1` to the link for the file
+itself. The page escapes everything the agent wrote and may run no script. When a job ends the page reloads.
 
 - It listens on `127.0.0.1` only, accepts only `Host: 127.0.0.1` or `localhost`, and needs the random token in the
   URL it prints, so no other web page can drive it.

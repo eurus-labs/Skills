@@ -13,6 +13,7 @@ import http.client
 import io
 import json
 import os
+import re
 import shutil
 import sys
 import threading
@@ -109,7 +110,7 @@ class Transcripts(Server):
         self.addCleanup(shutil.rmtree, folder, ignore_errors=True)
         with open(os.path.join(folder, "c-with.md"), "w") as fh:
             fh.write("# transcript\n")
-        ok = "/transcript?token=t0k3n&file=plugins/verification/evals/results/copilot-2099-01-06T00-00-00Z/c-with.md"
+        ok = "/transcript?token=t0k3n&raw=1&file=plugins/verification/evals/results/copilot-2099-01-06T00-00-00Z/c-with.md"
         status, body = self.request("GET", ok, token=None)
         self.assertEqual((status, body), (200, "# transcript\n"))
         for bad in ("AGENTS.md", "fixtures/EXPECTED.md", "plugins/verification/evals/results/../../../AGENTS.md",
@@ -117,6 +118,113 @@ class Transcripts(Server):
             status, _ = self.request("GET", "/transcript?token=t0k3n&file=" + bad, token=None)
             self.assertEqual(status, 404, bad)
         self.assertEqual(self.request("GET", ok.replace("t0k3n", "nope"), token=None)[0], 403)
+
+
+
+SAMPLE_SHARE = """# Copilot CLI Session
+
+> [!NOTE]
+> - **Session ID:** `99931c43`
+> - **Duration:** 35s
+
+---
+
+<sub>6s</sub>
+
+### User
+
+Write an architecture overview of this codebase.
+
+---
+
+<sub>9s</sub>
+
+### `powershell`
+
+**List repository files**
+
+<details>
+<summary>Arguments</summary>
+
+```json
+{
+  "command": "Get-ChildItem -Recurse -File -Depth 3 | Select-Object -First 3"
+}
+```
+
+</details>
+
+<details>
+<summary>14 lines</summary>
+
+```
+C:\\\\ws\\\\pyproject.toml
+<script>alert(1)</script>
+```
+
+</details>
+
+### Copilot
+
+Done. See `docs/architecture.md`.
+"""
+
+
+class TranscriptPage(unittest.TestCase):
+    def test_the_share_markdown_renders_roles_tools_and_folded_sections(self):
+        page = ebs.render_transcript(SAMPLE_SHARE, "plugins/x/evals/results/r/c-with.md")
+        self.assertIn('<h3 class="role user">User</h3>', page)
+        self.assertIn('<h3 class="role copilot">Copilot</h3>', page)
+        self.assertIn('<h3 class="tool"><span>tool</span> powershell</h3>', page)
+        self.assertIn("<details>", page)
+        self.assertIn("<summary>Arguments</summary>", page)
+        self.assertIn('<div class="time">9s</div>', page)
+        self.assertIn("<code>docs/architecture.md</code>", page)
+        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", page, "code output stays text")
+
+    def test_nothing_the_agent_wrote_becomes_markup(self):
+        hostile = "\n".join([
+            "<script>alert(1)</script>",
+            "### <img src=x onerror=alert(1)>",
+            "<summary><img src=x onerror=alert(2)></summary>",
+            "<details open ontoggle=alert(3)>",
+            "<sub><svg onload=alert(4)></sub>",
+            "> <iframe src=//evil.example></iframe>",
+            "- <a href=javascript:alert(5)>x</a>",
+            "**<b onclick=alert(6)>bold</b>**",
+            "`<x onmouseover=alert(7)>`",
+        ])
+        page = ebs.render_transcript(hostile, "t")
+        body = page.split("<main>", 1)[1].rsplit("</main>", 1)[0]
+        allowed = {"p", "br", "b", "code", "pre", "h1", "h2", "h3", "h4", "details", "summary", "div", "hr",
+                   "blockquote", "ul", "li", "span"}
+        tags = re.findall(r"<(/?)([A-Za-z0-9]+)([^>]*)>", body)
+        self.assertTrue(tags)
+        for closing, name, attrs in tags:
+            self.assertIn(name.lower(), allowed, "a tag the agent wrote became markup: <%s%s>" % (name, attrs))
+            self.assertRegex(attrs, r'^(\s+class="[a-z ]+")?$', "attributes on <%s>: %r" % (name, attrs))
+
+
+class TranscriptServe(Server):
+    def test_markdown_is_served_as_a_page_without_scripts_and_raw_on_request(self):
+        folder = os.path.join(ebs.REPO, "plugins", "verification", "evals", "results", "copilot-2099-01-07T00-00-00Z")
+        os.makedirs(folder)
+        self.addCleanup(shutil.rmtree, folder, ignore_errors=True)
+        with open(os.path.join(folder, "c-with.md"), "w") as fh:
+            fh.write(SAMPLE_SHARE)
+        path = "/transcript?token=t0k3n&file=plugins/verification/evals/results/copilot-2099-01-07T00-00-00Z/c-with.md"
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
+        conn.request("GET", path, headers={"Host": "127.0.0.1:%d" % self.port})
+        res = conn.getresponse()
+        body = res.read().decode("utf-8")
+        conn.close()
+        self.assertEqual(res.status, 200)
+        self.assertTrue(res.getheader("Content-Type").startswith("text/html"))
+        self.assertIn("default-src 'none'", res.getheader("Content-Security-Policy"))
+        self.assertIn('<h3 class="tool"><span>tool</span> powershell</h3>', body)
+        status, raw = self.request("GET", path + "&raw=1", token=None)
+        self.assertEqual(status, 200)
+        self.assertTrue(raw.startswith("# Copilot CLI Session"))
 
 
 class CopilotRun(Server):

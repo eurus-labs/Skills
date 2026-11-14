@@ -24,7 +24,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   *Skills* shows each skill's goal, install state per host, eval coverage, latest results and a status, including
   "changed since last run". *Install* installs, updates or removes plugins in Copilot CLI and Claude Code and
   registers the marketplace. *Evals* is the eval board with a Run form on every case. Runs and installs stream to
-  the page, which asks grading questions with Yes, No and Skip. It listens on `127.0.0.1` with a token. The
+  the page, which asks grading questions with Yes, No and Skip, and opens a run's Markdown transcript as a
+  readable page (roles, tool calls with folded arguments and output) that escapes everything the agent wrote. It listens on `127.0.0.1` with a token. The
   Copilot runner now asks `tool_used` graders as plain facts ("Did Copilot use the skill …?").
 - **Copilot eval runner** (for contributors): `python3 tools/copilot_eval.py plugins/<plugin>` runs a plugin's
   eval cases on GitHub Copilot CLI, with and without the plugin, each in a fresh scaffolded workspace. It

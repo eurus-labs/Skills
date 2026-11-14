@@ -36,6 +36,7 @@ Standard library only.
 
 import argparse
 import contextlib
+import html
 import json
 import os
 import queue
@@ -295,6 +296,123 @@ def transcript_path(rel):
     return path
 
 
+# A transcript is written by the agent under test, so it is untrusted: every character is escaped, and only
+# the few shapes Copilot's --share Markdown uses are turned back into markup, by this code and never by
+# passing through what the file says. The page that shows it may run no script at all (see TRANSCRIPT_CSP).
+TRANSCRIPT_CSP = "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"
+FENCE = re.compile(r"^\s*```")
+HEADING = re.compile(r"^(#{1,4})\s+(.*)$")
+SUMMARY = re.compile(r"^\s*<summary>(.*)</summary>\s*$")
+SUB = re.compile(r"^\s*<sub>(.*)</sub>\s*$")
+TOOL_HEADING = re.compile(r"^###\s+`([^`]+)`\s*$")
+
+
+def inline(text):
+    """Escape, then mark up `code` and **bold** in the escaped text, where no tag can hide."""
+    out = html.escape(text, quote=True)
+    out = re.sub(r"`([^`]+)`", r"<code>\1</code>", out)
+    return re.sub(r"\*\*([^*]+)\*\*", r"<b>\1</b>", out)
+
+
+def render_transcript(markdown, title):
+    """Copilot's --share Markdown as a readable page: roles, tool calls, collapsible arguments and output."""
+    body, para, quote, items, code = [], [], [], [], []
+    in_code = False
+
+    def flush():
+        if para:
+            body.append("<p>%s</p>" % "<br>".join(inline(p) for p in para))
+            para.clear()
+        if quote:
+            body.append('<blockquote>%s</blockquote>' % "<br>".join(inline(q) for q in quote))
+            quote.clear()
+        if items:
+            body.append("<ul>%s</ul>" % "".join("<li>%s</li>" % inline(i) for i in items))
+            items.clear()
+
+    for line in markdown.splitlines():
+        if in_code:
+            if FENCE.match(line):
+                body.append("<pre><code>%s</code></pre>" % "\n".join(code))
+                code.clear()
+                in_code = False
+            else:
+                code.append(html.escape(line))
+            continue
+        if FENCE.match(line):
+            flush()
+            in_code = True
+            continue
+        stripped = line.strip()
+        tool = TOOL_HEADING.match(stripped)
+        heading = HEADING.match(stripped)
+        summary = SUMMARY.match(line)
+        sub = SUB.match(line)
+        if stripped in ("<details>", "</details>"):
+            flush()
+            body.append(stripped)
+        elif summary:
+            flush()
+            body.append("<summary>%s</summary>" % inline(summary.group(1)))
+        elif sub:
+            flush()
+            body.append('<div class="time">%s</div>' % html.escape(sub.group(1)))
+        elif tool:
+            flush()
+            body.append('<h3 class="tool"><span>tool</span> %s</h3>' % html.escape(tool.group(1)))
+        elif heading:
+            flush()
+            level, text = len(heading.group(1)), heading.group(2)
+            role = text.strip().lower()
+            cls = ' class="role %s"' % role if role in ("user", "copilot", "assistant") else ""
+            body.append("<h%d%s>%s</h%d>" % (level, cls, inline(text), level))
+        elif stripped == "---":
+            flush()
+            body.append("<hr>")
+        elif stripped.startswith(">"):
+            quote.append(stripped.lstrip(">").strip().replace("[!NOTE]", "Note"))
+        elif re.match(r"^[-*]\s+", stripped):
+            items.append(re.sub(r"^[-*]\s+", "", stripped))
+        elif not stripped:
+            flush()
+        else:
+            para.append(stripped)
+    flush()
+    if in_code:
+        body.append("<pre><code>%s</code></pre>" % "\n".join(code))
+    return TRANSCRIPT_PAGE.replace("__TITLE__", html.escape(title)).replace("__BODY__", "\n".join(body))
+
+
+TRANSCRIPT_PAGE = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<style>
+:root{--bg:#f6f7fb;--panel:#fff;--ink:#151a2d;--muted:#5b6380;--line:#dde2ee;--accent:#2f4bd8;--user:#e6eafd;--bot:#e1f3ea;--tool:#efe8fb;color-scheme:light}
+@media (prefers-color-scheme: dark){:root{--bg:#0f1220;--panel:#171b2e;--ink:#e7eaf6;--muted:#9aa3c2;--line:#2a3050;--accent:#8fa2ff;--user:#232b55;--bot:#123425;--tool:#2a2148;color-scheme:dark}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:980px;margin:0 auto;padding:24px 16px 64px}
+.path{font:12px ui-monospace,Menlo,Consolas,monospace;color:var(--muted);overflow-wrap:anywhere}
+h1{font-size:1.5rem;margin:.2em 0 .6em} h2{font-size:1.2rem} h3{font-size:1rem;margin:1.2em 0 .4em}
+h3.role{display:inline-block;padding:3px 12px;border-radius:999px}
+h3.role.user{background:var(--user)} h3.role.copilot,h3.role.assistant{background:var(--bot)}
+h3.tool{font:600 .9rem ui-monospace,Menlo,Consolas,monospace;background:var(--tool);padding:6px 10px;border-radius:8px}
+h3.tool span{font:500 .7rem system-ui,sans-serif;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-right:6px}
+.time{font:12px ui-monospace,Menlo,Consolas,monospace;color:var(--muted);margin-top:14px}
+hr{border:0;border-top:1px solid var(--line);margin:14px 0}
+blockquote{margin:0 0 12px;padding:10px 14px;background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--muted);font-size:.9rem}
+details{margin:6px 0;background:var(--panel);border:1px solid var(--line);border-radius:8px}
+summary{cursor:pointer;padding:6px 10px;color:var(--muted);font-size:.85rem}
+pre{margin:0;padding:10px 12px;overflow-x:auto;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+details pre{border-top:1px solid var(--line)}
+p{margin:.4em 0;max-width:80ch} code{font:12.5px ui-monospace,Menlo,Consolas,monospace;background:var(--panel);padding:1px 5px;border-radius:4px}
+</style></head><body><main><div class="path">__TITLE__</div>
+__BODY__
+</main></body></html>
+"""
+
+
 class Manager:
     """The state the handlers share: the token and at most one job."""
 
@@ -412,7 +530,7 @@ def make_handler(state, port_ref):
             host = (self.headers.get("Host") or "").lower()
             return host in ("127.0.0.1:%d" % port_ref[0], "localhost:%d" % port_ref[0])
 
-        def _send(self, code, payload, kind="application/json; charset=utf-8"):
+        def _send(self, code, payload, kind="application/json; charset=utf-8", csp=None):
             data = payload if isinstance(payload, bytes) else json.dumps(payload).encode("utf-8")
             self.send_response(code)
             self.send_header("Content-Type", kind)
@@ -420,6 +538,8 @@ def make_handler(state, port_ref):
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("Referrer-Policy", "no-referrer")
+            if csp:
+                self.send_header("Content-Security-Policy", csp)
             self.end_headers()
             self.wfile.write(data)
 
@@ -442,7 +562,11 @@ def make_handler(state, port_ref):
                 if not path:
                     return self._send(404, {"error": "no such transcript"})
                 with open(path, "rb") as fh:
-                    return self._send(200, fh.read(), "text/plain; charset=utf-8")
+                    data = fh.read()
+                if path.endswith(".md") and "raw" not in parse_qs(url.query):
+                    page = render_transcript(data.decode("utf-8", "replace"), os.path.relpath(path, REPO))
+                    return self._send(200, page.encode("utf-8"), "text/html; charset=utf-8", csp=TRANSCRIPT_CSP)
+                return self._send(200, data, "text/plain; charset=utf-8")
             if url.path == "/api/state":
                 return self._send(200, state.state())
             if url.path == "/api/installed":
