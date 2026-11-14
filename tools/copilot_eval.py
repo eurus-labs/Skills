@@ -46,7 +46,7 @@ import tempfile
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from build_eval_board import frontmatter, read, unquote  # noqa: E402
+from build_eval_board import SKILL_IN_MATCH, frontmatter, read, unquote  # noqa: E402
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TARGET_PATH = re.compile(r"path:\s*([^,}]+)")
@@ -156,9 +156,55 @@ def auto_grade(grader, workspace, before=frozenset()):
     return None
 
 
+def skill_of(grader):
+    """The skill a `tool_used: Skill` grader is about, or None."""
+    if grader["type"] != "tool_used" or grader["tool"] != "Skill":
+        return None
+    found = SKILL_IN_MATCH.search(grader["match"])
+    return found.group(1) if found else None
+
+
+def fact_question(grader):
+    """(question, the answer that passes) for a tool_used grader, asked as a plain fact, or None.
+
+    The graders state a rule ("must NOT call Skill … setup-verification"); asking "passed?" about a rule
+    that forbids something made the person invert it in their head. The person says what happened, and
+    the script works out whether that passes."""
+    if grader["type"] != "tool_used":
+        return None
+    if grader["max"] == 0:
+        passing = "n"
+    elif grader["max"] is None and grader["min"] >= 1:
+        passing = "y"
+    else:
+        return None
+    tool, match, skill = grader["tool"], grader["match"], skill_of(grader)
+    if skill:
+        question = "Did Copilot use the skill `%s`?" % skill
+    elif tool in ("Edit", "Write") and not match:
+        question = "Did Copilot change or create any file?" if tool == "Edit" else "Did Copilot write a new file?"
+    elif tool == "Bash":
+        question = ("Did Copilot run a shell command matching %s?" % match) if match else "Did Copilot run any shell command?"
+    else:
+        question = "Did Copilot call %s%s?" % (tool, " with input matching %s" % match if match else "")
+    return question, passing
+
+
+def reply_for(grader, passed):
+    """The answer a person gives to make this grader pass (or fail); used by the tests."""
+    fact = fact_question(grader)
+    if fact is None:
+        return "y" if passed else "n"
+    return fact[1] if passed else ("n" if fact[1] == "y" else "y")
+
+
 def hints(grader, transcript):
-    """Transcript lines matching the grader's pattern: a hint for the person grading, never a verdict."""
-    pattern = grader["match"] or (grader["pattern"] if grader["type"] == "regex" else "")
+    """Transcript lines matching the grader's pattern: a hint for the person grading, never a verdict.
+
+    A Skill grader's pattern is the JSON Claude Code writes for a skill call, which Copilot's transcript
+    does not contain, so for those the hint is any line naming the skill."""
+    skill = skill_of(grader)
+    pattern = re.escape(skill) if skill else (grader["match"] or (grader["pattern"] if grader["type"] == "regex" else ""))
     if not pattern or not transcript:
         return []
     try:
@@ -199,11 +245,20 @@ def grade_run(case, arm, workspace, transcript, answer=input, before=frozenset()
         if verdict is None:
             print("\n  [%s] %s%s" % (grader["name"], grader["type"],
                                      "" if scored(grader) else " (shows whether the plugin fired; not scored)"))
-            print("  " + describe(grader).replace("\n", "\n  "))
-            for line in hints(grader, transcript):
+            fact = fact_question(grader)
+            if not fact:
+                print("  " + describe(grader).replace("\n", "\n  "))
+            found = hints(grader, transcript)
+            for line in found:
                 print("    transcript: %s" % line)
-            reply = ask("  passed? [y/n/s=skip] ", ("y", "n", "s"), answer)
-            verdict = None if reply == "s" else reply == "y"
+            if fact and transcript and not found:
+                print("    transcript: no line matches")
+            if fact:
+                reply = ask("  %s [y/n/s=skip] " % fact[0], ("y", "n", "s"), answer)
+                verdict = None if reply == "s" else reply == fact[1]
+            else:
+                reply = ask("  passed? [y/n/s=skip] ", ("y", "n", "s"), answer)
+                verdict = None if reply == "s" else reply == "y"
             how = "skipped" if reply == "s" else "graded by hand"
         else:
             print("  [%s] %s -- %s" % (grader["name"], "pass" if verdict else "FAIL", how))
