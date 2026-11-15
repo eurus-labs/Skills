@@ -18,8 +18,10 @@ Write repository documentation in English; converse in the user's language.
 ## Start Each Task
 
 1. Read this file, `CONTRIBUTING.md`, and the `.github/instructions/` files scoped to what you will touch.
-2. Identify the requested outcome and any decisions already approved in the conversation. Do not restart
-   discovery for settled decisions.
+2. Identify the requested outcome and any decisions already approved in the conversation or in a plan in
+   `doc/` (or one the user names, on any branch). Do not restart discovery for settled decisions. Read such a
+   plan fully before editing and implement its decisions as written; if one conflicts with the code or looks
+   wrong, stop and ask rather than re-deciding it. A later user decision overrides an older plan.
 3. Discover the plan relevant to the task: user-provided references first, then `doc/` (read the file names),
    then search by plugin, skill, or affected script. Check scope and superseding decisions before applying a
    document; do not pick it for being newest. If none applies, say so and plan at the task's scale.
