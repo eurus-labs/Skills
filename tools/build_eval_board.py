@@ -752,7 +752,10 @@ function formOf(k, el){
 }
 
 /* The job: polled once a second while it runs. */
-const JOB = {active:false, timer:null, last:null, refresh:null, questionId:null, answered:null};
+const JOB = {active:false, timer:null, last:null, refresh:null, questionId:null, answered:null, seen:true};
+/* Polling redraws the Run view every second. Replace an element's markup only when it changed, so the
+   focused answer button, Stop or transcript link stays in the page and keeps the keyboard focus. */
+function setHTML(el, html){ if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; } }
 async function api(path, body){
   const res = await fetch(path, {method: body ? "POST" : "GET", headers: {"X-Board-Token": SERVER.token, "Content-Type": "application/json"},
     body: body ? JSON.stringify(body) : undefined});
@@ -781,14 +784,14 @@ function renderRun(){
   const j = JOB.last;
   $("runback").textContent = state.back === "install" ? t("backInstall") : t("backEvals");
   $("outputlabel").textContent = t("output");
-  if (!j || j.status === "idle") { $("runhead").innerHTML = ""; $("runside").innerHTML = ""; $("runlog").textContent = ""; return; }
+  if (!j || j.status === "idle") { setHTML($("runhead"), ""); setHTML($("runside"), ""); $("runlog").textContent = ""; return; }
   const p = j.progress, cls = j.status === "done" ? "ok" : j.status === "failed" ? "bad" : j.question ? "warn" : "idle";
-  $("runhead").innerHTML = `<h2>${esc(j.title)}</h2><span class="pill ${cls}">${esc(statusLabel(j))}</span>
+  setHTML($("runhead"), `<h2>${esc(j.title)}</h2><span class="pill ${cls}">${esc(statusLabel(j))}</span>
     <span class="pill idle">${esc(hostOf(j.host).label)}${j.model ? " · " + esc(j.model) : ""}</span>
     ${p ? `<span class="muted">${esc(fill(t(j.kind === "eval" ? "caseOf" : "stepOf"), {i: p.index, n: p.total}))}${p.item && p.total > 1 ? ": <b class=\"mono\">" + esc(p.item) + "</b>" : ""}</span>` : ""}
     ${j.maxCostUsd != null ? `<span class="muted">${esc(fill(t("costCeil"), {c: j.maxCostUsd}))}</span>` : ""}
     <span class="spacer"></span>
-    ${j.status === "running" ? `<button type="button" class="btn danger" data-stop="1" title="${esc(t("stopHint"))}"${j.stopping ? " disabled" : ""}>${t("stop")}</button>` : ""}`;
+    ${j.status === "running" ? `<button type="button" class="btn danger" data-stop="1" title="${esc(t("stopHint"))}"${j.stopping ? " disabled" : ""}>${t("stop")}</button>` : ""}`);
   const pct = j.status !== "running" ? 100 : p ? Math.max(3, (p.index - 1) / p.total * 100) : 3;
   $("runbar").style.width = pct + "%";
   let card;
@@ -810,14 +813,15 @@ function renderRun(){
   const tl = j.tally || {};
   const tally = j.kind === "eval" ? `<div class="card"><span class="eyebrow">${t("tally")}</span><div class="tally">
       <span style="color:var(--ok)">✓ <b>${tl.y || 0}</b></span><span style="color:var(--bad)">✕ <b>${tl.n || 0}</b></span><span>→ <b>${tl.s || 0}</b></span></div></div>` : "";
-  $("runside").innerHTML = card + (j.kind === "eval" ? `<div class="card"><span class="eyebrow">${t("transcripts")}</span><div class="actions">${links}</div></div>` : "") + tally;
+  setHTML($("runside"), card + (j.kind === "eval" ? `<div class="card"><span class="eyebrow">${t("transcripts")}</span><div class="actions">${links}</div></div>` : "") + tally);
   const log = $("runlog"), atEnd = log.scrollTop + log.clientHeight >= log.scrollHeight - 8;
   log.innerHTML = (j.log || []).map(l => { const k = lineKind(l); return `<span${k ? ` class="l-${k}"` : ""}>${esc(l) || " "}</span>`; }).join("");
   if (atEnd) log.scrollTop = log.scrollHeight;
 }
 function jobChip(){
   const j = JOB.last, chip = $("jobchip");
-  chip.hidden = !j || j.status === "idle" || state.view === "run" || (j.status !== "running" && !j.question);
+  /* A finished job keeps its chip until its output has been seen, so a fast failure is never lost. */
+  chip.hidden = !j || j.status === "idle" || state.view === "run" || (j.status !== "running" && JOB.seen);
   if (!chip.hidden) { chip.textContent = fill(t("jobChip"), {s: statusLabel(j), t: j.title}); chip.className = "pill " + (j.question ? "warn" : "idle"); }
 }
 async function poll(){
@@ -825,6 +829,7 @@ async function poll(){
   try {
     const j = await api("/api/job");
     const was = JOB.active; JOB.active = j.status === "running"; JOB.last = j;
+    if (state.view === "run" && !JOB.active) JOB.seen = true;
     if (state.view === "run") renderRun();
     jobChip(); if (state.view === "install") installTab();
     if (was !== JOB.active) renderEvals();
@@ -877,7 +882,8 @@ function installTab(){
   const c = state.installing, j = JOB.last;
   $("installconfirm").innerHTML = c ? `<div class="confirm"><span>${t("willRun")}</span><span class="cmd">${esc(commandText(c.host, c.action, c.plugins, c.source))}</span>
       <button type="button" class="btn" data-installgo="1"${JOB.active ? " disabled" : ""}>${t("confirm")}</button><button type="button" class="btn ghost" data-installno="1">${t("cancel")}</button></div>`
-    : j && j.kind === "install" && j.status === "running" ? `<div class="notice"><span>${esc(fill(t("installRunning"), {t: j.title}))}…</span><button type="button" class="btn ghost small" data-showrun="1">${t("showOutput")}</button></div>` : "";
+    : j && j.kind === "install" && (j.status === "running" || !JOB.seen)
+      ? `<div class="${j.status === "failed" ? "confirm" : "notice"}"><span>${esc(j.status === "running" ? fill(t("installRunning"), {t: j.title}) + "…" : j.title + ": " + statusLabel(j))}</span><button type="button" class="btn ghost small" data-showrun="1">${t("showOutput")}</button></div>` : "";
   const body = $("installbody"), host = hostOf(state.platform);
   if (!INSTALLED) { body.innerHTML = `<span class="muted">${t("loading")}</span>`; return; }
   if (INSTALLED.error) { body.innerHTML = `<span class="pill bad">${esc(INSTALLED.error)}</span>`; return; }
@@ -915,6 +921,7 @@ function setView(view){
   if (view === "install" && !SERVER) view = "evals";
   if (view !== "run") { state.back = view; try { localStorage.setItem("eval-board-tab", view); } catch (e) {} }
   state.view = view;
+  if (view === "run" && !JOB.active) JOB.seen = true;
   document.querySelectorAll("[data-tab]").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === view));
   document.querySelectorAll("[data-view]").forEach(p => { p.hidden = p.dataset.view !== view; });
   if (view === "run") renderRun();
@@ -978,7 +985,7 @@ document.addEventListener("click", async e => {
         const [plugin, ...rest] = k.split("/");
         await api("/api/run", Object.assign({plugin, case: rest.join("/")}, opts));
       }
-      JOB.refresh = "eval"; JOB.questionId = null; JOB.answered = null; state.back = "evals"; setView("run"); poll();
+      JOB.refresh = "eval"; JOB.seen = false; JOB.questionId = null; JOB.answered = null; state.back = "evals"; setView("run"); poll();
     } catch (err) { alertRun(err.message); }
     renderEvals(); return;
   }
@@ -1003,7 +1010,7 @@ document.addEventListener("click", async e => {
   if (el("[data-installgo]")) {
     const c = state.installing; state.installing = null;
     try { await api("/api/install", c.plugins ? {host: c.host, action: c.action, plugins: c.plugins} : {host: c.host, action: c.action, source: c.source});
-      JOB.refresh = "install"; poll(); }
+      JOB.refresh = "install"; JOB.seen = false; poll(); }
     catch (err) { alertRun(err.message); }
     installTab(); return;
   }

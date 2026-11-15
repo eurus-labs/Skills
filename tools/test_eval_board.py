@@ -199,6 +199,16 @@ class Page(unittest.TestCase):
         # Graders are tagged by kind in the case panel.
         self.assertIn('tool_used: "tool", llm: "llm", regex: "regex"', page)
 
+    def test_polling_keeps_focus_and_a_finished_job_stays_reachable(self):
+        page = board.board([], {})
+        # Redrawing the question card every second would drop the keyboard focus on the answer buttons.
+        self.assertIn('setHTML($("runside"), card', page)
+        self.assertIn('setHTML($("runhead"), `<h2>', page)
+        self.assertNotIn('$("runside").innerHTML', page)
+        # A job that ended before its output was opened keeps its chip and, for installs, its notice.
+        self.assertIn('(j.status !== "running" && JOB.seen)', page)
+        self.assertIn('(j.status === "running" || !JOB.seen)', page)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=1)
