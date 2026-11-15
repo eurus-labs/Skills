@@ -56,6 +56,11 @@ Use Problem → Design → Predict → Build → Validate → Learn.
 ## Plan and Implement
 
 - Scale the plan to the task. A small edit needs a short stated approach, not a new design document.
+- A plan handed to another session uses `doc/_plan-template.md`. The planning session creates the plan's
+  branch from `origin/main`, commits and pushes the plan there, then stops pushing to it. The implementing
+  session then owns that branch: it fetches and switches to it, commits there instead of on its own
+  branch, and starts only when the plan's `Status` is `approved`. Plan changes after hand-off go through
+  the user. One pull request carries the plan and its implementation.
 - A skill's own runtime checkpoints (asking the user, approvals) are for the skill's users, not rules requiring approval for every edit you make here.
 - Preserve unrelated local changes. Avoid destructive replacements without explicit authorization.
 - Reuse verified capabilities before adding abstractions or dependencies. Bundled scripts are stdlib-only Python 3.9+, except a named file-format requirement (`scripts.instructions.md`); add no application toolchain unless asked.
