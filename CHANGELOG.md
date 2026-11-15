@@ -22,11 +22,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and never grades a run whose Copilot process died.
 - **Skill manager** (for contributors): `python3 tools/skill_manager.py` serves one local page with two tabs.
   *Evals* shows each skill's goal, install state per host, eval coverage, latest results and a status, including
-  "changed since last run"; clicking a skill opens its eval cases, each with a Run form, and the skill can run
-  all its cases at once. *Install* installs, updates or removes plugins in Copilot CLI and Claude Code and
-  registers the marketplace. Runs and installs stream to the page, which asks grading questions with Yes, No and
-  Skip, and opens a run's Markdown transcript as a readable page (roles, tool calls with folded arguments and
-  output) that escapes everything the agent wrote. It listens on `127.0.0.1` with a token. The
+  "changed since last run", with search and status filters; a skill opens to a run-all bar and its cases, and a
+  case opens in a side panel with its Run form. *Install* shows one platform at a time and installs, updates or
+  removes plugins in Copilot CLI and Claude Code, with the buttons in fixed slots, and registers the
+  marketplace. A run opens a Run view with progress, Stop, the grading question with Yes (✓), No (✕) and
+  Skip (→), a tally of the answers, and the live output coloured by kind. The page opens a run's Markdown
+  transcript as a readable page (roles, tool calls with folded arguments and output) that escapes everything the
+  agent wrote. It listens on `127.0.0.1` with a token. The
   Copilot runner now asks `tool_used` graders as plain facts ("Did Copilot use the skill …?").
 - **Copilot eval runner** (for contributors): `python3 tools/copilot_eval.py plugins/<plugin>` runs a plugin's
   eval cases on GitHub Copilot CLI, with and without the plugin, each in a fresh scaffolded workspace. It

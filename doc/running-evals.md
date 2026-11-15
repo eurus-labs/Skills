@@ -228,23 +228,34 @@ python3 tools/skill_manager.py        # opens the manager in your browser
 
 One local page with two tabs, for people who develop the skills:
 
-- **Evals**: one row per skill with its goal, its plugin's version, whether that plugin is installed in Copilot CLI
-  and Claude Code (and whether the installed copy is older than this checkout), how many eval cases test it in each
-  direction (must fire · must stay quiet · behavior; a dashed red zero is an untested direction), the latest result
-  per host as "passing out of trusted", and a status: *no evals*, *not run*, *no trusted run*, *partly run*,
-  *needs work*, *passing*, plus *changed since last run* when the skill was committed after its newest result.
-  Click a skill to open its eval cases, grouped by direction. Each case shows its prompt, graders and run history,
-  and a **Run this case** form: host, arms, model, reasoning effort (Copilot) and cost ceiling (Claude).
-  **Run all cases…** on the skill's row runs every case of that skill in turn.
-- **Install**: each plugin's version in this checkout and in each host, with **Install**, **Update** and
-  **Uninstall** per plugin or for all, and **Register** the marketplace from this checkout or from GitHub. Each
-  action shows the exact command and runs only after you confirm.
+- **Evals**: one row per skill with its goal, its plugin's version, whether that plugin is installed in each host
+  (and whether the installed copy is older than this checkout), how many eval cases test it in each direction
+  (must fire · must stay quiet · behavior; a dashed red zero is an untested direction), the latest result per host
+  as "passing out of trusted", and a status: *no evals*, *not run*, *no trusted run*, *partly run*, *needs work*,
+  *passing*, plus *changed since last run* when the skill was committed after its newest result. Search by skill,
+  goal, plugin or case, and filter to *Not run* or *No evals*. Click a skill to open, in place, a **Run all N
+  cases** bar and its cases grouped by direction. Click a case to show it in the panel on the right: its prompt,
+  its graders tagged `tool`, `llm` or `regex`, its runs, and a **Run this case** form (host, arms, model,
+  reasoning effort for Copilot, cost ceiling for Claude).
+- **Install**: one button per platform, with a status dot and "x of 7 installed" or "not found on PATH". The
+  chosen platform shows where its marketplace is registered from (or that it is not, with the Register
+  buttons), and a table of plugins: the version here, the version in that host (green when current, amber
+  *older*, grey *disabled*, dashed *not installed*), and the actions in fixed slots, Install or Update first and
+  Uninstall second, with **Install all** and **Update all** above them. A host that is not on PATH shows how to
+  fix that instead. Every action shows its exact command and runs only after you confirm.
 
-A run starts the same runner you would start from a terminal (`tools/copilot_eval.py --run` or
-`claude plugin eval`), streams its output into a panel, and asks each grading question there with
-**Yes / No / Skip** buttons and links to the run's transcripts. A Markdown transcript opens as a readable page:
-roles, each tool call with its arguments and output folded, and timings; add `&raw=1` to the link for the file
-itself. The page escapes everything the agent wrote and may run no script. When a job ends the page reloads.
+Starting a run opens the **Run** view: the case it is on ("case 2 of 13"), the host and model, the cost ceiling
+for Claude, **Stop**, and a progress bar. On the left, the waiting grading question with **✓ Yes**, **✕ No** and
+**→ Skip**, the run's transcripts and a tally of your answers; on the right, the live output, coloured by kind
+(commands, sections, graders, passes, failures, questions, scores). **← Back** returns to the list while the run
+goes on; a chip in the header leads back to it. Installs stay on the Install tab with a *Running…* notice and a
+link to their output. A run starts the same runner you would start from a terminal
+(`tools/copilot_eval.py --run` or `claude plugin eval`). A Markdown transcript opens as a readable page: roles,
+each tool call with its arguments and output folded, and timings; add `&raw=1` to the link for the file itself.
+The page escapes everything the agent wrote and may run no script. When a job ends the scores reload.
+
+The hosts come from one list, `HOSTS` in `tools/build_eval_board.py`: the server builds its commands from it and
+the page draws its badges, run forms and platform buttons from it.
 
 - It listens on `127.0.0.1` only, accepts only `Host: 127.0.0.1` or `localhost`, and needs the random token in the
   URL it prints, so no other web page can drive it.

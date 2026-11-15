@@ -1,15 +1,13 @@
 # Skill manager — page redesign
 
-Status: **proposal**. Nothing here is implemented. It describes a redesign of the page that
-`tools/skill_manager.py` serves (markup and script in `tools/build_eval_board.py`), drawn as a
-clickable mock-up. The mock-up lives on a private design canvas and is not part of this repository.
+Status: **implemented** in `tools/build_eval_board.py` (the page) and `tools/skill_manager.py` (the server).
+This document records the design and the decisions taken; `doc/running-evals.md` describes the page as it is.
+The mock-up lives on a private design canvas and is not part of this repository.
 
 ## Baseline
 
-The design builds on the one-tab layout in branch `feat/tools-eval-board-one-tab`
-("fold the skills tab into the evals tab"), which is **not on `main` yet**. That branch replaces
-the Skills tab with an Evals tab whose skill rows open to their cases. `main` still has three tabs.
-Implementing this design should start after that branch merges, or on top of it.
+The design builds on the one-tab layout ("fold the skills tab into the evals tab", now on `main`),
+which replaced the Skills tab with an Evals tab whose skill rows open to their cases.
 
 What the page does today, and keeps doing:
 
@@ -79,17 +77,20 @@ What the page does today, and keeps doing:
   sources, the log lines and the third grading question are illustrative.
 - "[Next platform]" is a placeholder for a third host.
 
-## Open questions
+## Open questions, as decided in the implementation
 
-- **Install chips on Evals rows.** Per-host chips grow with every host. A count ("2 of 3
-  platforms") with detail on hover would scale; not decided.
-- **Hosts as data.** `HOSTS` is a fixed mapping in `tools/skill_manager.py`, and the page script
-  has its own host list. A selector only scales if both read one list.
-- **Not-registered state.** The page handles a host with no marketplace; the mock-up does not
-  draw it yet.
-- **Run view or corner panel.** The full view needs a way back to the case list while a job runs.
+| Question | Decision |
+| --- | --- |
+| Install chips on Evals rows | **One chip per host, kept.** With two hosts a count hides more than it saves. The chips are drawn from the host list, so switching to "x of y platforms" later changes one function |
+| Hosts as data | **One list**, `HOSTS` in `tools/build_eval_board.py`. The server builds its commands from its `exe` and the page reads the same list from its data; `/api/state` returns it too. Reading a new host's `plugin list --json` still needs code in `skill_manager.installed()` |
+| Not-registered state | The marketplace card says *not registered* and why it matters, offers the Register buttons, and the plugin actions are disabled until it is registered |
+| Run view or corner panel | **The full Run view.** **← Back** returns to the list while the run goes on, and a chip in the header leads back to the run. Installs stay on the Install tab with a *Running…* notice and a link to their output |
 
-## Implementing it
+Found while implementing: a stopped job kept its last question, so the page went on offering answer
+buttons for a run that had ended. `Job.stop()` now clears the question, and the page only offers answers
+while the job runs.
+
+## Implementing it (done)
 
 - Keep the server's rules unchanged: `127.0.0.1` only, the token, one job at a time, and commands
   built only by the server.

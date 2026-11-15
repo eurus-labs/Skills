@@ -171,13 +171,33 @@ class Page(unittest.TestCase):
     def test_skills_and_their_cases_share_one_evals_tab(self):
         page = board.board([], {})
         self.assertEqual(sorted(set(__import__("re").findall(r'data-tab="([a-z]+)"', page))), ["evals", "install"])
-        self.assertIn('data-panel="evals">', page, "Evals is the tab that opens first")
+        self.assertEqual(sorted(set(__import__("re").findall(r'data-view="([a-z]+)"', page))), ["evals", "install", "run"])
         self.assertIn("data-expand=", page, "a skill row opens to its cases")
-        self.assertIn('runFormFor(keyOf(c), c.name, t("runCase"))', page, "each case keeps its own run form")
+        self.assertIn('runFormFor(keyOf(c), c.name, t("runCase"))', page, "the case panel has the case's run form")
         self.assertIn('t("runAllOf")', page, "and the skill can run all its cases")
         # A case shared by two open skills has two forms; every read must take the form that was used.
         self.assertIn('formOf(k, go.closest("form"))', page)
         self.assertNotRegex(page, r"formOf\(\w+\)", "a bare formOf(k) reads the first copy on the page")
+
+    def test_the_redesign_keeps_its_decisions(self):
+        page = board.board([], {})
+        # Hosts are data: one list, embedded in the page and read by the server.
+        self.assertIn('"hosts": [{"id": "copilot"', page)
+        self.assertEqual([h["id"] for h in board.HOSTS], ["copilot", "claude"])
+        self.assertNotIn('const HOSTS = ["', page, "the page has no host list of its own")
+        # Search and the status filters.
+        self.assertIn('id="q"', page)
+        for f in ("all", "notrun", "noevals"):
+            self.assertIn('["%s", "f' % f, page)
+        # Grading buttons are tinted and carry an icon, so colour is not the only cue.
+        for c, icon in (("y", "✓"), ("n", "✕"), ("s", "→")):
+            self.assertIn('b("%s", "%s"' % (c, icon), page)
+        # Install: one platform at a time, fixed action slots, a fix for a host that is not on PATH.
+        self.assertIn('data-platform=', page)
+        self.assertIn('class="btn ghost small hold"', page, "an empty second slot keeps its width")
+        self.assertIn('t("fixPath")', page)
+        # Graders are tagged by kind in the case panel.
+        self.assertIn('tool_used: "tool", llm: "llm", regex: "regex"', page)
 
 
 if __name__ == "__main__":

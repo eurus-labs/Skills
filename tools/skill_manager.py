@@ -4,16 +4,16 @@
 For people who develop the skills in this repository. It serves one local page with two tabs:
 
 - Evals: the eval board (tools/build_eval_board.py). One row per skill with its goal, its plugin's
-  version, whether that plugin is installed in Copilot CLI and Claude Code, eval coverage in three
-  directions (must fire, must stay quiet, behavior), the latest score per host, and a status,
-  including "changed since last run" when the skill was committed after its latest result. A row
-  opens to the skill's cases, each with a Run form; "Run all cases" runs every case of the skill.
-- Install: each plugin's version in this checkout and the version installed in each host, with
-  Install, Update and Uninstall, and registering the marketplace from this checkout or from GitHub.
+  version, its install state per host, eval coverage in three directions (must fire, must stay quiet,
+  behavior), the latest score per host, and a status, including "changed since last run". Search and
+  filter the skills; a skill opens to a "Run all" bar and its cases, and a case opens in a side panel
+  with its prompt, graders, runs and a Run form.
+- Install: one platform at a time, with its marketplace registration and a plugin table whose
+  Install/Update and Uninstall buttons sit in fixed slots.
 
-A run starts tools/copilot_eval.py (Copilot CLI) or `claude plugin eval` (Claude Code) on this
-machine, streams the output to the page, and asks the grading questions there with Yes, No and Skip
-buttons. When it ends, the page reloads.
+A run opens a Run view: progress through its cases, Stop, the waiting grading question with Yes, No
+and Skip, the transcripts, a tally of the answers, and the live output. It starts tools/copilot_eval.py
+(Copilot CLI) or `claude plugin eval` (Claude Code) on this machine. The hosts are build_eval_board.HOSTS.
 
     python3 tools/skill_manager.py              # opens http://127.0.0.1:<port>/?token=…
     python3 tools/skill_manager.py --port 8765 --no-open
@@ -63,7 +63,7 @@ MODEL = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$")
 EFFORTS = ("", "none", "minimal", "low", "medium", "high", "xhigh", "max")
 # "[y/n/s=skip]": a label may not contain "/" or "]", so each option matches one way only (no backtracking).
 CHOICES = re.compile(r"\[([a-z](?:/[a-z](?:=[^\]/]*)?)+)\]\s*$")
-HOSTS = {"copilot": "copilot", "claude": "claude"}
+HOSTS = {h["id"]: h["exe"] for h in board.HOSTS}  # host id -> executable; the page reads the same list
 STOP = object()
 spawn = subprocess.Popen  # the one place a long-running command starts; the tests replace it
 
@@ -101,9 +101,14 @@ class Job:
         self.stopping = threading.Event()
         self.proc = None
         self.started = time.time()
+        self.progress = None  # {"index": 1-based, "total": n, "item": the case or plugin being worked on}
+        self.tally = {}  # replies given so far, by choice
 
     def log(self, line):
         self.lines.append(line)
+
+    def step(self, index, total, item):
+        self.progress = {"index": index, "total": total, "item": item}
 
     def ask(self, prompt=""):
         """The `answer` callable copilot_eval.main uses: the question goes to the page and waits."""
@@ -117,6 +122,7 @@ class Job:
             self.asked += 1
             self.question = {"id": self.asked, "text": CHOICES.sub("", text).strip(),
                              "choices": [c.split("=")[0] for c in found.group(1).split("/")] if found else ["y", "n"]}
+            self.log("? " + self.question["text"])
         reply = self.answers.get()
         if reply is STOP:
             raise KeyboardInterrupt
@@ -134,19 +140,28 @@ class Job:
             if reply not in question["choices"]:
                 return "answer one of %s" % "/".join(question["choices"])
             self.question = None
+            self.tally[reply] = self.tally.get(reply, 0) + 1
+            self.log("  answered: %s" % reply)
             self.answers.put(reply)
         return None
 
     def stop(self):
         self.stopping.set()
+        with self.answer_lock:
+            self.question = None  # nothing waits on it any more; a stopped job must not show answer buttons
         self.answers.put(STOP)
         if self.proc and self.proc.poll() is None:
             self.proc.terminate()
 
     def snapshot(self):
-        return {"status": self.status, "kind": self.spec["kind"], "title": self.spec["title"],
-                "host": self.spec["host"], "question": self.question, "log": list(self.lines),
-                "seconds": round(time.time() - self.started)}
+        spec = self.spec
+        return {"status": self.status, "kind": spec["kind"], "title": spec["title"],
+                "host": spec["host"], "question": self.question, "log": list(self.lines),
+                "seconds": round(time.time() - self.started), "progress": self.progress,
+                "tally": dict(self.tally), "stopping": self.stopping.is_set(),
+                "arms": spec.get("arms"), "model": spec.get("model") or None,
+                # Only claude plugin eval takes a cost ceiling; the Copilot runner has none to show.
+                "maxCostUsd": spec.get("max_cost_usd") if spec["host"] == "claude" else None}
 
 
 def stream(job, command):
@@ -170,6 +185,7 @@ def run_copilot(job, spec):
         for index, case in enumerate(spec["cases"]):
             if job.stopping.is_set():
                 break
+            job.step(index + 1, len(spec["cases"]), case)
             argv = [os.path.join(REPO, "plugins", spec["plugin"]), "--case", case, "--arms",
                     "with" if spec["arms"] == "with" else "with,without", "--run"]
             if index:
@@ -207,9 +223,10 @@ def claude_command(spec, case, kind, claude):
 def run_claude(job, spec, kinds):
     claude = shutil.which("claude")
     failed = False
-    for case in spec["cases"]:
+    for index, case in enumerate(spec["cases"]):
         if job.stopping.is_set():
             break
+        job.step(index + 1, len(spec["cases"]), case)
         code = stream(job, claude_command(spec, case, kinds[case], claude))
         if code not in (0,) and not job.stopping.is_set():
             failed = True
@@ -231,10 +248,11 @@ def plugin_command(host, action, plugin=None, source=None):
     raise ValueError("unknown action")
 
 
-def run_commands(job, commands):
-    for command in commands:
+def run_commands(job, commands, items=None):
+    for index, command in enumerate(commands):
         if job.stopping.is_set():
             break
+        job.step(index + 1, len(commands), (items or [None] * len(commands))[index])
         code = stream(job, command)
         if code != 0 and not job.stopping.is_set():
             job.status = "failed"
@@ -437,7 +455,7 @@ class Manager:
         return board.catalog()
 
     def state(self):
-        return {"plugins": self.catalog(), "results": board.load_results(board.result_files())}
+        return {"plugins": self.catalog(), "results": board.load_results(board.result_files()), "hosts": board.HOSTS}
 
     def _claim(self, spec, target):
         with self.lock:
@@ -473,7 +491,7 @@ class Manager:
             raise ValueError("unknown case: %s/%s" % (plugin, unknown[0]))
         host = body.get("host")
         if host not in HOSTS:
-            raise ValueError("host must be copilot or claude")
+            raise ValueError("host must be one of: %s" % ", ".join(HOSTS))
         arms = body.get("arms", "both")
         if arms not in ("both", "with"):
             raise ValueError("arms must be both or with")
@@ -501,7 +519,7 @@ class Manager:
     def run_install(self, body):
         host = body.get("host")
         if host not in HOSTS:
-            raise ValueError("host must be copilot or claude")
+            raise ValueError("host must be one of: %s" % ", ".join(HOSTS))
         if not shutil.which(HOSTS[host]):
             raise ValueError("%s is not on PATH" % HOSTS[host])
         action = body.get("action")
@@ -515,20 +533,23 @@ class Manager:
             if bad:
                 raise ValueError("unknown plugin: %s" % bad[0])
             commands = [plugin_command(host, action, p) for p in plugins]
+            items = plugins
             title = "%s %s" % (action, plugins[0] if len(plugins) == 1 else "%d plugins" % len(plugins))
         elif action == "marketplace-add":
             source = body.get("source")
             if source not in ("checkout", "github"):
                 raise ValueError("source must be checkout or github")
             commands = [plugin_command(host, action, source=source)]
+            items = None
             title = "register the marketplace from %s" % ("this checkout" if source == "checkout" else GITHUB_SOURCE)
         elif action == "marketplace-update":
             commands = [plugin_command(host, action)]
+            items = None
             title = "update the marketplace"
         else:
             raise ValueError("unknown action")
         spec = {"kind": "install", "title": title, "host": host}
-        return self._claim(spec, lambda job: run_commands(job, commands))
+        return self._claim(spec, lambda job: run_commands(job, commands, items))
 
 
 def make_handler(state, port_ref):
