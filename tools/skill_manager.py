@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """Skill manager: see every skill's goal, install state and eval status, install plugins, and run evals.
 
-For people who develop the skills in this repository. It serves one local page with three tabs:
+For people who develop the skills in this repository. It serves one local page with two tabs:
 
-- Skills: one row per skill with its goal, its plugin's version, whether that plugin is installed in
-  Copilot CLI and Claude Code, eval coverage in three directions (must fire, must stay quiet,
-  behavior), the latest score per host, and a status, including "changed since last run" when the
-  skill was committed after its latest result. "Run all cases" runs every case of the skill.
+- Evals: the eval board (tools/build_eval_board.py). One row per skill with its goal, its plugin's
+  version, whether that plugin is installed in Copilot CLI and Claude Code, eval coverage in three
+  directions (must fire, must stay quiet, behavior), the latest score per host, and a status,
+  including "changed since last run" when the skill was committed after its latest result. A row
+  opens to the skill's cases, each with a Run form; "Run all cases" runs every case of the skill.
 - Install: each plugin's version in this checkout and the version installed in each host, with
   Install, Update and Uninstall, and registering the marketplace from this checkout or from GitHub.
-- Evals: the eval board (tools/build_eval_board.py), with a Run form on every case.
 
 A run starts tools/copilot_eval.py (Copilot CLI) or `claude plugin eval` (Claude Code) on this
 machine, streams the output to the page, and asks the grading questions there with Yes, No and Skip

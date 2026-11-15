@@ -226,19 +226,19 @@ The result is written to `plugins/<plugin>/evals/results/copilot-<time>/aggregat
 python3 tools/skill_manager.py        # opens the manager in your browser
 ```
 
-One local page with three tabs, for people who develop the skills:
+One local page with two tabs, for people who develop the skills:
 
-- **Skills**: one row per skill with its goal, its plugin's version, whether that plugin is installed in Copilot CLI
+- **Evals**: one row per skill with its goal, its plugin's version, whether that plugin is installed in Copilot CLI
   and Claude Code (and whether the installed copy is older than this checkout), how many eval cases test it in each
   direction (must fire · must stay quiet · behavior; a dashed red zero is an untested direction), the latest result
   per host as "passing out of trusted", and a status: *no evals*, *not run*, *no trusted run*, *partly run*,
   *needs work*, *passing*, plus *changed since last run* when the skill was committed after its newest result.
-  **Run all cases…** runs every case of that skill in turn.
+  Click a skill to open its eval cases, grouped by direction. Each case shows its prompt, graders and run history,
+  and a **Run this case** form: host, arms, model, reasoning effort (Copilot) and cost ceiling (Claude).
+  **Run all cases…** on the skill's row runs every case of that skill in turn.
 - **Install**: each plugin's version in this checkout and in each host, with **Install**, **Update** and
   **Uninstall** per plugin or for all, and **Register** the marketplace from this checkout or from GitHub. Each
   action shows the exact command and runs only after you confirm.
-- **Evals**: the eval board, with a **Run this case** form on every case: host, arms, model, reasoning effort
-  (Copilot) and cost ceiling (Claude).
 
 A run starts the same runner you would start from a terminal (`tools/copilot_eval.py --run` or
 `claude plugin eval`), streams its output into a panel, and asks each grading question there with
