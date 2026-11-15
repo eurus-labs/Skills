@@ -69,7 +69,12 @@ class Access(Server):
         status, page = self.request("GET", "/?token=t0k3n", token=None)
         self.assertEqual(status, 200)
         self.assertIn('const SERVER = {"token": "t0k3n"}', page)
-        self.assertIn('id="runpanel"', page)
+        self.assertIn('data-view="run"', page)
+        self.assertIn('"hosts": [{"id": "copilot"', page, "the page draws its hosts from the server's list")
+
+    def test_the_server_and_the_page_read_one_host_list(self):
+        self.assertEqual(ebs.HOSTS, {h["id"]: h["exe"] for h in ebs.board.HOSTS})
+        self.assertEqual(self.request("GET", "/api/state")[1]["hosts"], ebs.board.HOSTS)
 
     def test_the_api_needs_the_token_header(self):
         self.assertEqual(self.request("GET", "/api/job", token=None)[0], 403)
@@ -281,6 +286,13 @@ class CopilotRun(Server):
         self.assertEqual(job["status"], "done")
         self.assertEqual(seen["reply"], "n")
         self.assertIn("  -> score 1.00", job["log"])
+        # What the Run view shows: where the job is, what was answered, and the question in the output.
+        self.assertEqual(job["progress"], {"index": 1, "total": 1, "item": "none-implement-feature"})
+        self.assertEqual(job["tally"], {"n": 1})
+        self.assertIn("? Did Copilot use the skill `setup-verification`?", job["log"])
+        self.assertIn("  answered: n", job["log"])
+        self.assertIsNone(job["maxCostUsd"], "the Copilot runner takes no cost ceiling, so none is shown")
+        self.assertEqual(job["model"], "claude-haiku-5.5")
         argv = seen["argv"]
         self.assertEqual(argv[argv.index("--case") + 1], "none-implement-feature")
         self.assertEqual(argv[argv.index("--arms") + 1], "with")
@@ -301,6 +313,7 @@ class CopilotRun(Server):
             self.assertEqual(self.request("POST", "/api/stop", {})[0], 200)
             job = self.wait_for(lambda j: j["status"] != "running")
         self.assertEqual(job["status"], "stopped")
+        self.assertIsNone(job["question"], "a stopped job asks nothing: no answer buttons on a dead run")
 
     def test_a_refused_copilot_is_a_failed_run_with_the_reason(self):
         def fake_main(argv, answer):
@@ -352,6 +365,7 @@ class ClaudeRun(Server):
         log = "\n".join(job["log"])
         self.assertIn("Not logged in", log)
         self.assertIn("never passes --trust-plugin", log)
+        self.assertEqual(job["maxCostUsd"], 2.0, "a Claude run shows the cost ceiling it was given")
 
 
 class SkillRuns(Server):
@@ -373,6 +387,7 @@ class SkillRuns(Server):
         self.assertEqual([a[a.index("--case") + 1] for a in calls], cases)
         self.assertNotIn("--no-check", calls[0])
         self.assertIn("--no-check", calls[1])
+        self.assertEqual(job["progress"], {"index": 2, "total": 2, "item": "verify-change-working-tree"})
 
     def test_a_list_with_an_unknown_case_is_refused(self):
         with patch("shutil.which", side_effect=on_path("copilot")):
