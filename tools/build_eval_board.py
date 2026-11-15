@@ -661,7 +661,7 @@ document.addEventListener("click", async e => {
   if (e.target.closest("[data-nogo]")) { state.confirming = null; renderAll(); return; }
   const go = e.target.closest("[data-go]");
   if (go) {
-    const k = go.dataset.go, f = formOf(k) || {};
+    const k = go.dataset.go, f = formOf(k, go.closest("form")) || {};
     state.confirming = null;
     const opts = {host: f.host || "copilot", arms: f.arms || "both", model: f.model || "", effort: f.effort || "",
       max_cost_usd: parseFloat(f.cost || "2")};

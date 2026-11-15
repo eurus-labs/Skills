@@ -175,6 +175,9 @@ class Page(unittest.TestCase):
         self.assertIn("data-expand=", page, "a skill row opens to its cases")
         self.assertIn('runFormFor(keyOf(c), c.name, t("runCase"))', page, "each case keeps its own run form")
         self.assertIn('t("runAllOf")', page, "and the skill can run all its cases")
+        # A case shared by two open skills has two forms; every read must take the form that was used.
+        self.assertIn('formOf(k, go.closest("form"))', page)
+        self.assertNotRegex(page, r"formOf\(\w+\)", "a bare formOf(k) reads the first copy on the page")
 
 
 if __name__ == "__main__":
