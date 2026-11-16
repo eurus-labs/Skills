@@ -8,7 +8,7 @@ considered.
 
 # Plan N — <title>
 
-Status: draft | approved | implemented — *the user sets `approved`; implementation starts only then*
+Status: draft | approved | implemented — *the user sets `approved` (the planner commits it); the coder sets `implemented` in its last commit; implementation starts only at `approved`*
 Date: YYYY-MM-DD
 Branch: `<branch name>` — *created from the latest default branch by the planning session; implement here*
 Baseline: `<default branch>` at `<sha>` — *if the default branch has moved, rebase and re-check the Baseline section*

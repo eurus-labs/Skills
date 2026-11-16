@@ -56,23 +56,24 @@ Use Problem → Design → Predict → Build → Validate → Learn.
 ## Plan and Implement
 
 - Scale the plan to the task. A small edit needs a short stated approach, not a new design document.
-- A plan handed to another session uses the template bundled with the `write-plan` skill
+- A plan handed to a coder uses the template bundled with the `write-plan` skill
   (`plugins/reasoning/skills/write-plan/references/plan-template.md`). The planning session creates the plan's
   branch from `origin/main`, commits and pushes the plan there, then stops pushing to it. After the user
-  approves, it hands the plan over: by messaging tool to the implementer session the user names, otherwise as
-  a message for the user to paste. The implementing session then owns that branch: it fetches and switches to
-  it, commits there instead of on its own branch, starts only when the plan's `Status` is `approved`, and
-  never opens a pull request or merges. When its work is pushed it tells the planning session the branch is
-  ready for review (by messaging tool where available, otherwise the user). The planning session reviews the
-  branch against the plan's acceptance criteria and opens the pull request; it merges only when the user asks.
-  Plan changes after hand-off go through the user. One pull request carries the plan and its implementation.
-  Never write session ids into committed files.
+  approves, the `coder-handoff` skill pushes `Status: approved` (its last push) and dispatches the plan to a
+  subagent on the implementing model (in Claude Code, the Agent tool with `model: sonnet` and
+  `isolation: worktree`); where the host cannot start a subagent, it stops and tells the user to run the plan
+  with `implement`. The subagent works and commits on the plan's branch, starts only when `Status` is
+  `approved`, never opens a pull request or merges, and makes its last commit change only `Status` to
+  `implemented`. Its final report returns to the planning session, which reviews the branch against the
+  plan's acceptance criteria and opens the pull request only when all are met; it merges only when the user
+  asks. Plan changes after hand-off go through the user. One pull request carries the plan and its
+  implementation. Never write session ids into committed files.
 - A skill's own runtime checkpoints (asking the user, approvals) are for the skill's users, not rules requiring approval for every edit you make here.
 - Preserve unrelated local changes. Avoid destructive replacements without explicit authorization.
 - Reuse verified capabilities before adding abstractions or dependencies. Bundled scripts are stdlib-only Python 3.9+, except a named file-format requirement (`scripts.instructions.md`); add no application toolchain unless asked.
 - If delegating, give the goal, inputs, output contract, allowed scope, and acceptance checks; review returned artifacts rather than trusting completion summaries.
 - Keep requirements, assumptions, decisions, and observed results distinct in the PR description (and `doc/` for lasting design).
-- Do not create a pull request unless asked, except the planning session of a handed-off plan (above).
+- Do not create a pull request unless asked, except the planning session of a handed-off plan, which opens it after review (above).
 
 ## Validate and Report
 
