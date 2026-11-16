@@ -29,7 +29,8 @@ The subagent's final report returns to the planner directly, so nothing else wak
   draft; this skill starts at approval.
 - **Advice, a comparison, or "how would you…" in the conversation** — use `design-solution`.
 - **The user wants the plan built by this session** — use `implement` from the `development` plugin.
-- **A plan whose `Status` is still `draft`** — the user has not approved it. Do not set `approved` on your own.
+- **A `draft` plan the user has not approved in the conversation.** Do not set `approved` on your own or treat
+  silence as approval.
 
 ## Hard rules
 
@@ -42,9 +43,9 @@ The subagent's final report returns to the planner directly, so nothing else wak
    changes after hand-off go through the user.
 3. **If the host cannot start a subagent, stop.** Tell the user to run the plan with `implement` themselves,
    giving the branch, plan path, and baseline sha. Do nothing else.
-4. **Review only at `Status: implemented`.** When the subagent returns, read `Status` at the branch head.
-   `approved`: the coder did not finish; do not review, and report it to the user. `implemented`: review. Any
-   other value: report it to the user.
+4. **Review only at `Status: implemented`.** Before any review, read `Status` at the branch head. `approved`
+   with a coder run that has returned: the coder did not finish; do not review, and report it to the user.
+   `implemented`: review. Any other value: report it to the user. Step 1 routes by `Status`.
 5. **The pull request opens after the review passes, never before.** The subagent never opens or merges one.
    If any criterion is not met, open nothing: send the gaps to a new subagent run on the same branch, and
    review again when it returns. Merge only when the user asks.
@@ -97,7 +98,12 @@ Baseline: main at 3f9c2ab…
 ## Steps
 
 1. **Read the repository's instructions** (rule 7) and the plan on its branch: its `Status`, `Branch`,
-   `Baseline`, Decisions, Scope, and acceptance criteria.
+   `Baseline`, Decisions, Scope, and acceptance criteria. Then route by `Status` at the branch head and what
+   the user asked:
+   - `draft` and the user approved it in the conversation: go to step 2.
+   - `approved` with no coder run in progress: go to step 3. Do not push again.
+   - `implemented`: go to step 5, or to step 6 if a review already found gaps.
+   - Anything else, or `draft` without the user's approval: report to the user and stop.
 2. **Approve.** On the user's word, set `Status: approved`, commit with the repository's format and identity,
    and push (rule 8). That is your last push to the branch.
 3. **Dispatch.** Start a subagent on the implementing model, for example the Agent tool with `model: sonnet`
