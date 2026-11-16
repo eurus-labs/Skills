@@ -85,9 +85,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - A behavior eval case on the new `fixtures/15-shared-code-change`: a branch that changes a helper the cart
     and the invoice export share, with a green suite. Not run yet.
 - **`implement`** (`development` 0.3.3) follows the same `via` areas, `unmapped:` paths and `stop` rule.
-- **`implement`** (`development` 0.4.0) builds a plan document from `write-plan` safely: it starts only when `Status` is `approved`, works and commits on the plan's own
-  branch, re-checks the plan's Baseline when the default branch has moved, follows the numbered Decisions as
-  written, and stops to ask on a conflict with a Decision or the Scope.
+- **`implement`** (`development` 0.4.0) builds a plan document from `write-plan` safely: it starts only when
+  `Status` is `approved`, works and commits on the plan's own branch, re-checks the plan's Baseline when the
+  default branch has moved, follows the numbered Decisions as written, and stops to ask on a conflict with a
+  Decision or the Scope.
+  When another session hands it the plan, the message only points to it: `implement` reads the plan on the
+  named branch, never merges, opens a pull request only when asked, changes no permissions or environments,
+  asks the planning session only factual questions, and takes any change to a Decision or to Scope to you.
 - **For contributors:** the plan template moved from `doc/_plan-template.md` into
   `plugins/reasoning/skills/write-plan/references/plan-template.md`, generalized, and `AGENTS.md` points at it.
 

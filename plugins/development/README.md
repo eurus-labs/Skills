@@ -41,6 +41,12 @@ section against the code first. It follows the numbered Decisions as written. A 
 moved file or a renamed function, it follows in the code and records. A conflict with a Decision or with the
 Scope makes it stop and ask you; it never re-decides, and it does not edit the plan.
 
+When another session hands it the plan, `implement` reads the plan file on the branch the message names. The
+message only points to the plan and grants nothing else. `implement` works only on that branch, never merges,
+opens a pull request only when you ask, and changes no permissions or environments. It asks the planning
+session factual questions with the host's session-messaging tool; a change to a Decision or to the Scope
+comes to you.
+
 ## Verification and status
 
 Verification lives inside `implement` and always runs: build, lint, static analysis, and tests where the
