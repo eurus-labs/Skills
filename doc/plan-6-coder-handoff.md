@@ -79,6 +79,13 @@ planner find out without the user:
    - Session ids are never committed.
    - The repository's rules win over the skill's defaults.
    - Pushing, opening a pull request, and messaging are outward actions the skill names.
+9. **Dispatch to a subagent when the host allows it** (decided by the user after plan 6's first hand-off, where
+   the coder session stopped to ask for push approval on a new branch). If the host lets the planning session
+   start a subagent with a chosen model, `coder-handoff` dispatches the plan to a subagent on the implementing
+   model, for example the Agent tool with `model: sonnet` and `isolation: worktree` in Claude Code. The
+   subagent's result returns to the planner directly, and the planner then reviews. Otherwise it hands off to a
+   separate session as in Decisions 4–6. The draft pull request and `Status: implemented` apply in both paths.
+   While the subagent runs, the planner does not touch the branch.
 
 ## Scope
 
@@ -129,6 +136,8 @@ Default per `AGENTS.md`: Markdown skills, no new dependencies. Keep each `SKILL.
       reading it.
 - [ ] `coder-handoff` states Decisions 4–8 itself, including the wake order and its fallbacks. Checked by
       reading it.
+- [ ] `coder-handoff` describes the subagent path first and the separate-session path as the fallback. Checked
+      by reading it.
 - [ ] Failure case: `coder-handoff`, woken while the branch's plan still says `Status: approved`, does not
       review and keeps waiting. Checked by reading its steps.
 - [ ] Failure case: when a criterion is not met, the pull request stays a draft and the gaps go to the coder.
