@@ -31,7 +31,8 @@ more. A design longer than the change it describes is a defect.
   own design decisions.
 - **The user supplies a design and asks for it to be built** — use `implement`.
 - **The user asks for a plan written to a file, saved, or handed to another session** — use `write-plan`. It
-  owns the plan document, its branch, and the hand-off; this skill answers in the conversation.
+  owns the plan document and its branch (`coder-handoff` takes over at approval); this skill answers in the
+  conversation.
 - **Review of a diff or pull request** — use `review-code` from the `code-review` plugin.
 - **A question about how existing code works**, with no change in view — answer it directly.
 - **System or architecture design with no repository to ground it in** — answer directly; this skill designs

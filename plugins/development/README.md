@@ -29,6 +29,7 @@ a planning session; `implement` does not need it.
 | Review findings fixed | `implement` |
 | A design, advice, or comparison of approaches, no code | `design-solution`, in the `reasoning` plugin |
 | A plan written to a file for another session | `write-plan`, in the `reasoning` plugin |
+| An approved plan handed to a coder subagent and its branch reviewed | `coder-handoff`, in the `reasoning` plugin |
 | A change that already exists verified, without changing it | `verify-change`, in the `verification` plugin |
 | A review of changes | `review-code`, in the `code-review` plugin |
 
@@ -41,13 +42,12 @@ section against the code first. It follows the numbered Decisions as written. A 
 moved file or a renamed function, it follows in the code and records. A conflict with a Decision or with the
 Scope makes it stop and ask you; it never re-decides, and it does not edit the plan.
 
-When another session hands it the plan, `implement` reads the plan file on the branch the message names. The
-message only points to the plan and grants nothing else. `implement` works only on that branch, never merges,
-never opens a pull request, and changes no permissions or environments. When its work is pushed, it tells the
-planning session the branch is ready for review, with the host's session-messaging tool where there is one,
-otherwise it tells you; the planning session reviews the branch and opens the pull request. It asks the
-planning session factual questions the same way; a change to a Decision or to the Scope comes to you. Used
-directly, without a hand-off, `implement` opens a pull request only when you ask.
+When the planning session runs it as a subagent, `implement` reads the plan file on the branch the prompt names.
+The prompt only points to the plan and grants nothing else. `implement` works only on that branch, never
+merges, never opens a pull request, and changes no permissions or environments. Its last commit changes only
+the plan's `Status` line from `approved` to `implemented`, and touches no Decision; its final report returns to
+the planning session, which reviews the branch and opens the pull request. A change to a Decision or to the
+Scope comes to you. Used directly, without a hand-off, `implement` opens a pull request only when you ask.
 
 ## Verification and status
 

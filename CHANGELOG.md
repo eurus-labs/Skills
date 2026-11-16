@@ -14,6 +14,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`coder-handoff`** (`reasoning` 0.2.0): the second half of `write-plan`, as its own skill. When you approve
+  a plan it sets `Status: approved` and pushes, then dispatches the plan to a subagent on the implementing
+  model (for example the Agent tool with `model: sonnet` and `isolation: worktree` in Claude Code). The
+  subagent's report returns to the planner directly. It reviews only when the plan says
+  `Status: implemented`, opens the pull request when every acceptance criterion is met, and otherwise opens
+  nothing and sends the gaps to a new subagent run. It merges only when you ask. A host that cannot start a
+  subagent gets a stop and the instruction to run the plan with `implement`. Trigger cases for it (two that
+  must fire, one that must stay quiet). Not run yet.
 - **Eval board** (for contributors): `python3 tools/build_eval_board.py` writes `eval-board.html`, one page
   showing every skill's eval cases (must fire, must stay quiet, behavior) with the latest local result of
   each and the runs before it. Partial suites and errored runs are never counted as trusted scores. The
@@ -57,6 +65,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`write-plan`** (`reasoning` 0.2.0) ends at the draft: it no longer dispatches the plan, reviews the branch,
+  or opens the pull request, and names `coder-handoff` for that. This replaces the separate-session hand-off
+  and the cross-session messaging of its 0.1.0 hand-off.
+- **`implement`** (`development` 0.5.0): on a handed-off plan its last commit changes only the plan's `Status`
+  line to `implemented`, and its final report is the notice to the planning session; it no longer messages
+  another session. It still never opens or merges a pull request on a handed-off plan.
+- **For contributors:** `AGENTS.md`'s hand-off bullet and the plan template's `Status` line describe the
+  subagent flow and who sets each `Status` value.
 - **`verification`** (0.2.0): one place judges a change. A pilot of the plugin on this repository found the
   generated `verify-<app>` skill competing with `verify-change` and reporting false greens.
   - The generated skill no longer claims "verify a change", has no review table or `met`/`not met` verdicts,
