@@ -1,7 +1,7 @@
 # development
 
-Design a change to a repository, or make it and prove it works. Two skills, each usable on its own: the
-boundary between them is the deliverable you ask for, not whether design thinking happens.
+Make a change to a repository and prove it works. One skill, `implement`, which also builds a supplied
+design or an approved plan.
 
 ## Install
 
@@ -11,28 +11,35 @@ copilot plugin install development@eurus-labs
 ```
 
 Pair it with `verification@eurus-labs`: `implement` uses the verification skill `setup-verification` writes
-for your repository when one exists.
+for your repository when one exists. To write the plans `implement` builds, install `reasoning@eurus-labs` in
+a planning session; `implement` does not need it.
 
 ## Skills
 
-- **`design-solution`** — an implementation-ready design and plan, grounded in the current code: goal, scope,
-  acceptance criteria, constraints, affected components, decisions with the alternatives they beat, steps, a
-  verification plan, and open questions. Changes no code. Fires on "design this", "plan the implementation",
-  "compare approaches", "which design pattern fits", "how would you fix this bug?".
 - **`implement`** — the code change itself: inspect, make the design decisions the task needs, implement,
   verify against the original request, and repair. Builds from a supplied design or fixes review findings
   when given them. Fires on "implement this", "fix this bug", "refactor X", "design and implement",
-  "fix these review comments".
+  "implement this plan", "fix these review comments".
 
 | You ask for | Skill |
 | ----------- | ----- |
-| A design, plan, or comparison of approaches, no code | `design-solution` |
 | A feature, bug fix, or refactor | `implement` |
 | Design **and** implementation | `implement` |
-| A supplied design or plan built | `implement` |
+| A supplied design or an approved plan built | `implement` |
 | Review findings fixed | `implement` |
+| A design, advice, or comparison of approaches, no code | `design-solution`, in the `reasoning` plugin |
+| A plan written to a file for another session | `write-plan`, in the `reasoning` plugin |
 | A change that already exists verified, without changing it | `verify-change`, in the `verification` plugin |
 | A review of changes | `review-code`, in the `code-review` plugin |
+
+## Building a plan
+
+Given a plan document, `implement` starts only when its `Status` is `approved`; otherwise it says so and
+changes nothing. It fetches and switches to the plan's `Branch` and works and commits there, never on a branch
+of its own. If the default branch has moved past the plan's `Baseline`, it re-checks the plan's Baseline
+section against the code first. It follows the numbered Decisions as written. A small factual drift, such as a
+moved file or a renamed function, it follows in the code and records. A conflict with a Decision or with the
+Scope makes it stop and ask you; it never re-decides, and it does not edit the plan.
 
 ## Verification and status
 
@@ -57,10 +64,11 @@ fixed before coding, and the handoff reports one status:
   type checkers, and builds, which may write build output or reach the network themselves. It installs
   nothing: when your request needs a new dependency it declares it in the manifest and gives you the install
   command to run. It does not commit or push unless asked, and asks before anything acting outside the
-  working tree (database migrations, deploys, publishes). `design-solution` writes nothing except a design
-  file you ask for.
-- No skill depends on another loading. A design from `design-solution` is an input to `implement`, which
-  re-checks its assumptions against the code.
+  working tree (database migrations, deploys, publishes). The exception to "does not commit" is building a plan:
+  the plan hand-off asks for commits on the plan's branch. It still pushes only when asked.
+- No skill depends on another loading. A design from `design-solution` or a plan from `write-plan` is an
+  input to `implement`, which re-checks its assumptions against the code.
 - No bundled scripts or reference files: every required rule is in each skill's `SKILL.md`.
 - This plugin was called `implementation` before 0.3.0, and `setup-verification` lived in it. Reinstall as
   `development@eurus-labs` and `verification@eurus-labs`.
+- `design-solution` lived here before 0.4.0. It is in `reasoning@eurus-labs` now; install that plugin to keep it.

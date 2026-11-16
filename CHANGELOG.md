@@ -7,6 +7,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Breaking changes
+
+- **`design-solution` moved** from `development` to the new `reasoning` plugin (`development` 0.4.0).
+  `development` now holds only `implement`. If you used `design-solution`, install `reasoning@eurus-labs`.
+
 ### Added
 
 - **Eval board** (for contributors): `python3 tools/build_eval_board.py` writes `eval-board.html`, one page
@@ -40,6 +45,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (`fixtures/13`), and a repository that already has its own verify skill (`fixtures/14`, triggering).
   Not run yet.
 
+- **`reasoning` plugin** (0.1.0): planning skills for sessions on a high-tier model, meant to be loaded only in a
+  planning session. The plugin cannot block a weaker model; where you install it decides who uses it.
+  - **`write-plan`** (new): writes a plan to the repository's plan folder from a bundled template, on its
+    own branch, with `Status: draft` until you approve it. It confirms before the first push and ends with a
+    hand-off message: the branch, the plan path, and the baseline sha. Branch naming, commit identity, and
+    commit format come from the target repository's own instructions.
+  - **`design-solution`** moved here from `development`. It answers advice and comparison questions in the
+    conversation; a saved design goes to the repository's plan folder instead of `docs/design/`.
+  - Trigger eval cases for both skills, and one for `implement` on an approved plan. Not run yet.
+
 ### Changed
 
 - **`verification`** (0.2.0): one place judges a change. A pilot of the plugin on this repository found the
@@ -70,6 +85,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - A behavior eval case on the new `fixtures/15-shared-code-change`: a branch that changes a helper the cart
     and the invoice export share, with a green suite. Not run yet.
 - **`implement`** (`development` 0.3.3) follows the same `via` areas, `unmapped:` paths and `stop` rule.
+- **`implement`** (`development` 0.4.0) builds a plan document from `write-plan` safely: it starts only when `Status` is `approved`, works and commits on the plan's own
+  branch, re-checks the plan's Baseline when the default branch has moved, follows the numbered Decisions as
+  written, and stops to ask on a conflict with a Decision or the Scope.
+- **For contributors:** the plan template moved from `doc/_plan-template.md` into
+  `plugins/reasoning/skills/write-plan/references/plan-template.md`, generalized, and `AGENTS.md` points at it.
 
 ## [0.2.0] — Unreleased
 

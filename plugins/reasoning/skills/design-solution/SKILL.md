@@ -1,6 +1,6 @@
 ---
 name: design-solution
-description: Design a software solution or prepare an implementation plan when the user wants advice, a design, or a plan as the deliverable rather than code changes — including question-shaped requests such as "how would you fix this bug?" or "how would you implement X?" — assessing the relevant source code, interfaces, alternatives, trade-offs, acceptance criteria, and verification strategy. Use when the user says "design this", "plan the implementation", "how should I approach this", "how should I structure this", "compare approaches for", "which design pattern fits here", "write a technical design", "don't code yet, just plan it", or asks for a plan to hand to someone else. When the user asks for the change to be made — "fix this bug", "design and implement it" — use implement instead; to review existing changes, use review-code instead.
+description: Design a software solution when the user wants advice, a design, or a comparison as the deliverable rather than code changes, answered in the conversation — including question-shaped requests such as "how would you fix this bug?" or "how would you implement X?" — assessing the relevant source code, interfaces, alternatives, trade-offs, acceptance criteria, and verification strategy. Use when the user says "design this", "how should I approach this", "how should I structure this", "compare approaches for", "which design pattern fits here", "write a technical design", or "don't code yet, just think it through". To write a plan to a file or hand it to another session, use write-plan instead; when the user asks for the change to be made — "fix this bug", "design and implement it" — use implement instead; to review existing changes, use review-code instead.
 ---
 
 # Design solution
@@ -8,7 +8,8 @@ description: Design a software solution or prepare an implementation plan when t
 ## Overview
 
 Produce an implementation-ready design for a change to the user's repository, grounded in the code as it is
-now, without changing application code. The deliverable is the design document in
+now, without changing application code. The design is for the conversation: advice, a comparison, an approach
+to discuss. The deliverable is the design document in
 [Output format](#output-format): goal, scope, acceptance criteria, constraints, affected components, decisions
 with the alternatives they beat, ordered steps, a verification plan, and the questions still open.
 
@@ -17,17 +18,20 @@ more. A design longer than the change it describes is a defect.
 
 ## When to use this skill
 
-- The user asks for a design, a plan, an approach, or a comparison of approaches, and not for code.
+- The user asks for a design, an approach, or a comparison of approaches, answered in the conversation, and
+  not for code.
 - The user asks how something *would* be fixed or built ("how would you fix this bug?") without asking for
   the change — answer with a design; do not edit code.
 - The user asks which design pattern or structure fits a change before writing it.
-- The user wants a plan to review, approve, or hand to another person or agent.
+- The user wants a design to read, discuss, or decide on, with no plan document and no hand-off.
 
 ## When not to use this skill
 
 - **The user wants the change made**, even if they say "design and implement" — use `implement`. It makes its
   own design decisions.
 - **The user supplies a design and asks for it to be built** — use `implement`.
+- **The user asks for a plan written to a file, saved, or handed to another session** — use `write-plan`. It
+  owns the plan document, its branch, and the hand-off; this skill answers in the conversation.
 - **Review of a diff or pull request** — use `review-code` from the `code-review` plugin.
 - **A question about how existing code works**, with no change in view — answer it directly.
 - **System or architecture design with no repository to ground it in** — answer directly; this skill designs
@@ -58,8 +62,10 @@ more. A design longer than the change it describes is a defect.
 
 ## Output format
 
-Write the design in the conversation. Persist it as a file only when the user asks — at the path they name,
-or `docs/design/<topic>.md` if they name none and the repository has a `docs/` folder.
+Write the design in the conversation. Persist it as a file only when the user asks to save the design — at the
+path they name, or in the repository's plan folder if they name none: the folder that already holds plan
+documents (for example `doc/plan-*.md`, `docs/plans/`, `plans/`), or `docs/plans/` created for it when there
+is none. A saved design is not a handed-off plan: if the user wants one, use `write-plan`.
 
 ```markdown
 # Design: <short title>
@@ -137,5 +143,6 @@ None. Everything this skill requires is in this file.
 - Language idioms come before textbook class structures: a function, a dict of callables, a protocol or small
   interface, or a discriminated union often replaces a class hierarchy. Follow the idiom the repository
   already uses.
-- When the user then asks for the change to be made, the design is the input to `implement`; offer that by
-  name, and do not start editing code under this skill.
+- When the user then wants a plan to hand to another session, offer `write-plan` by name; when they ask for
+  the change to be made, the design is the input to `implement`, offered by name too. Do not start editing
+  code under this skill.
