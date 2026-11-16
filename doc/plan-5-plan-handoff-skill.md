@@ -1,128 +1,158 @@
-# Plan 5 — a `write-plan` skill that hands a plan to another session
+# Plan 5 — a `reasoning` plugin for planning, handed off to an implementing session
 
 Status: draft
 Date: 2026-11-16
 Branch: `feat/development-plan-handoff`
 Baseline: `origin/main` at `6c545ea51bdb3476b43d232cb40e09a26ab016c6`
-Target: `plugins/development` (new skill `write-plan`; edits to `implement` and `design-solution`)
+Target: new plugin `plugins/reasoning` (`design-solution` moved in, new `write-plan`); `plugins/development`
+(`implement` edited, `design-solution` removed)
 
 ## Goal
 
-The repository already works this way: one session plans, writes the plan to `doc/`, and pushes it on its own
+This repository already works this way: one session plans, writes the plan to `doc/`, and pushes it on its own
 branch; a second session implements on that branch once the user approves (`AGENTS.md`, Start Each Task step 2
-and Plan and Implement). That only works here, because the rules live in this repository's `AGENTS.md`. Package
-the workflow as a skill so it works in any repository where the `development` plugin is installed. Then a
-plan's decisions reach the implementing session intact, and two sessions never push to the same branch at once.
+and Plan and Implement). That only works here, because the rules live in this repository's `AGENTS.md`.
+
+Package the workflow so it works in any repository:
+
+- the planning skills go in a `reasoning` plugin, meant for sessions on a high-tier model (Opus, Fable, GPT
+  "astra" on Copilot);
+- the implementing session uses `implement` from `development`, follows the plan's decisions as written, and
+  never shares a branch with the planner.
 
 ## Decisions
 
-1. **A new skill `write-plan` in the `development` plugin** — rejected: extending `design-solution`, because
-   the user treats advising on a design and handing off a durable plan as separate jobs. The name is a
-   proposal; renaming after release changes the install name.
-2. **Split the trigger boundary explicitly.** `write-plan` takes requests to write, save, or hand off a plan
-   ("write the plan to a file", "plan this for another session", "lên plan để giao cho session khác").
-   `design-solution` keeps advice, comparisons and "how would you…" questions, answered in the conversation.
-   Today `design-solution`'s description claims "prepare an implementation plan", "plan the implementation"
-   and "asks for a plan to hand to someone else"; remove the hand-off and durable-plan phrases from it. Each
-   description names the other skill. Rejected: leaving both descriptions as they are, because the overlap
-   would make each fire on the other's requests.
-3. **Plan location: the repository's existing plan folder.** Detect it as a folder that already holds plan
-   documents (for example `doc/plan-*.md`, `docs/plans/`, `plans/`). If none exists, see Open questions.
-4. **The template is bundled in the skill** at `skills/write-plan/references/plan-template.md`, because a
+1. **A new plugin `reasoning` holds `design-solution` (moved from `development`) and a new skill `write-plan`.**
+   `development` keeps `implement`. Rejected: putting `write-plan` in `development`, because the user wants
+   the planning skills installable apart from the implementing ones. The user chose the name `reasoning`
+   over `planning`. The skill name `write-plan` is a proposal; renaming after release changes the install name.
+2. **Model tier is enforced by where the plugin is installed, not by the skill.** No skill field restricts
+   which model may use it. The Claude Code `model:` field only switches the model for the skill's turn, and
+   `tools/validate.py` (`ALLOWED_FRONTMATTER`) forbids it because packaging fails hard on it elsewhere. A
+   "stop if you are not model X" line is rejected too: models cannot reliably tell which model they are. The
+   `reasoning` README tells users to load the plugin only in planning sessions, per host (Decision 11).
+3. **Split the trigger boundary explicitly.**
+   - `write-plan` takes requests to write, save, or hand off a plan ("write the plan to a file", "plan this
+     for another session", "lên plan để giao cho session khác").
+   - `design-solution` keeps advice, comparisons, and "how would you…" questions, answered in the conversation.
+   - Today `design-solution`'s description claims "prepare an implementation plan", "plan the
+     implementation", and "asks for a plan to hand to someone else". Remove the hand-off and durable-plan
+     phrases. Each description names the other skill.
+   - Rejected: leaving the descriptions as they are, because each would fire on the other's requests.
+4. **Plan location: the repository's existing plan folder.** Detect it as a folder that already holds plan
+   documents (for example `doc/plan-*.md`, `docs/plans/`, `plans/`). If there is none, create `docs/plans/`
+   and say so (decided by the user).
+5. **The template is bundled in the skill** at `skills/write-plan/references/plan-template.md`, because a
    `SKILL.md` may not link outside its plugin. It becomes the only copy: delete `doc/_plan-template.md` and
-   point `AGENTS.md` at the bundled file. Rejected: keeping two copies, because they would drift. Rejected:
-   `shared/` with `tools/materialize.py`, because only one plugin uses the template.
-5. **The template is generic.** Its "Tech stack and constraints" default reads "the repository's documented
+   point `AGENTS.md` at the bundled file. Rejected: two copies, which would drift. Rejected: `shared/` with
+   `tools/materialize.py`, because only one plugin uses the template.
+6. **The template is generic.** Its "Tech stack and constraints" default reads "the repository's documented
    constraints; list only deviations", not this repository's stdlib rule.
-6. **`write-plan` restates the hand-off rules itself**, because other repositories have no such `AGENTS.md`:
+7. **`write-plan` restates the hand-off rules itself**, because other repositories have no such `AGENTS.md`:
    - Status starts at `draft`; only the user moves it to `approved`.
    - The planning session creates the branch from the latest default branch, commits and pushes the plan, and
      after approval stops pushing to it.
    - Plan changes after hand-off go through the user.
-   - It ends by giving the user the hand-off message: the branch, the plan path, and the baseline sha.
-7. **Repository rules win over the skill's defaults.** Branch naming, commit identity, commit format and the
-   default branch come from the target repository's instructions (`AGENTS.md`, `CONTRIBUTING.md`, similar).
-   Fallbacks: branch `<type>/<area>-<outcome>`; commit identity from the user; never an AI identity. Never
-   hardcode this repository's values.
-8. **Creating a branch and pushing are outward actions.** `SKILL.md` says it does both and confirms before the
+   - It ends with the hand-off message for the user: the branch, the plan path, and the baseline sha.
+8. **Repository rules win over the skill's defaults.**
+   - Branch naming, commit identity, commit format, and the default branch come from the target repository's
+     instructions (`AGENTS.md`, `CONTRIBUTING.md`, or similar).
+   - Fallbacks: branch `<type>/<area>-<outcome>`; commit identity from the user; never an AI identity.
+   - Never hardcode this repository's values.
+9. **Creating a branch and pushing are outward actions.** `SKILL.md` says it does both and confirms before the
    first push unless the user already asked to push.
-9. **`implement` follows a supplied plan with a two-level rule** (agreed with the user):
-   - small factual drift, such as a moved file or a renamed function: follow the code and record the departure;
-   - a conflict with a numbered Decision, or with Scope: stop and ask; never re-decide.
-10. **`implement` honors plan metadata.** It fetches and switches to the plan's `Branch` and commits there, not
-    on its own branch. It starts only when `Status` is `approved`, and reports and stops otherwise. If the
-    default branch moved past `Baseline`, it re-checks the Baseline section before coding.
+10. **`implement` works from a plan without `reasoning` installed.**
+    - It fetches and switches to the plan's `Branch` and commits there, not on its own branch.
+    - It starts only when `Status` is `approved`; otherwise it reports that and stops.
+    - If the default branch has moved past `Baseline`, it re-checks the plan's Baseline section before coding.
+    - Small factual drift (a moved file, a renamed function): follow the code and record the departure.
+    - A conflict with a numbered Decision or with Scope: stop and ask; never re-decide (agreed with the user).
+    - Skills in other plugins are named in plain text, never linked.
+11. **The `reasoning` README documents per-host loading, and marks each method as verified or not:**
+    - Claude Code terminal: install at local scope (`.claude/settings.local.json`) in a planning checkout, or
+      load for one session with `--plugin-dir`. Both are documented by Anthropic.
+    - Copilot CLI: load for one session with `--plugin-dir`, and set `COPILOT_PLUGIN_DIR_ONLY=true` to keep
+      other plugins out. `tools/copilot_eval.py` already uses both. Any other Copilot scoping is unverified.
+    - Claude Code cloud sessions: they don't load locally installed or repository-enabled plugins; plugins
+      come from the claude.ai account or the organization. Per-session selection there is unverified.
 
 ## Scope
 
 In:
 
-- `plugins/development/skills/write-plan/SKILL.md` (from `plugins/_template/skills/example-skill/SKILL.md`) and
-  `skills/write-plan/references/plan-template.md` (moved and generalized from `doc/_plan-template.md`).
-- `plugins/development/skills/implement/SKILL.md`: Decisions 9 and 10 (the "Supplied design" bullet in step 4
-  and the "Supplied design or plan" row of the workflow table).
-- `plugins/development/skills/design-solution/SKILL.md`: description and "When to use / not to use" per
-  Decision 2; its closing convention points to `write-plan` for a plan to hand off.
-- Both `plugin.json` copies (`skills` array, minor version `0.3.3` → `0.4.0`, `description`), both
-  `marketplace.json` copies, `plugins/development/README.md`, the root `README.md` catalog row, and
-  `CHANGELOG.md` `[Unreleased]`.
+- `plugins/reasoning/` from `plugins/_template/`: both `plugin.json` copies (`name: reasoning`,
+  `version: 0.1.0`), a `README.md` with Decision 11, and `skills/design-solution/` moved from `development`.
+- `plugins/reasoning/skills/write-plan/SKILL.md` and `references/plan-template.md`, moved and generalized from
+  `doc/_plan-template.md`.
+- `design-solution/SKILL.md`: description and "When to use / not to use" per Decision 3; its closing
+  convention names `write-plan` for a plan to hand off and `implement` for building it.
+- `plugins/development/skills/implement/SKILL.md`: Decision 10, in the "Supplied design" bullet of step 4 and
+  the "Supplied design or plan" row of the workflow table.
+- `development`: remove `design-solution` from both `plugin.json` copies, bump `0.3.3` → `0.4.0`, and update
+  its `description` and README.
+- Both `marketplace.json` copies (a new `reasoning` entry and the `development` version and description), the
+  root `README.md` catalog rows, and `CHANGELOG.md` `[Unreleased]`, which notes that `design-solution` moved
+  and must be reinstalled from `reasoning`.
 - `AGENTS.md`: the hand-off bullet points to the bundled template; delete `doc/_plan-template.md`.
-- Trigger eval cases under `plugins/development/evals/trigger/`, modeled on `plugins/docs/evals/trigger/`:
-  at least two that must fire `write-plan`, one "how would you fix this bug?" that must stay with
-  `design-solution`, and one "implement this plan" that must go to `implement`.
+- Trigger eval cases under `plugins/reasoning/evals/trigger/`, modeled on `plugins/docs/evals/trigger/`: at
+  least two that must fire `write-plan` and one "how would you fix this bug?" that must fire
+  `design-solution`. Add one "implement this plan" case under `plugins/development/evals/trigger/`.
 
 Out:
 
-- Any script. The skill is instructions only; git is run by the agent.
+- Any script. The skills are instructions only; git is run by the agent.
 - Behavior evals.
-- Changes to other plugins, and how `design-solution` writes its own design file (see Open questions).
+- Other plugins, and where `design-solution` saves its own design file (see Open questions).
 
 ## Baseline
 
 | Existing | Keep, change, or remove |
 | --- | --- |
-| `plugins/development/skills/design-solution/SKILL.md` (141 lines) | Keep the design method; narrow the description and the hand-off use case |
-| `plugins/development/skills/implement/SKILL.md` (278 lines), step 4 "Supplied design" | Change "follow the code, record the departure" to the two-level rule |
-| `doc/_plan-template.md` | Move into the skill, generalize, then delete |
+| `plugins/development/skills/design-solution/SKILL.md` (141 lines) | Move to `reasoning`; keep the design method; narrow the description |
+| `plugins/development/skills/implement/SKILL.md` (278 lines), step 4 "Supplied design" | Replace "follow the code, record the departure" with Decision 10 |
+| `doc/_plan-template.md` | Move into `write-plan`, generalize, then delete |
 | `AGENTS.md` "Plan and Implement" hand-off bullet | Keep the rule; change the template path |
+| `tools/validate.py` `ALLOWED_FRONTMATTER` | Unchanged; no `model` field (Decision 2) |
 | `plugins/docs/evals/trigger/<case>/prompt.md` + `graders/` | Precedent for the new trigger cases |
 
 ## Tech stack and constraints
 
-Default per `AGENTS.md`: Markdown skills, no new dependencies. Keep `SKILL.md` under ~500 lines.
+Default per `AGENTS.md`: Markdown skills, no new dependencies. Keep each `SKILL.md` under ~500 lines.
 
 ## Acceptance criteria
 
-- [ ] `write-plan/SKILL.md` exists, its frontmatter `name` is `write-plan`, and it is listed in both
-      `plugin.json` copies — checked by `python3 tools/validate.py`.
-- [ ] `development` is version `0.4.0` in both `plugin.json` copies and both `marketplace.json` copies, with
-      matching descriptions — checked by `python3 tools/validate.py`.
-- [ ] `write-plan/SKILL.md` states each rule in Decisions 6–8 itself and links nothing outside the plugin —
-      checked by reading it, and by `grep -n '\.\./\.\./\.\.' plugins/development/skills/write-plan/SKILL.md`
-      returning nothing.
-- [ ] Failure case: `implement` told to build a `draft` plan reports that it is not approved and changes no
-      file — checked by reading the new rule, and by the trigger or a manual run if one is feasible.
-- [ ] Failure case: `implement` given a plan whose Decision contradicts the code stops and asks — checked by
+- [ ] `reasoning` lists `design-solution` and `write-plan` in both `plugin.json` copies, and `development`
+      lists only `implement`. Checked by `python3 tools/validate.py`.
+- [ ] `reasoning` is `0.1.0` and `development` is `0.4.0` in their `plugin.json` copies and both
+      `marketplace.json` copies, with matching descriptions. Checked by `python3 tools/validate.py`.
+- [ ] `write-plan/SKILL.md` states each rule in Decisions 4 and 7–9 itself. Checked by reading it.
+- [ ] No `SKILL.md` links outside its own plugin. Checked by `python3 tools/validate.py` and by grepping for
+      `](../../..`.
+- [ ] Failure case: `implement`, told to build a `draft` plan, reports that it is not approved and changes no
+      file. Checked by reading the new rule; a manual run if feasible.
+- [ ] Failure case: `implement`, given a plan whose Decision contradicts the code, stops and asks. Checked by
       reading the step 4 text.
-- [ ] Neither `design-solution` nor `write-plan` claims the other's phrases — checked by comparing both
+- [ ] Neither `design-solution` nor `write-plan` claims the other's phrases. Checked by comparing the two
       descriptions. The trigger cases exist; whether they were run is reported, not claimed.
-- [ ] `doc/_plan-template.md` is gone and `AGENTS.md` points at the bundled template — checked by
-      `grep -rn '_plan-template' .` returning nothing.
-- [ ] `python3 tools/validate.py` passes and `for t in tools/test_*.py; do python3 "$t" || break; done` passes.
+- [ ] `doc/_plan-template.md` is gone and `AGENTS.md` points at the bundled template. Checked by
+      `grep -rn '_plan-template' --exclude-dir=.git .` returning only the changelog entry, if any.
+- [ ] The `reasoning` README marks each loading method in Decision 11 as verified or unverified.
+- [ ] `python3 tools/validate.py` passes, and `for t in tools/test_*.py; do python3 "$t" || break; done` passes.
 
 ## Risks
 
 | Risk | How it is handled |
 | --- | --- |
-| The two skills still fire on each other's requests | Decision 2's split, descriptions naming each other, and trigger cases on both sides |
-| The skill hardcodes this repository's branch or identity rules | Decision 7; review `SKILL.md` for `Eurus`, `doc/`, or `claude/` |
-| A planning session keeps pushing after hand-off and overwrites work | Decision 6 stated in `write-plan` and Decision 10 in `implement` |
-| An implementing session started before this lands has the old rules | The hand-off message names the branch; the user types the instruction into that session |
-| The trigger evals can't run without credentials | Report them as not run; don't claim a result |
+| Moving `design-solution` breaks existing installs of `development:design-solution` | CHANGELOG and both READMEs say it moved and how to reinstall; minor bump while on 0.x |
+| The two skills still fire on each other's requests | Decision 3's split, descriptions naming each other, trigger cases on both sides |
+| Users expect the plugin itself to block weaker models | Decision 2 stated plainly in the `reasoning` README |
+| The skill hardcodes this repository's branch or identity rules | Decision 8; review the `SKILL.md` files for `Eurus`, `doc/`, `claude/` |
+| A planning session keeps pushing after hand-off and overwrites work | Decision 7 in `write-plan` and Decision 10 in `implement` |
+| An implementing session started before this lands still has the old rules | The hand-off message names the branch; the user types the instruction into that session |
+| Trigger evals can't run without credentials | Report them as not run; don't claim a result |
+| A test hardcodes the plugin list or count (`validate.py` prints "7 plugin(s)") | Run the full test loop; update any such test in this change |
 
 ## Open questions
 
-1. If the repository has no plan folder, should `write-plan` create one, and what is it called? Assumed:
-   create `docs/plans/` and say so.
-2. Should `design-solution`, when asked to save a design, also use the plan folder instead of
+1. Should `design-solution`, when asked to save a design, also use the plan folder instead of
    `docs/design/<topic>.md`? Assumed: no change in this plan; revisit after `write-plan` is in use.
