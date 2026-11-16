@@ -1,6 +1,6 @@
 # Plan 6 — split hand-off and review out of `write-plan` into `coder-handoff`
 
-Status: approved
+Status: implemented
 Date: 2026-11-16
 Branch: `feat/reasoning-coder-handoff`
 Baseline: `origin/main` at `8edc1d230139d9d799bb0d401859e970e1f23dba`
