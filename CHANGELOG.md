@@ -117,6 +117,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **For contributors:** the plan template moved from `doc/_plan-template.md` into
   `plugins/reasoning/skills/write-plan/references/plan-template.md`, generalized, and `AGENTS.md` points at it.
 
+### Fixed
+
+- **Commit identity is checked before every push** (`development` 0.5.1, `reasoning` 0.2.1). `implement`
+  sets the author and committer explicitly on every commit, never changes the repository's configuration,
+  and lists the author and committer of every commit it is about to push; on a mismatch it recommits first.
+  `coder-handoff` puts the identity and that check in the subagent prompt and checks every commit's identity
+  in its review. A commit pushed with the wrong identity is replaced with `--force-with-lease` on the
+  unmerged branch and reported as public. `design-solution` now sends hand-offs to `coder-handoff` instead of
+  `write-plan`.
+
 ## [0.2.0] — Unreleased
 
 The first release under the **`eurus-labs`** name. It renames the marketplace, regroups skills into plugins by

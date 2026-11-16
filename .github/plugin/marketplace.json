@@ -30,13 +30,13 @@
       "name": "development",
       "source": "./plugins/development",
       "description": "Implement a feature, bug fix, or refactor and verify it against the original request \u2014 acceptance criteria fixed before coding, design patterns used only for a concrete problem, and evidence reported for every check. Builds from a supplied design or an approved plan, working on the plan's own branch.",
-      "version": "0.5.0"
+      "version": "0.5.1"
     },
     {
       "name": "reasoning",
       "source": "./plugins/reasoning",
       "description": "Plan a change for review and hand-off, without touching code: design-solution answers advice and comparison questions in the conversation, write-plan saves a plan on its own branch, and coder-handoff dispatches the approved plan to a coder subagent, reviews the branch, and opens the pull request. Meant for sessions on a high-tier model.",
-      "version": "0.2.0"
+      "version": "0.2.1"
     },
     {
       "name": "verification",

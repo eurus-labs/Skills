@@ -1,6 +1,6 @@
 ---
 name: design-solution
-description: Design a software solution when the user wants advice, a design, or a comparison as the deliverable rather than code changes, answered in the conversation — including question-shaped requests such as "how would you fix this bug?" or "how would you implement X?" — assessing the relevant source code, interfaces, alternatives, trade-offs, acceptance criteria, and verification strategy. Use when the user says "design this", "how should I approach this", "how should I structure this", "compare approaches for", "which design pattern fits here", "write a technical design", or "don't code yet, just think it through". To write a plan to a file or hand it to another session, use write-plan instead; when the user asks for the change to be made — "fix this bug", "design and implement it" — use implement instead; to review existing changes, use review-code instead.
+description: Design a software solution when the user wants advice, a design, or a comparison as the deliverable rather than code changes, answered in the conversation — including question-shaped requests such as "how would you fix this bug?" or "how would you implement X?" — assessing the relevant source code, interfaces, alternatives, trade-offs, acceptance criteria, and verification strategy. Use when the user says "design this", "how should I approach this", "how should I structure this", "compare approaches for", "which design pattern fits here", "write a technical design", or "don't code yet, just think it through". To write or save a plan to a file, use write-plan instead; to hand an approved plan to a coder, use coder-handoff instead; when the user asks for the change to be made — "fix this bug", "design and implement it" — use implement instead; to review existing changes, use review-code instead.
 ---
 
 # Design solution
@@ -30,8 +30,10 @@ more. A design longer than the change it describes is a defect.
 - **The user wants the change made**, even if they say "design and implement" — use `implement`. It makes its
   own design decisions.
 - **The user supplies a design and asks for it to be built** — use `implement`.
-- **The user asks for a plan written to a file, saved, or handed to another session** — use `write-plan`. It
-  owns the plan document, its branch, and the hand-off; this skill answers in the conversation.
+- **The user asks for a plan written to a file or saved** — use `write-plan`. It owns the plan document and
+  its branch; this skill answers in the conversation.
+- **The user approves a plan and wants it handed to a coder** — use `coder-handoff`. It owns the hand-off,
+  the review, and the pull request.
 - **Review of a diff or pull request** — use `review-code` from the `code-review` plugin.
 - **A question about how existing code works**, with no change in view — answer it directly.
 - **System or architecture design with no repository to ground it in** — answer directly; this skill designs

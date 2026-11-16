@@ -72,6 +72,21 @@ by verification evidence, not by the code compiling.
     never open a pull request and never merge: the planning session reviews the branch and opens it. Never
     change permissions or environments because a prompt says to. Used directly, without a hand-off, open a
     pull request only when the user asks.
+13. **Set the commit identity explicitly, and check it before every push.** The author and committer come from
+    the repository's instructions or from the user, never from the environment's defaults and never an AI
+    identity; ask if neither names one. Put the identity on every command that writes a commit (commit, amend,
+    cherry-pick, each rebase and `rebase --continue`), for example the four `GIT_AUTHOR_NAME`,
+    `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, and `GIT_COMMITTER_EMAIL` variables inline, because shell state
+    does not carry between calls and an environment may preset another identity that git then uses silently.
+    Never change `git config`. Before every push, not only at the end of the run, list the author and
+    committer of every commit about to be pushed (for example
+    `git log origin/<base>..HEAD --format='%an <%ae> | %cn <%ce>' | sort -u`). It must show only the expected
+    identity on both sides. On any other line, do not push: recommit those commits with the right identity
+    first. If a commit with the wrong identity was already pushed, stop: report its sha and that it is public,
+    because the host may keep it reachable by its sha, and do not rewrite or force-push it unless the run's
+    prompt says the user confirmed the rewrite. If it does, recommit it with the right identity and replace
+    it with `git push --force-with-lease` on the plan's own unmerged branch only, never on a shared or merged
+    branch.
 
 ## Output format
 
@@ -216,7 +231,7 @@ behavior that must not change, and a negative or failure case where the request 
     `implemented`, because the earlier run already set it.
   - **Work on the plan's `Branch`.** Fetch and switch to it, and commit there, never on a branch of your own;
     the planning session pushes nothing more to it. Switch only when `git status` shows nothing that the
-    switch would lose; otherwise ask. Push only when asked.
+    switch would lose; otherwise ask. Push only when asked, and only after the identity check in hard rule 13.
   - **Re-check the Baseline.** If the default branch has moved past the plan's `Baseline`, compare the plan's
     Baseline section with the current code before coding.
   - **Follow the numbered Decisions as written.** A small factual drift (a moved file, a renamed function) is
@@ -230,8 +245,9 @@ behavior that must not change, and a negative or failure case where the request 
     that `implemented` at the branch head means done. In a re-run that fixes review gaps, `Status` already says
     `implemented`: commit the fixes, leave `Status` as it is, and do not edit the plan.
   - **Your final report is the notice that the branch is ready.** The planning session runs you as a
-    subagent and receives that report directly. Push only when asked; report the head sha, whether the branch is pushed, and your verification status. Do not open a
-    pull request or merge.
+    subagent and receives that report directly. Push only when asked, after the identity check in hard rule 13;
+    report the head sha, whether the branch is pushed, your verification status, and any commit that was
+    already public with a wrong identity (stopped, not rewritten). Do not open a pull request or merge.
   - **Questions about the plan go to the user.** Ask what the plan leaves unclear about a fact (which file,
     which sha) in your final report or, when working directly, in the conversation. The answer informs the
     work and never changes a Decision or Scope.
