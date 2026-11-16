@@ -56,6 +56,9 @@ The subagent's final report returns to the planner directly, so nothing else wak
    (`AGENTS.md`, `CONTRIBUTING.md`, `.github/copilot-instructions.md`, or similar). Fallback when silent: the
    commit identity comes from the user, never an AI identity. A repository rule that forbids opening a pull
    request unasked wins over step 7's default; the user's approval of the plan is the ask.
+   The planner states the exact author and committer identity in the subagent prompt, because a subagent
+   starts without the conversation and may not find it, and an environment may preset another identity that
+   git uses silently.
 8. **Pushing, dispatching, and opening a pull request are outward actions.** Do each only for the plan the
    user approved, and say what you did.
 9. **Never write session ids into committed files**, commit messages, or the pull request.
@@ -73,6 +76,12 @@ Start only if Status is approved. Work and commit on that branch, follow the num
 and stop and report on a conflict with a Decision or the Scope. Make your last commit change only the Status
 line to implemented, then push. Do not open or merge a pull request. Report the head sha and your
 verification results.
+Commit identity: author and committer for every commit are <name> <no-reply address>, taken from the
+repository's rules or from the user. Set it on every command that writes a commit (the four GIT_AUTHOR_* and
+GIT_COMMITTER_* variables inline), and never change git config. Before every push, list the author and
+committer of every commit about to be pushed; if any differs, do not push, recommit it first. If a commit
+with the wrong identity was already pushed, recommit it, replace it with --force-with-lease on this unmerged
+branch, and report that the old commit was public.
 ```
 
 The review result goes to the user:
@@ -114,6 +123,10 @@ Baseline: main at 3f9c2ab…
 5. **Review at `implemented`.** Check the branch against each acceptance criterion with the checks the plan
    names, and against its Decisions and Scope. Confirm the plan file differs from its approved version only in
    the `Status` line, so no Decision was edited. Report each criterion as met or not met, with evidence.
+   Also list the author and committer of every commit on the branch since the baseline; a commit that is not
+   the expected identity on both sides is a gap (step 6). If the coder reported a commit that was already
+   pushed with the wrong identity, tell the user that GitHub may keep the old commit reachable by its sha,
+   and that GitHub's "Block command line pushes that expose my email" setting prevents this at the server.
 6. **If any criterion is not met,** open no pull request. Dispatch a new subagent run on the same branch with
    the gaps, telling it `Status` already says `implemented` and it should fix the gaps and leave `Status`
    alone. Return to step 4 when it returns (rule 5).
