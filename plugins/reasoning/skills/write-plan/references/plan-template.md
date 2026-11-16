@@ -1,7 +1,8 @@
 # Plan template — copy this file; it is not a plan
 
-Copy to `doc/plan-<n>-<topic>.md`, fill every section, and delete the guidance lines in italics. A section
-that does not apply says "None" rather than disappearing, so the implementer knows it was considered.
+Copy to `<plan-folder>/plan-<n>-<topic>.md`, fill every section, and delete the guidance lines in italics.
+A section that does not apply says "None" rather than disappearing, so the implementer knows it was
+considered.
 
 ---
 
@@ -9,9 +10,9 @@ that does not apply says "None" rather than disappearing, so the implementer kno
 
 Status: draft | approved | implemented — *the user sets `approved`; implementation starts only then*
 Date: YYYY-MM-DD
-Branch: `<type>/<area>-<outcome>` — *created from `origin/main` by the planning session; implement here*
-Baseline: `origin/main` at `<sha>` — *if `main` has moved, rebase and re-check the Baseline section*
-Target: `<plugin>/<skill>`, `tools/<script>.py`, or another named area
+Branch: `<branch name>` — *created from the latest default branch by the planning session; implement here*
+Baseline: `<default branch>` at `<sha>` — *if the default branch has moved, rebase and re-check the Baseline section*
+Target: `<path or component>` — *the plugin, module, script, or area this plan changes*
 
 ## Goal
 
@@ -20,7 +21,7 @@ Target: `<plugin>/<skill>`, `tools/<script>.py`, or another named area
 ## Decisions
 
 *Agreed choices, numbered, each with the option rejected and why. The implementer follows these as
-written and asks instead of re-deciding (AGENTS.md, Start Each Task, step 2).*
+written and asks instead of re-deciding.*
 
 1. <decision> — rejected: <alternative>, because <reason>.
 
@@ -28,7 +29,7 @@ written and asks instead of re-deciding (AGENTS.md, Start Each Task, step 2).*
 
 In:
 
-- *Files, skills, scripts, and behavior this plan changes.*
+- *Files, components, and behavior this plan changes.*
 
 Out:
 
@@ -36,7 +37,7 @@ Out:
 
 ## Baseline
 
-*What already exists and is reused or changed, with file paths. A document describing a script does not
+*What already exists and is reused or changed, with file paths. A document describing code does not
 prove it exists; check the file.*
 
 | Existing | Keep, change, or remove |
@@ -45,8 +46,8 @@ prove it exists; check the file.*
 
 ## Tech stack and constraints
 
-*Default per AGENTS.md: Markdown skills and stdlib-only Python 3.9+, no new dependencies. List only
-deviations and their reason, or write "Default".*
+*The repository's documented constraints (its contributor and agent instructions, language floor, lint and
+test gates). List only deviations from them and the reason, or write "Default".*
 
 ## Acceptance criteria
 
@@ -54,7 +55,7 @@ deviations and their reason, or write "Default".*
 
 - [ ] <observable result> — checked by `<command>`
 - [ ] <failure case handled> — checked by `<command or fixture>`
-- [ ] `python3 tools/validate.py` passes and `for t in tools/test_*.py; do python3 "$t" || break; done` passes
+- [ ] The repository's required checks pass — checked by `<the repository's check commands>`
 
 ## Risks
 
