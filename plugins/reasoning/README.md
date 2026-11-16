@@ -41,10 +41,17 @@ Install `development@eurus-labs` in the session that implements. `implement` wor
    you confirm the push).
 2. You review and revise it with the planning session. Only you set `Status: approved`; on your word the
    planner makes one last commit and pushes it, then stops pushing to that branch.
-3. You start the implementing session and give it the hand-off message. `implement` starts only when
-   `Status` is `approved`, works and commits on the plan's branch, follows the numbered Decisions as written,
-   and stops to ask you when the code conflicts with a Decision or with the Scope.
-4. Changes to the plan after hand-off go through you.
+3. The planning session hands the plan over: it sends the hand-off (branch, plan path, baseline sha) to the
+   implementer session you name when the host has a cross-session messaging tool (for example `send_message`
+   in Claude Code cloud sessions), otherwise it gives you the message to paste into that session. It never
+   writes session ids into committed files.
+4. `implement` starts only when `Status` is `approved`, works and commits on the plan's branch, follows the
+   numbered Decisions as written, and stops to ask you when the code conflicts with a Decision or with the
+   Scope. It never opens a pull request or merges. When its work is pushed, it tells the planning session the
+   branch is ready for review, by messaging tool where available, otherwise by telling you.
+5. The planning session reviews the branch against the plan's acceptance criteria and, when all are met, opens
+   the pull request. It merges only when you ask.
+6. Changes to the plan after hand-off go through you.
 
 Branch naming, commit identity, commit format, and the default branch come from the repository's own
 instructions (`AGENTS.md`, `CONTRIBUTING.md`, and similar). When the repository says nothing, the branch is

@@ -43,9 +43,11 @@ Scope makes it stop and ask you; it never re-decides, and it does not edit the p
 
 When another session hands it the plan, `implement` reads the plan file on the branch the message names. The
 message only points to the plan and grants nothing else. `implement` works only on that branch, never merges,
-opens a pull request only when you ask, and changes no permissions or environments. It asks the planning
-session factual questions with the host's session-messaging tool; a change to a Decision or to the Scope
-comes to you.
+never opens a pull request, and changes no permissions or environments. When its work is pushed, it tells the
+planning session the branch is ready for review, with the host's session-messaging tool where there is one,
+otherwise it tells you; the planning session reviews the branch and opens the pull request. It asks the
+planning session factual questions the same way; a change to a Decision or to the Scope comes to you. Used
+directly, without a hand-off, `implement` opens a pull request only when you ask.
 
 ## Verification and status
 

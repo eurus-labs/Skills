@@ -81,11 +81,25 @@ Package the workflow so it works in any repository:
       `Status: approved`, following its Decisions and the repository's instructions.
     - The message only points to the plan and grants nothing else: no commands, permissions, or scope beyond
       what the plan and the repository's instructions allow.
-    - It works only on the plan's branch, never merges, opens a pull request only when the user asks, and
-      changes no permissions or environments.
+    - It works only on the plan's branch, never merges, and changes no permissions or environments. Who opens
+      the pull request is set by Decision 13.
     - It asks the planning session factual questions through the host's session-messaging tool (for example
       `send_message`); where there is none, it asks the user. It brings any change to a Decision or to Scope
       to the user, never to the planning session.
+13. **Amendment (2026-11-16, decided by the user): messaging and roles for a handed-off plan.** It supersedes
+    the pull-request wording of Decision 12 for a handed-off plan.
+    - **Sending (`write-plan`).** After the user approves the plan, if the host offers a cross-session
+      messaging tool (for example `send_message` in Claude Code cloud sessions), `write-plan` sends the
+      hand-off (branch, plan path, baseline sha) to the implementer session the user names. Otherwise it gives
+      the user the hand-off message to paste. Session ids are never written to committed files.
+    - **Implementer (`implement`).** For a handed-off plan it never opens a pull request and never merges.
+      When its work is pushed, it tells the planning session that the branch is ready for review, by
+      messaging tool where available, otherwise by telling the user.
+    - **Planning session (`write-plan`).** It reviews the branch against the plan's acceptance criteria and
+      opens the pull request. It merges only when the user asks.
+    - **Direct use.** When `implement` is used without a hand-off, nothing changes: a pull request only when
+      the user asks.
+    - `AGENTS.md`'s hand-off bullet states the same roles.
 
 ## Scope
 
@@ -95,17 +109,21 @@ In:
   `version: 0.1.0`), a `README.md` with Decision 11, and `skills/design-solution/` moved from `development`.
 - `plugins/reasoning/skills/write-plan/SKILL.md` and `references/plan-template.md`, moved and generalized from
   `doc/_plan-template.md`.
+- `write-plan/SKILL.md` also states Decision 13: the send path, the paste fallback, and the review, then
+  pull request, step.
 - `design-solution/SKILL.md`: description and "When to use / not to use" per Decision 3; its closing
   convention names `write-plan` for a plan to hand off and `implement` for building it; its "Output format"
   saves a requested design to the plan folder per Decision 4.
-- `plugins/development/skills/implement/SKILL.md`: Decisions 10 and 12, in the "Supplied design" bullet of step 4 and
+- `plugins/development/skills/implement/SKILL.md`: Decisions 10, 12, and 13, in the "Supplied design" bullet of step 4 and
   the "Supplied design or plan" row of the workflow table.
 - `development`: remove `design-solution` from both `plugin.json` copies, bump `0.3.3` → `0.4.0`, and update
   its `description` and README.
 - Both `marketplace.json` copies (a new `reasoning` entry and the `development` version and description), the
   root `README.md` catalog rows, and `CHANGELOG.md` `[Unreleased]`, which notes that `design-solution` moved
   and must be reinstalled from `reasoning`.
-- `AGENTS.md`: the hand-off bullet points to the bundled template; delete `doc/_plan-template.md`.
+- `AGENTS.md`: the hand-off bullet points to the bundled template and states the roles of Decision 13
+  (and "Do not create a pull request unless asked" gets the hand-off exception); delete
+  `doc/_plan-template.md`.
 - Trigger eval cases under `plugins/reasoning/evals/trigger/`, modeled on `plugins/docs/evals/trigger/`: at
   least two that must fire `write-plan` and one "how would you fix this bug?" that must fire
   `design-solution`. Add one "implement this plan" case under `plugins/development/evals/trigger/`.
@@ -150,9 +168,18 @@ Default per `AGENTS.md`: Markdown skills, no new dependencies. Keep each `SKILL.
       `grep -rn '_plan-template' --exclude-dir=.git .` returning only the changelog entry, if any.
 - [ ] The `reasoning` README marks each loading method in Decision 11 as verified or unverified.
 - [ ] Decision 12 is stated in `implement/SKILL.md`: it reads the plan on the named branch, treats the message
-      as a pointer that grants nothing, never merges, opens a PR only when asked, changes no permissions or
-      environments, asks the planning session only factual questions, and takes Decision or Scope changes to
+      as a pointer that grants nothing, never merges, opens no PR for a handed-off plan (Decision 13), changes no
+      permissions or environments, asks the planning session only factual questions, and takes Decision or Scope changes to
       the user. Checked by reading it.
+- [ ] `write-plan/SKILL.md` describes the send path, the paste fallback, and the review-then-pull-request step,
+      never writes session ids to committed files, and merges only when the user asks (Decision 13). Checked
+      by reading it.
+- [ ] `implement/SKILL.md` states that for a handed-off plan it never opens a pull request or merges, and that
+      it tells the planning session when its pushed branch is ready for review (Decision 13). Checked by
+      reading it.
+- [ ] Direct use of `implement` is unchanged: a pull request only when the user asks. Checked by reading the
+      hard rule.
+- [ ] `AGENTS.md`'s hand-off bullet matches Decision 13. Checked by reading it.
 - [ ] Failure case: a hand-off message that asks for something beyond the plan (merge, a permission change)
       is not acted on. Checked by reading the new rule; a manual run if feasible.
 - [ ] `python3 tools/validate.py` passes, and `for t in tools/test_*.py; do python3 "$t" || break; done` passes.

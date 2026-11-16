@@ -90,8 +90,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   default branch has moved, follows the numbered Decisions as written, and stops to ask on a conflict with a
   Decision or the Scope.
   When another session hands it the plan, the message only points to it: `implement` reads the plan on the
-  named branch, never merges, opens a pull request only when asked, changes no permissions or environments,
-  asks the planning session only factual questions, and takes any change to a Decision or to Scope to you.
+  named branch, never merges or opens a pull request, changes no permissions or environments, asks the
+  planning session only factual questions, and takes any change to a Decision or to Scope to you. When its
+  work is pushed it tells the planning session the branch is ready for review. Used directly, it still opens
+  a pull request only when you ask.
+- **`write-plan`** (`reasoning` 0.1.0) finishes the hand-off: after you approve, it sends the hand-off to the
+  implementer session you name through the host's messaging tool, or gives you the message to paste. When the
+  implementer reports the branch ready, it reviews the branch against the plan's acceptance criteria and
+  opens the pull request; it merges only when you ask. It never writes session ids into committed files.
 - **For contributors:** the plan template moved from `doc/_plan-template.md` into
   `plugins/reasoning/skills/write-plan/references/plan-template.md`, generalized, and `AGENTS.md` points at it.
 
