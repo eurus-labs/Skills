@@ -39,10 +39,16 @@ Also fix the leftover routing text in `design-solution` that still sends hand-of
      gap.
    - Rejected: relying on the subagent to find the identity itself, because a subagent starts without the
      conversation and can miss it.
-3. **If a commit with the wrong identity was already pushed**, the coder recommits it with the right identity
-   and replaces it on its own unmerged branch with `--force-with-lease`. It then reports that the old commit
-   was public. The planner tells the user that GitHub may keep the old commit reachable by its sha, and that
-   GitHub's "Block command line pushes that expose my email" setting prevents this at the server.
+3. **If a commit with the wrong identity was already pushed** (amended by the user after review), the coder
+   stops. It does not rewrite or force-push. It reports the commit's sha and that the commit is public.
+   - The planner tells the user three things: the commit is public, GitHub may keep it reachable by its sha,
+     and GitHub's "Block command line pushes that expose my email" setting prevents this at the server. It
+     then asks the user whether to rewrite.
+   - Only after the user confirms does the planner dispatch a separate fix-up run. That run recommits the
+     commit with the right identity and replaces it with `git push --force-with-lease`, only on the plan's
+     own unmerged branch.
+   - A wrong identity found before a push is unchanged: do not push, recommit first. No confirmation is
+     needed, because nothing public is rewritten.
 4. **`design-solution` routes hand-offs to `coder-handoff`.** In its description and its "When not to use"
    section:
    - writing or saving a plan stays with `write-plan`;
@@ -87,7 +93,8 @@ Default per `AGENTS.md`: Markdown skills, no new dependencies. Keep each `SKILL.
       and checks every commit's author and committer before every push. Checked by reading it, and by
       `grep -n "before every push" plugins/development/skills/implement/SKILL.md`.
 - [ ] Failure case: `implement` says what to do when the check finds a mismatch before a push (recommit
-      first, do not push) and when a bad commit was already pushed (Decision 3). Checked by reading it.
+      first, do not push) and when a bad commit was already pushed (stop, report it as public, and rewrite only
+      after the user confirms, Decision 3). Checked by reading it.
 - [ ] `coder-handoff`'s Output format prompt contains an identity placeholder and the check-before-every-push
       instruction, and its review step checks every commit's identity. Checked by reading it.
 - [ ] `design-solution` sends hand-offs to `coder-handoff`, and no line says `write-plan` owns the hand-off.

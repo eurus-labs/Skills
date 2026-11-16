@@ -80,8 +80,8 @@ Commit identity: author and committer for every commit are <name> <no-reply addr
 repository's rules or from the user. Set it on every command that writes a commit (the four GIT_AUTHOR_* and
 GIT_COMMITTER_* variables inline), and never change git config. Before every push, list the author and
 committer of every commit about to be pushed; if any differs, do not push, recommit it first. If a commit
-with the wrong identity was already pushed, recommit it, replace it with --force-with-lease on this unmerged
-branch, and report that the old commit was public.
+with the wrong identity was already pushed, stop: do not rewrite or force-push. Report its sha and that it is
+public.
 ```
 
 The review result goes to the user:
@@ -123,13 +123,18 @@ Baseline: main at 3f9c2ab…
 5. **Review at `implemented`.** Check the branch against each acceptance criterion with the checks the plan
    names, and against its Decisions and Scope. Confirm the plan file differs from its approved version only in
    the `Status` line, so no Decision was edited. Report each criterion as met or not met, with evidence.
-   Also list the author and committer of every commit on the branch since the baseline; a commit that is not
+   Also list the author and committer of only the commits unique to the plan's branch, with
+   `git log origin/<default>..HEAD --format='%an <%ae> | %cn <%ce>'` (the same range as the pre-push check, so
+   a rebase onto a newer default branch does not pull in other contributors' commits); a commit that is not
    the expected identity on both sides is a gap (step 6). If the coder reported a commit that was already
-   pushed with the wrong identity, tell the user that GitHub may keep the old commit reachable by its sha,
-   and that GitHub's "Block command line pushes that expose my email" setting prevents this at the server.
+   pushed with the wrong identity, tell the user that it is public, that GitHub may keep it reachable by its
+   sha, and that GitHub's "Block command line pushes that expose my email" setting prevents this at the
+   server. Then ask whether to rewrite it; do not dispatch a rewrite before the user answers.
 6. **If any criterion is not met,** open no pull request. Dispatch a new subagent run on the same branch with
    the gaps, telling it `Status` already says `implemented` and it should fix the gaps and leave `Status`
-   alone. Return to step 4 when it returns (rule 5).
+   alone. Return to step 4 when it returns (rule 5). A run that rewrites an already-pushed wrong-identity
+   commit is dispatched only after the user confirmed the rewrite (step 5), and its prompt says so: it may
+   recommit that commit and use `git push --force-with-lease` on this unmerged branch only.
 7. **If every criterion is met,** open the pull request from the plan's branch to the default branch, with
    the repository's title and body rules (rule 7) and no session ids (rule 9). Report it to the user.
 8. **Merge only when the user asks.** Report what was done and what was not verified.

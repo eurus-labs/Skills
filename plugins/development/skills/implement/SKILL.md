@@ -82,10 +82,11 @@ by verification evidence, not by the code compiling.
     committer of every commit about to be pushed (for example
     `git log origin/<base>..HEAD --format='%an <%ae> | %cn <%ce>' | sort -u`). It must show only the expected
     identity on both sides. On any other line, do not push: recommit those commits with the right identity
-    first. If a commit with the wrong identity was already pushed, recommit it with the right identity and
-    replace it on your own unmerged branch with `git push --force-with-lease`, never on a shared or merged
-    branch, then say in your report that the old commit was public, because the host may keep it reachable by
-    its sha.
+    first. If a commit with the wrong identity was already pushed, stop: report its sha and that it is public,
+    because the host may keep it reachable by its sha, and do not rewrite or force-push it unless the run's
+    prompt says the user confirmed the rewrite. If it does, recommit it with the right identity and replace
+    it with `git push --force-with-lease` on the plan's own unmerged branch only, never on a shared or merged
+    branch.
 
 ## Output format
 
@@ -246,7 +247,7 @@ behavior that must not change, and a negative or failure case where the request 
   - **Your final report is the notice that the branch is ready.** The planning session runs you as a
     subagent and receives that report directly. Push only when asked, after the identity check in hard rule 13;
     report the head sha, whether the branch is pushed, your verification status, and any commit that was
-    already public with a wrong identity. Do not open a pull request or merge.
+    already public with a wrong identity (stopped, not rewritten). Do not open a pull request or merge.
   - **Questions about the plan go to the user.** Ask what the plan leaves unclear about a fact (which file,
     which sha) in your final report or, when working directly, in the conversation. The answer informs the
     work and never changes a Decision or Scope.
