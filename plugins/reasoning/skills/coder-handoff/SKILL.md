@@ -1,6 +1,6 @@
 ---
 name: coder-handoff
-description: After the user approves a plan written by write-plan, dispatch it to a coder subagent on the implementing model, review the branch it returns against the plan's acceptance criteria, and open the pull request — when the user says "approved, hand it to the coder", "giao plan này cho coder", "giao cho Sonnet implement", "the coder is done, review the branch", "open the PR for plan 6". Sets Status approved and pushes, runs the plan in a subagent (for example the Agent tool with model sonnet and isolation worktree), reviews at Status implemented, and merges only when asked. To write or save a plan that does not exist yet, use write-plan instead; for advice or a comparison in the conversation, use design-solution; to build the plan yourself, use implement from the development plugin.
+description: After the user approves a plan written by write-plan, dispatch it to a coder subagent on the implementing model, review the branch it returns against the plan's acceptance criteria, and open the pull request — when the user says "approved, hand it to the coder", "giao plan này cho coder", "giao cho Sonnet implement", "the coder pushed", "the coder is done, review the branch", "open the PR for plan 6". Sets Status approved and pushes, runs the plan in a subagent (for example the Agent tool with model sonnet and isolation worktree), reviews at Status implemented, and merges only when asked. To write or save a plan that does not exist yet, use write-plan instead; for advice or a comparison in the conversation, use design-solution; to build the plan yourself, use implement from the development plugin.
 ---
 
 # Coder handoff
@@ -106,10 +106,11 @@ Baseline: main at 3f9c2ab…
 4. **Read the report and the branch.** Fetch the branch and read `Status` at its head (rule 4). If it is
    `approved`, do not review; report it to the user.
 5. **Review at `implemented`.** Check the branch against each acceptance criterion with the checks the plan
-   names, and against its Decisions and Scope. Confirm the last commit changed only the `Status` line of the
-   plan and that no Decision was edited. Report each criterion as met or not met, with evidence.
+   names, and against its Decisions and Scope. Confirm the plan file differs from its approved version only in
+   the `Status` line, so no Decision was edited. Report each criterion as met or not met, with evidence.
 6. **If any criterion is not met,** open no pull request. Dispatch a new subagent run on the same branch with
-   the gaps, and return to step 4 when it returns (rule 5).
+   the gaps, telling it `Status` already says `implemented` and it should fix the gaps and leave `Status`
+   alone. Return to step 4 when it returns (rule 5).
 7. **If every criterion is met,** open the pull request from the plan's branch to the default branch, with
    the repository's title and body rules (rule 7) and no session ids (rule 9). Report it to the user.
 8. **Merge only when the user asks.** Report what was done and what was not verified.

@@ -14,8 +14,8 @@ copilot plugin marketplace add eurus-labs/Skills
 copilot plugin install reasoning@eurus-labs
 ```
 
-Install `development@eurus-labs` in the session that implements. `implement` works from a plan without
-`reasoning` installed.
+Install `development@eurus-labs` where the coder subagent runs, which is the planning host, or in the session
+where you run a plan yourself. `implement` works from a plan without `reasoning` installed.
 
 ## Skills
 
