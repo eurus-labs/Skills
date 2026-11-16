@@ -1,6 +1,6 @@
 # Plan 5 — a `reasoning` plugin for planning, handed off to an implementing session
 
-Status: draft
+Status: approved
 Date: 2026-11-16
 Branch: `feat/development-plan-handoff`
 Baseline: `origin/main` at `6c545ea51bdb3476b43d232cb40e09a26ab016c6`
@@ -41,7 +41,8 @@ Package the workflow so it works in any repository:
    - Rejected: leaving the descriptions as they are, because each would fire on the other's requests.
 4. **Plan location: the repository's existing plan folder.** Detect it as a folder that already holds plan
    documents (for example `doc/plan-*.md`, `docs/plans/`, `plans/`). If there is none, create `docs/plans/`
-   and say so (decided by the user).
+   and say so (decided by the user). `design-solution`, when asked to save a design, saves it to the same
+   folder instead of `docs/design/<topic>.md` (decided by the user).
 5. **The template is bundled in the skill** at `skills/write-plan/references/plan-template.md`, because a
    `SKILL.md` may not link outside its plugin. It becomes the only copy: delete `doc/_plan-template.md` and
    point `AGENTS.md` at the bundled file. Rejected: two copies, which would drift. Rejected: `shared/` with
@@ -85,7 +86,8 @@ In:
 - `plugins/reasoning/skills/write-plan/SKILL.md` and `references/plan-template.md`, moved and generalized from
   `doc/_plan-template.md`.
 - `design-solution/SKILL.md`: description and "When to use / not to use" per Decision 3; its closing
-  convention names `write-plan` for a plan to hand off and `implement` for building it.
+  convention names `write-plan` for a plan to hand off and `implement` for building it; its "Output format"
+  saves a requested design to the plan folder per Decision 4.
 - `plugins/development/skills/implement/SKILL.md`: Decision 10, in the "Supplied design" bullet of step 4 and
   the "Supplied design or plan" row of the workflow table.
 - `development`: remove `design-solution` from both `plugin.json` copies, bump `0.3.3` → `0.4.0`, and update
@@ -102,7 +104,7 @@ Out:
 
 - Any script. The skills are instructions only; git is run by the agent.
 - Behavior evals.
-- Other plugins, and where `design-solution` saves its own design file (see Open questions).
+- Other plugins.
 
 ## Baseline
 
@@ -154,5 +156,4 @@ Default per `AGENTS.md`: Markdown skills, no new dependencies. Keep each `SKILL.
 
 ## Open questions
 
-1. Should `design-solution`, when asked to save a design, also use the plan folder instead of
-   `docs/design/<topic>.md`? Assumed: no change in this plan; revisit after `write-plan` is in use.
+None. The question about where `design-solution` saves a design was decided by the user (Decision 4).
