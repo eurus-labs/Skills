@@ -17,8 +17,8 @@ Plan 5's first real run also showed that the coder session could not message the
 (`send_message` was not among its tools), so the user had to tell the planner the work was done. Make the
 planner find out without the user:
 
-- open a draft pull request at hand-off;
-- let the host's pull-request events (CI finishing on each push) wake the planner;
+- ~~open a draft pull request at hand-off~~ and ~~let the host's pull-request events wake the planner~~
+  (superseded by Decision 9: the subagent's result is the wake-up, and the pull request opens after review);
 - have the coder mark completion in git.
 
 ## Decisions
@@ -26,10 +26,9 @@ planner find out without the user:
 1. **New skill `coder-handoff` in `reasoning`** (name chosen by the user). It starts when the user approves a
    plan, and it covers:
    - setting `Status: approved` and making the planner's last push;
-   - opening a draft pull request;
-   - dispatching the plan to the coder;
-   - waiting for the coder, then reviewing its branch;
-   - marking the pull request ready;
+   - dispatching the plan to the coder (Decision 9: a subagent);
+   - waiting for the coder's result, then reviewing its branch;
+   - opening the pull request after the review passes (Decisions 4 and 9);
    - merging only when the user asks.
 
    Rejected: keeping all of this in `write-plan`, because writing and handing off happen at different times
@@ -45,12 +44,12 @@ planner find out without the user:
    `write-plan` keeps writing and saving a plan, including "write a plan so another session can implement
    it". Remove "hand this off" and the review and pull-request wording from `write-plan`'s description. Each
    description names the other skill.
-4. **Draft pull request at hand-off** (decided by the user). Right after the approval push, `coder-handoff`
+4. **SUPERSEDED by Decision 9: the pull request opens after the review passes, as in plan 5. Do not implement a draft pull request at hand-off.** Original text: draft pull request at hand-off (decided by the user). Right after the approval push, `coder-handoff`
    opens a draft pull request from the plan's branch to the default branch. Its title and body come from the
    plan and follow the repository's rules, with no session ids. When the review passes, it marks the pull
    request ready for review. Rejected: opening the pull request only after review (plan 5), because without
    an open pull request the planner gets no events.
-5. **How the planner is woken, in order of preference:**
+5. **SUPERSEDED by Decision 9: the subagent's result is the wake-up. Do not implement the wake order.** Original text: how the planner is woken, in order of preference:
    1. The host's pull-request activity subscription, for example `subscribe_pr_activity` in Claude Code cloud
       sessions. CI finishing on a push wakes the planner. This was observed on eurus-labs/Skills#69 and #70.
    2. A message from the coder through a cross-session messaging tool, if the coder's host has one.
@@ -60,18 +59,18 @@ planner find out without the user:
 
    `coder-handoff` says which of these it set up.
 6. **The coder marks completion in git: its last commit sets the plan's `Status: implemented`** (approved by
-   the user). Only that line changes, and Decisions are never edited. Then `implement` tells the planning session the branch is
-   ready, by messaging tool where available, otherwise by telling the user, as in plan 5.
+   the user). Only that line changes, and Decisions are never edited. Then `implement`'s final report is the notice (Decision 9
+   removes the messaging tool and the user fallback).
 
-   On each wake, `coder-handoff` reads `Status` at the branch head:
-   - `approved`: the coder is still working, so wait;
+   When the subagent returns, `coder-handoff` reads `Status` at the branch head:
+   - `approved`: the coder did not finish, so do not review; report it to the user;
    - `implemented`: review the branch.
 
    Rejected: treating any push as done, because a coder may push several times.
 7. **Review result goes to the user; gaps go to the coder.**
-   - If every acceptance criterion is met: mark the pull request ready and report to the user.
-   - If any criterion is not met: keep it a draft, and send the gaps to the coder (or give them to the user to
-     paste). The coder sets `Status: implemented` again when it has fixed them.
+   - If every acceptance criterion is met: open the pull request and report to the user (Decision 9).
+   - If any criterion is not met: open no pull request, and send the gaps to a new subagent run on the same
+     branch (Decision 9). The coder sets `Status: implemented` again when it has fixed them.
    - The planner never pushes to the branch after the approval push.
 8. **Unchanged from plan 5:**
    - Authority comes from the approved plan in git.
@@ -79,13 +78,16 @@ planner find out without the user:
    - Session ids are never committed.
    - The repository's rules win over the skill's defaults.
    - Pushing, opening a pull request, and messaging are outward actions the skill names.
-9. **Dispatch to a subagent when the host allows it** (decided by the user after plan 6's first hand-off, where
-   the coder session stopped to ask for push approval on a new branch). If the host lets the planning session
-   start a subagent with a chosen model, `coder-handoff` dispatches the plan to a subagent on the implementing
-   model, for example the Agent tool with `model: sonnet` and `isolation: worktree` in Claude Code. The
-   subagent's result returns to the planner directly, and the planner then reviews. Otherwise it hands off to a
-   separate session as in Decisions 4–6. The draft pull request and `Status: implemented` apply in both paths.
-   While the subagent runs, the planner does not touch the branch.
+9. **Dispatch to a subagent only** (decided by the user after plan 6's first hand-off, where a separate coder
+   session stopped to ask for push approval and was then deleted). `coder-handoff` dispatches the approved plan
+   to a subagent on the implementing model, for example the Agent tool with `model: sonnet` and
+   `isolation: worktree` in Claude Code. The subagent's final report returns to the planner directly, and the
+   planner then reviews. There is no separate-session hand-off and no cross-session messaging. If the host
+   cannot start a subagent, `coder-handoff` stops and tells the user to run the plan with `implement`
+   themselves, giving the branch, plan path and baseline sha. While the subagent runs, the planner does not
+   touch the branch. This supersedes Decisions 4 and 5 and the separate-session parts of 6 and 7: the coder's
+   last commit still sets `Status: implemented` (Decision 6); gaps found in review go to a new subagent run on
+   the same branch (Decision 7); the pull request opens after the review passes.
 
 ## Scope
 
@@ -97,8 +99,8 @@ In:
   `Status: implemented` as its last commit (Decision 6).
 - `reasoning` `0.1.0` → `0.2.0` and `development` `0.4.0` → `0.5.0`: both `plugin.json` copies, both
   `marketplace.json` copies, the plugin READMEs, the root catalog row, and `CHANGELOG.md` `[Unreleased]`.
-- `AGENTS.md`'s hand-off bullet: a draft pull request at hand-off, the `Status: implemented` signal, and the
-  name `coder-handoff`.
+- `AGENTS.md`'s hand-off bullet: the subagent flow, the `Status: implemented` signal, and the name
+  `coder-handoff`.
 - `plan-template.md`: the `Status` line says who sets each value (the user sets `approved`; the coder sets
   `implemented`).
 - Trigger eval cases under `plugins/reasoning/evals/trigger/`:
@@ -119,7 +121,7 @@ Out:
 | `plugins/reasoning/skills/write-plan/SKILL.md` rules 3, 10, 11; steps 9–12; Output format hand-off and review blocks | Move to `coder-handoff` |
 | `write-plan` description: "hand this off", "review the branch it returns and open the pull request" | Remove; name `coder-handoff` instead |
 | `plugins/development/skills/implement/SKILL.md` "Tell the planning session when the branch is ready" | Keep; add the `Status: implemented` last commit before it |
-| `AGENTS.md` hand-off bullet and its PR exception line | Update for the draft pull request at hand-off |
+| `AGENTS.md` hand-off bullet and its PR exception line | Update for the subagent flow and the pull request after review |
 | `plugins/reasoning/evals/trigger/write-plan-*` | Keep; re-check them against the narrowed description |
 
 ## Tech stack and constraints
@@ -134,16 +136,17 @@ Default per `AGENTS.md`: Markdown skills, no new dependencies. Keep each `SKILL.
 - [ ] `write-plan` no longer describes dispatching, reviewing, or opening a pull request, and names
       `coder-handoff`. Checked by grepping its `SKILL.md` for `send_message` and `pull request`, and by
       reading it.
-- [ ] `coder-handoff` states Decisions 4–8 itself, including the wake order and its fallbacks. Checked by
-      reading it.
-- [ ] `coder-handoff` describes the subagent path first and the separate-session path as the fallback. Checked
-      by reading it.
-- [ ] Failure case: `coder-handoff`, woken while the branch's plan still says `Status: approved`, does not
-      review and keeps waiting. Checked by reading its steps.
-- [ ] Failure case: when a criterion is not met, the pull request stays a draft and the gaps go to the coder.
-      Checked by reading its steps and Output format.
-- [ ] Failure case: on a host with no pull-request subscription and no CI, `coder-handoff` sets a scheduled
-      check-in or tells the user how it will learn the work is done. Checked by reading it.
+- [ ] `coder-handoff` states Decisions 6–9 itself (the subagent dispatch, `Status: implemented` as the done
+      signal, review, no cross-session hand-off). Checked by reading it.
+- [ ] `coder-handoff` describes only the subagent path plus the stop-and-tell-the-user fallback; no
+      `send_message` or cross-session hand-off text remains in `coder-handoff`, `write-plan`, `implement`, or
+      `AGENTS.md`. Checked by grepping those files for `send_message` and `cross-session`.
+- [ ] Failure case: `coder-handoff`, when the branch's plan still says `Status: approved` after the subagent
+      returns, does not review. Checked by reading its steps.
+- [ ] Failure case: when a criterion is not met, no pull request is opened and the gaps go to a new subagent
+      run on the same branch. Checked by reading its steps and Output format.
+- [ ] Failure case: on a host that cannot start a subagent, `coder-handoff` stops and tells the user how to run
+      the plan with `implement`, with the branch, plan path and baseline sha. Checked by reading it.
 - [ ] `implement`'s last commit on a handed-off plan changes only the `Status` line to `implemented`. Checked
       by reading its finish step.
 - [ ] No session ids or personal identifiers in committed files. Checked by grepping `plugins/reasoning` and
@@ -156,11 +159,10 @@ Default per `AGENTS.md`: Markdown skills, no new dependencies. Keep each `SKILL.
 | Risk | How it is handled |
 | --- | --- |
 | `write-plan` and `coder-handoff` fire on each other's requests | Decision 3's split; descriptions name each other; trigger cases on both sides |
-| A repository runs no CI on pull requests, so no event wakes the planner | Decision 5's scheduled check-in and user fallback |
-| The planner reviews a half-done branch after an intermediate push | Decision 6: review only at `Status: implemented` |
-| A draft pull request is mistaken for ready work | It stays a draft until the review passes; the body says it is a draft awaiting the coder |
+| The host cannot start a subagent | Decision 9: stop and tell the user to run the plan with `implement` |
+| The planner reviews a half-done branch | Decision 6: review only at `Status: implemented` |
 | The coder edits more than the `Status` line in the plan | Acceptance check on `implement`'s finish step; the planner's review compares the plan with the approved version |
-| Opening a pull request at hand-off conflicts with a repository's "no PR unless asked" rule | The user's approval of the plan is the ask; the skill says so, and a repository rule that forbids it wins (Decision 8) |
+| Opening the pull request conflicts with a repository's "no PR unless asked" rule | The user's approval of the plan is the ask; a repository rule that forbids it wins (Decision 8) |
 
 ## Open questions
 
