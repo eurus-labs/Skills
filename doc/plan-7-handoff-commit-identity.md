@@ -1,6 +1,6 @@
 # Plan 7 — check the commit identity before every push in a hand-off
 
-Status: draft
+Status: approved
 Date: 2026-11-16
 Branch: `fix/reasoning-handoff-commit-identity`
 Baseline: `origin/main` at `493e2fb91460849e0fb3ed99adbee8c40427ce69`
