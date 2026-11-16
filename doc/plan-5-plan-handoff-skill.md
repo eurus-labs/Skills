@@ -126,8 +126,8 @@ Default per `AGENTS.md`: Markdown skills, no new dependencies. Keep each `SKILL.
 - [ ] `reasoning` is `0.1.0` and `development` is `0.4.0` in their `plugin.json` copies and both
       `marketplace.json` copies, with matching descriptions. Checked by `python3 tools/validate.py`.
 - [ ] `write-plan/SKILL.md` states each rule in Decisions 4 and 7–9 itself. Checked by reading it.
-- [ ] No `SKILL.md` links outside its own plugin. Checked by `python3 tools/validate.py` and by grepping for
-      `](../../..`.
+- [ ] No `SKILL.md` links outside its own plugin. Checked by `python3 tools/validate.py` and by grepping the
+      two plugins for relative links that climb above the plugin folder.
 - [ ] Failure case: `implement`, told to build a `draft` plan, reports that it is not approved and changes no
       file. Checked by reading the new rule; a manual run if feasible.
 - [ ] Failure case: `implement`, given a plan whose Decision contradicts the code, stops and asks. Checked by
