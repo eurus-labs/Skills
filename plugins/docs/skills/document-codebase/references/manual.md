@@ -179,6 +179,9 @@ Examples in this guide illustrate schema shape; their prose and IDs must not be 
 
 ## Review and repair the draft
 
+Who does this, and how a finding is routed, is in [`workflow.md`](workflow.md); the task contracts are
+[`writer.md`](writer.md) and [`reviewer.md`](reviewer.md).
+
 The model reviewer reads each rendered section, the questions it covers, the grounding record and relevant
 source. Apply the content review criteria in [prose-rules.md](prose-rules.md). A citation that exists does not
 prove its paragraph answers the question. Record stable findings with the missing behavior or unsupported

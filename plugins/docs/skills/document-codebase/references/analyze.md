@@ -4,6 +4,9 @@ The second component, and **what the model's budget buys — the only part of th
 understanding.** Row shapes, kinds and statuses are in [`schemas.md`](schemas.md); packets, partitions and
 the append discipline are in [`context-policy.md`](context-policy.md).
 
+When the reading is split into tasks, each task follows [`analyst.md`](analyst.md) and the contract in
+[`workflow.md`](workflow.md).
+
 **Checkpoint P2 closes this component**, and `check` will not run until it is decided.
 
 ```bash

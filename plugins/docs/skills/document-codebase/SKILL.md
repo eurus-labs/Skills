@@ -79,6 +79,19 @@ present, empty, still holding placeholder text, or a copy of the template's ques
    this skill's folder. Relative `--build`, `--docs`, `--staging` and `--review` paths resolve against
    `--root`.
 
+## Roles
+
+You are the Coordinator: you own scope, dispatch, merging, conflicts and revisions. Work is done in three
+other roles, each with a task contract in [analyst](references/analyst.md), [writer](references/writer.md)
+and [reviewer](references/reviewer.md): the Analyst reads source, the Writer composes pages, the Reviewer
+checks the exact draft against source. Read [workflow](references/workflow.md) before dispatching any of them.
+
+- Use subagents only when the host offers them; otherwise run each role as an explicit sequential pass.
+- Only you write shared files. Workers return results to you, and a timed-out task stays pending.
+- Record `review_mode: independent` only for a review in a context separate from the Writer's. A sequential
+  pass records `self_review`. Never claim independence that did not happen, and say which one you used.
+- The Writer never sets `content_review` and never confirms its own draft.
+
 ## Plan and run
 
 Whenever the user requests a plan, proposed sequence, or preview, read the
@@ -96,11 +109,11 @@ permit exit `1` while their component continues; see [pipeline](references/pipel
 | --- | --- | --- |
 | Survey | `survey --root . --top 25` | Select scope; read [survey](references/survey.md). P1 follows — present the template choice with it. |
 | Template | `template`, then `template --use …` | Recommend, ask, record the user's pick; see above. |
-| Analyze | `analyze` | Read source and write `module-analysis.jsonl`, `fragments.jsonl`, and call claims; read [analyze](references/analyze.md), [context policy](references/context-policy.md), and the [schemas](references/schemas.md) sections its contents point to. P2 follows. |
+| Analyze | `analyze` | Read source and write `module-analysis.jsonl`, `fragments.jsonl`, and call claims; read [analyze](references/analyze.md), [analyst](references/analyst.md), [context policy](references/context-policy.md), and the [schemas](references/schemas.md) sections its contents point to. P2 follows. |
 | Check | `check` | Repair named findings; read [check](references/check.md). For an unfamiliar finding code, read `scripts/findings.py` as a catalog; do not run it. Write architecture, flow, and operations analyses using [three analyses](references/three-analyses.md); P3 follows. |
-| Document | `document` | Builds the recorded choice. Read [document](references/document.md); for a preset, [presets](references/presets.md); for a question template, [manual](references/manual.md). A question template's first run stops at exit `1` with an answer draft: complete and compose its pages, then rerun. |
+| Document | `document` | Builds the recorded choice. Read [document](references/document.md) and [writer](references/writer.md); for a preset, [presets](references/presets.md); for a question template, [manual](references/manual.md). A question template's first run stops at exit `1` with an answer draft: complete and compose its pages, then rerun. |
 | Render | `render --docs docs` | Inspect the isolated draft and read [rendering](references/rendering.md). Run `python3 scripts/publish/readability.py .docs-build/rendered-docs --for-review` and judge the flagged passages before accepting any rendered page. Show the user the authored pages still owed. |
-| Final review | `review`, then `review --review` | Write `prose-review.jsonl` under [prose rules](references/prose-rules.md); show queued readings and evidence for P4 before the reviewed pass. |
+| Final review | `review`, then `review --review` | Write `prose-review.jsonl` under [prose rules](references/prose-rules.md) and [reviewer](references/reviewer.md); show queued readings and evidence for P4 before the reviewed pass. |
 | Publish | `approve` if signatures are required, then `publish --docs docs` | Promote only the sealed draft, once the template is chosen and any required signatures verify; read [publish](references/publish.md). |
 
 After `check`, write the three analyses before completing the P3 decision; do not treat a green check as

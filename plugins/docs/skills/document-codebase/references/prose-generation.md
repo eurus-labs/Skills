@@ -69,6 +69,8 @@ replaced its answers with nothing; these rules refuse one that buried them.
 
 ## Model review before render
 
+The reviewer's task contract is [`reviewer.md`](reviewer.md); the writer's is [`writer.md`](writer.md).
+
 Review the draft against the assigned questions, grounding record, and cited source. Request changes when a
 section omits a material facet, overstates evidence, remains generic, or is not actionable for its intended
 reader. Repair `manual-analysis.json`, then review the changed content again. Rendering is a transformation,

@@ -95,6 +95,8 @@ a pass, and a real defect still outranks "could not tell".
 
 ## Content review criteria for manual sections
 
+The Reviewer role applies these; see [`reviewer.md`](reviewer.md) and [`workflow.md`](workflow.md).
+
 Before assigning `confirmed`, the model reviewer checks all of the following against the source and the
 question-to-source mapping:
 
