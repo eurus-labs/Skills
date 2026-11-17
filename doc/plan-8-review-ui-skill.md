@@ -56,7 +56,8 @@ The user wrote the skill (Appendix A), drawing on the `design:accessibility-revi
    - `plugins/verification/skills/verify-change/SKILL.md`
    - `plugins/verification/README.md`
    - the root `README.md`
-   - `tools/test_eval_board.py`
+   - `tools/test_eval_board.py`: point the "plugins without evals" test at `skill-authoring`, which has no
+     evals, because `review` gains evals in Decision 8 (amended by the user after review)
 
    Leave these unchanged as history: `CHANGELOG.md`'s released sections, `doc/skill-manager-redesign.md`, and
    `fixtures/04-security/app.py`, whose wording is generic and which is a planted fixture.
@@ -100,7 +101,7 @@ Out:
 | `plugins/code-review/.github/plugin/plugin.json` and `.claude-plugin/plugin.json` (`name: code-review`, 0.2.4) | `name: review`, 0.3.0, `skills` adds `./skills/review-ui/`, new description |
 | Both `marketplace.json` entries for `code-review` | Rename, and match the new version and description |
 | `README.md` catalog row for `code-review` | Rename; list `review-ui` |
-| `tools/test_eval_board.py:81-82` uses `self.plugins["code-review"]` | Use `"review"` |
+| `tools/test_eval_board.py:81-82` uses `self.plugins["code-review"]` | Point the "plugins without evals" test at `skill-authoring`, which has no evals, because `review` gains evals in Decision 8 (amended by the user after review) |
 | 9 skill and README files naming "the `code-review` plugin" (Decision 5) | Name the `review` plugin |
 
 ## Tech stack and constraints
