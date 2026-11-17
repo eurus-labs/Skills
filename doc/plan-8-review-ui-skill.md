@@ -1,6 +1,6 @@
 # Plan 8 — add a `review-ui` skill and rename `code-review` to `review`
 
-Status: approved
+Status: implemented
 Date: 2026-11-17
 Branch: `feat/review-ui-skill`
 Baseline: `origin/main` at `c2bafbccbf83ca63d08d87bade5c5d82f4ceb04c`
