@@ -1,6 +1,6 @@
 # Plan 11 — `coder-handoff` always dispatches to a lower-tier model than the planner
 
-Status: approved
+Status: implemented
 Date: 2026-11-17
 Branch: `feat/reasoning-handoff-lower-tier`
 Baseline: `origin/main` at `e679abc4fe12215a6eee3cb71898946f65bfeedf`
