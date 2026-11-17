@@ -50,7 +50,7 @@ Then verify any change, whoever made it:
 | A repository's verification set up or refreshed | `setup-verification` |
 | An existing change verified, without changing it | `verify-change` |
 | A change made and verified | `implement`, in the `development` plugin |
-| A change's code judged | `review-code`, in the `code-review` plugin |
+| A change's code judged | `review-code`, in the `review` plugin |
 
 ## What "verified" means
 

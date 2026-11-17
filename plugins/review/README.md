@@ -1,4 +1,4 @@
-# code-review
+# review
 
 Review code against an established standard, and set up the rules files that keep agents aligned with a
 repository's conventions.
@@ -13,7 +13,7 @@ The two skills connect: the review checklist `setup-review-rules` writes is link
 
 ```bash
 copilot plugin marketplace add eurus-labs/Skills
-copilot plugin install code-review@eurus-labs
+copilot plugin install review@eurus-labs
 ```
 
 ## Skills

@@ -27,7 +27,7 @@ acceptance criterion, has passing evidence tied to the code under test.**
 - **The user wants the change made** — use `implement` from the `development` plugin; it verifies its own
   work.
 - **The user wants the code judged** for correctness, security, or maintainability — use `review-code` from
-  the `code-review` plugin. This skill proves behavior and runs checks; it does not grade design.
+  the `review` plugin. This skill proves behavior and runs checks; it does not grade design.
 - **The repository has no way to verify changes yet** and the user wants one set up — use
   `setup-verification`.
 - **One test is failing and the question is why** — use `debug-failing-test` from the `testing` plugin.

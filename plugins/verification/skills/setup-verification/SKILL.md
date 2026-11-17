@@ -39,7 +39,7 @@ criterion.
   `development` plugin verifies the changes it makes.
 - **Writing unit or integration tests** — use `write-tests` from the `testing` plugin.
 - **Writing `AGENTS.md`, Copilot instructions, or a review checklist** — use `setup-review-rules` from the
-  `code-review` plugin.
+  `review` plugin.
 - **A library with no runnable surface beyond its test suite** — say so; the existing test command is the
   verification, and a generated skill would only restate it.
 

@@ -30,7 +30,7 @@ by verification evidence, not by the code compiling.
 - **Only a design, plan, or advice is wanted, no code** — including "how would you fix this?" asked as a
   question — use `design-solution` from the `reasoning` plugin. A plan to write down and hand to another
   session is `write-plan`, from the same plugin.
-- **Changes need reviewing, not changing** — use `review-code` from the `code-review` plugin.
+- **Changes need reviewing, not changing** — use `review-code` from the `review` plugin.
 - **One test is failing or flaky** — use `debug-failing-test` from the `testing` plugin.
 - **Only tests are wanted for code that already exists** — use `write-tests` from the `testing` plugin.
 - **An exact mechanical edit the user dictated** (fix this typo, bump this version) — do it directly.
@@ -307,7 +307,7 @@ behavior that must not change, and a negative or failure case where the request 
 ### 7. Hand off
 
 Write the handoff (Output format). Separate what passed, what failed, and what was not run. If the user wants
-an independent review, `review-code` from the `code-review` plugin can be suggested by name; do not wait on it
+an independent review, `review-code` from the `review` plugin can be suggested by name; do not wait on it
 or report it as done.
 
 ## Bundled resources
