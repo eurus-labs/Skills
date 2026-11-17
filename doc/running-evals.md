@@ -248,7 +248,7 @@ Starting a run opens the **Run** view: the case it is on ("case 2 of 13"), the h
 for Claude, **Stop**, and a progress bar. On the left, the waiting grading question with **✓ Yes**, **✕ No** and
 **→ Skip**, the run's transcripts and a tally of your answers; on the right, the live output, coloured by kind
 (commands, sections, graders, passes, failures, questions, scores). **← Back** returns to the list while the run
-goes on; a chip in the header leads back to it. Installs stay on the Install tab with a *Running…* notice and a
+goes on; a chip in the header leads back to it. Installs stay on the Skills tab with a *Running…* notice and a
 link to their output. A run starts the same runner you would start from a terminal
 (`tools/copilot_eval.py --run` or `claude plugin eval`). A Markdown transcript opens as a readable page: roles,
 each tool call with its arguments and output folded, and timings; add `&raw=1` to the link for the file itself.

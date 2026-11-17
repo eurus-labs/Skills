@@ -84,7 +84,7 @@ What the page does today, and keeps doing:
 | Install chips on Evals rows | **One chip per host, kept.** With two hosts a count hides more than it saves. The chips are drawn from the host list, so switching to "x of y platforms" later changes one function |
 | Hosts as data | **One list**, `HOSTS` in `tools/build_eval_board.py`. The server builds its commands from its `exe` and the page reads the same list from its data; `/api/state` returns it too. Reading a new host's `plugin list --json` still needs code in `skill_manager.installed()` |
 | Not-registered state | The marketplace card says *not registered* and why it matters, offers the Register buttons, and the plugin actions are disabled until it is registered |
-| Run view or corner panel | **The full Run view.** **← Back** returns to the list while the run goes on, and a chip in the header leads back to the run. Installs stay on the Install tab with a *Running…* notice and a link to their output |
+| Run view or corner panel | **The full Run view.** **← Back** returns to the list while the run goes on, and a chip in the header leads back to the run. Installs stay on the Skills tab with a *Running…* notice and a link to their output |
 
 Found while implementing: a stopped job kept its last question, so the page went on offering answer
 buttons for a run that had ended. `Job.stop()` now clears the question, and the page only offers answers

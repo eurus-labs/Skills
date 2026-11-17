@@ -8,8 +8,10 @@ For people who develop the skills in this repository. It serves one local page w
   behavior), the latest score per host, and a status, including "changed since last run". Search and
   filter the skills; a skill opens to a "Run all" bar and its cases, and a case opens in a side panel
   with its prompt, graders, runs and a Run form.
-- Install: one platform at a time, with its marketplace registration and a plugin table whose
-  Install/Update and Uninstall buttons sit in fixed slots.
+- Skills: one platform at a time, with its marketplace registration and a plugin table whose
+  Install/Update (Enable for a disabled plugin) and Uninstall buttons sit in fixed slots. Install all,
+  Update all and Uninstall all act on many plugins. A plugin the host has installed from this
+  marketplace that the checkout no longer lists (a renamed one) gets a row with Uninstall only.
 
 A run opens a Run view: progress through its cases, Stop, the waiting grading question with Yes, No
 and Skip, the transcripts, a tally of the answers, and the live output. It starts tools/copilot_eval.py
@@ -58,6 +60,7 @@ import copilot_eval  # noqa: E402
 
 REPO = board.REPO
 MARKETPLACE = "eurus-labs"
+PLUGIN_NAME = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 GITHUB_SOURCE = "eurus-labs/Skills"
 MODEL = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$")
 EFFORTS = ("", "none", "minimal", "low", "medium", "high", "xhigh", "max")
@@ -239,7 +242,9 @@ def plugin_command(host, action, plugin=None, source=None):
     """The CLI command for an install action, built only from validated parts."""
     exe = shutil.which(HOSTS[host])
     ref = "%s@%s" % (plugin, MARKETPLACE) if plugin else None
-    if action in ("install", "update", "uninstall"):
+    if action == "enable" and host == "copilot":
+        return [exe, "plugin", "enable", plugin]  # Copilot enables by name
+    if action in ("install", "update", "uninstall", "enable"):
         return [exe, "plugin", action, ref]
     if action == "marketplace-add":
         return [exe, "plugin", "marketplace", "add", REPO if source == "checkout" else GITHUB_SOURCE]
@@ -297,7 +302,7 @@ def installed():
                 else:
                     name, _, market = (item.get("id") or "").partition("@")
                 if market == MARKETPLACE and name:
-                    entry["plugins"][name] = {"version": item.get("version"), "enabled": bool(item.get("enabled"))}
+                    entry["plugins"][name] = {"version": item.get("version"), "enabled": item.get("enabled") is not False}
         found[host] = entry
     return found
 
@@ -524,12 +529,18 @@ class Manager:
             raise ValueError("%s is not on PATH" % HOSTS[host])
         action = body.get("action")
         names = [p["name"] for p in self.catalog()]
-        if action in ("install", "update", "uninstall"):
+        if action in ("install", "update", "uninstall", "enable"):
             plugins = body.get("plugins") or ([body["plugin"]] if body.get("plugin") else [])
             if not isinstance(plugins, list) or not plugins:
                 raise ValueError("name a plugin")
             plugins = [str(p) for p in plugins]
-            bad = [p for p in plugins if p not in names]
+            if action in ("enable", "uninstall"):
+                # Only what this host lists from this marketplace, which includes a plugin the checkout
+                # no longer has. The name still has to look like a plugin name.
+                listed = installed()[host]["plugins"]
+                bad = [p for p in plugins if p not in listed or not PLUGIN_NAME.fullmatch(p)]
+            else:
+                bad = [p for p in plugins if p not in names]
             if bad:
                 raise ValueError("unknown plugin: %s" % bad[0])
             commands = [plugin_command(host, action, p) for p in plugins]

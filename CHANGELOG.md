@@ -33,6 +33,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`review-code`** hands the rendered interface, accessibility and visual change to `review-ui`.
 - Skills and READMEs in `development` (0.5.2), `reasoning` (0.2.2), `skill-authoring` (0.1.2), `testing`
   (0.3.6) and `verification` (0.3.1) name the `review` plugin where they named it by its old install name.
+- **Skill manager** (contributor tool): the Install tab is now called Skills. A disabled plugin gets Enable
+  in place of Update, there is an Uninstall all button, and a plugin installed from this marketplace that the
+  checkout no longer has (such as the old `code-review`) gets a row with Uninstall.
 
 ## [0.3.0] — 2026-11-17
 
