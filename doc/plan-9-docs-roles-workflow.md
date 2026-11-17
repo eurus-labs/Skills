@@ -1,6 +1,6 @@
 # Plan 9 — roles and the draft–review workflow for `document-codebase` (plan 4, W4)
 
-Status: approved
+Status: implemented
 Date: 2026-11-17
 Branch: `feat/docs-review-roles`
 Baseline: `origin/main` at `35d87361c76d32c50ce6c03b5c18d3def8817fcb`
