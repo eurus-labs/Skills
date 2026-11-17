@@ -78,8 +78,8 @@ class Catalog(unittest.TestCase):
         self.assertIsNone(board.stamp_time("sample", None))
 
     def test_plugins_without_evals_are_listed_with_their_skills(self):
-        self.assertEqual(self.plugins["review"]["cases"], [])
-        self.assertIn("review-code", [s[0] for s in self.plugins["review"]["skills"]])
+        self.assertEqual(self.plugins["skill-authoring"]["cases"], [])
+        self.assertIn("evaluate-skill", [s[0] for s in self.plugins["skill-authoring"]["skills"]])
 
 
 class Results(unittest.TestCase):
