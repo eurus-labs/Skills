@@ -27,7 +27,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **`review-code`** hands the rendered interface, accessibility and visual change to `review-ui`.
 - Skills and READMEs in `development` (0.5.2), `reasoning` (0.2.2), `skill-authoring` (0.1.2), `testing`
-  (0.3.6) and `verification` (0.3.1) name the `review` plugin where they pointed to `code-review`.
+  (0.3.6) and `verification` (0.3.1) name the `review` plugin where they named it by its old install name.
 
 ## [0.3.0] — 2026-11-17
 

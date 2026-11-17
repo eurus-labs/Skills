@@ -51,8 +51,8 @@ is not a finding.
 2. **Read the repository's UI rules.** `AGENTS.md`, `CONTRIBUTING.md`, a design system or token file, and any
    instruction file scoped to the changed paths. A stated rule a screen breaks is a finding that cites it.
 3. **Collect evidence.** Use the repository's own screenshot or UI test harness (find it from `AGENTS.md`,
-   `package.json` scripts, or the test folder); do not install a new tool. If the harness starts a server or app, stop it when the capture is
-   done. For each affected screen capture:
+   `package.json` scripts, or the test folder); do not install a new tool. If the harness starts a server or
+   app, stop it when the capture is done. For each affected screen capture:
    - the changed state, and the empty, loading and error states the change can show;
    - every theme the product supports (for example light and dark) and the narrowest width it supports;
    - the same screens on the base revision, captured the same way.

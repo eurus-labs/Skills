@@ -10,7 +10,7 @@ Interface findings are checked against WCAG 2.1 AA and ranked Blocking, Should f
 The skills connect: the review checklist `setup-review-rules` writes is linked from `AGENTS.md`, and
 `review-code` reads it — with the rest of the repository's rules files — before reviewing.
 
-`review-ui` draws on ideas from the accessibility-review and design-critique skills of Claude's design plugin.
+review-ui draws on ideas from the accessibility-review and design-critique skills of Claude's design plugin.
 
 ## Install
 
