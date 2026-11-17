@@ -249,7 +249,9 @@ class SkillsTab(unittest.TestCase):
     def test_the_plugin_table_shows_enable_uninstall_all_and_stale_rows(self):
         plugins = [{"name": n, "version": "0.3.0", "skills": [["s-" + n, "g"]], "cases": []}
                    for n in ("reasoning", "review", "docs")]
-        script = re.search(r"<script>(.*)</script>", board.board(plugins, {}, {"token": "t"}), re.S).group(1)
+        page = board.board(plugins, {}, {"token": "t"})
+        start = page.index("<script>") + len("<script>")
+        script = page[start:page.rindex("</script>")]
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "page.js")
             with open(path, "w", encoding="utf-8") as fh:
