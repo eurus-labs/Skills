@@ -29,11 +29,11 @@ set, unless the user explicitly confirms.
    Both conditions must hold:
    - **At least one tier lower:** two or more tiers lower is fine; the same tier or a higher one is not.
    - **The allowed coder set:** Claude **Sonnet** or **Haiku**, or GPT **terra** or **luna**. No other model
-     is a coder; Fable, Opus and astra are planning models only.
+     is a coder; Fable, Opus, astra and sol are planning models only.
 
    The tiers, highest first, are:
    - Claude: Fable, Opus, Sonnet, Haiku;
-   - GPT on Copilot: astra, terra, luna.
+   - GPT on Copilot: astra, sol, terra, luna.
 
    This gives:
 
@@ -42,7 +42,7 @@ set, unless the user explicitly confirms.
    | Claude Fable or Opus | Sonnet by default, Haiku if the user names it |
    | Claude Sonnet | Haiku |
    | Claude Haiku | none allowed: stop (Decision 4) |
-   | GPT astra | terra by default, luna if the user names it |
+   | GPT astra or sol | terra by default, luna if the user names it |
    | GPT terra | luna |
    | GPT luna | none allowed: stop (Decision 4) |
 
@@ -133,7 +133,7 @@ Default. Skill text only; no script changes. `SKILL.md` stays under about 500 li
 
 - [ ] `coder-handoff/SKILL.md` has a hard rule that holds the tier lists, the allowed coder set and the
       table from Decision 1, and the rules of Decisions 2 to 5. Checked by
-      `grep -n "Fable\|Opus\|Sonnet\|Haiku\|astra\|terra\|luna" plugins/reasoning/skills/coder-handoff/SKILL.md`
+      `grep -n "Fable\|Opus\|Sonnet\|Haiku\|astra\|sol\|terra\|luna" plugins/reasoning/skills/coder-handoff/SKILL.md`
       and by reading.
 - [ ] The failure cases are covered in the text. Checked by reading; the coder's report quotes the lines.
       - An unknown planner model asks the user (Decisions 2 and 3).
@@ -164,7 +164,7 @@ Default. Skill text only; no script changes. `SKILL.md` stays under about 500 li
 | Tier names change (a new family or a renamed model) | The table is the default for Claude models; Decision 3 covers others by asking. A new family needs a one-row edit |
 | The description change makes the skill fire differently | The trigger phrases are kept. The planner reruns the `reasoning` trigger evals in review (`claude plugin eval plugins/reasoning --tag trigger --ablation none --no-publish --max-cost-usd 3`) and reports the score |
 | A Haiku coder is too weak for a plan from a Sonnet planner | The user allowed Haiku as a coder. The report names the coder, and the review checks every acceptance criterion before any pull request, so a weak result is caught and sent back |
-| The GPT tier order astra > terra > luna is wrong | It comes from the user's naming in this conversation (astra as the high tier, terra and luna as coders). The planner confirms the order with the user before approval |
+| A GPT model is renamed or added | The order astra > sol > terra > luna is the user's, stated in this conversation. A new model needs a one-line edit to the tier list; until then Decision 3 asks the user |
 
 ## Open questions
 
