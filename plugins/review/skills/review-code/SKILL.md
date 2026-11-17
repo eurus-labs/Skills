@@ -1,6 +1,6 @@
 ---
 name: review-code
-description: Review production code — a diff, a pull request, a branch, or the working tree — for correctness, security, and maintainability, reporting severity-ordered findings with file:line, Conventional Comments labels, and CWE names for security issues, checked against the repository's own rules and review checklist as well as the general standard. Use whenever the user says "review this", "review my changes", "look over this PR", "is this code okay", "check this before I merge", "any problems with this", asks for a second opinion on a diff, or wants a security or correctness pass over code they wrote. When the code under review is a test suite, use review-tests instead; to write a repository's rules files, use setup-review-rules instead.
+description: Review production code — a diff, a pull request, a branch, or the working tree — for correctness, security, and maintainability, reporting severity-ordered findings with file:line, Conventional Comments labels, and CWE names for security issues, checked against the repository's own rules and review checklist as well as the general standard. Use whenever the user says "review this", "review my changes", "look over this PR", "is this code okay", "check this before I merge", "any problems with this", asks for a second opinion on a diff, or wants a security or correctness pass over code they wrote. When the code under review is a test suite, use review-tests instead; when the rendered interface, its accessibility, or visual change is the subject, use review-ui instead; to write a repository's rules files, use setup-review-rules instead.
 ---
 
 # Review code
@@ -24,6 +24,7 @@ A finding you cannot attach a failure scenario to is a nit at most.
 ## When not to use this skill
 
 - **Tests are the subject** — use `review-tests` from the `testing` plugin.
+- **The rendered interface, accessibility, or visual change is the subject** — use `review-ui`.
 - **A test is failing** — use `debug-failing-test`.
 - **The user wants the code fixed, not judged** — use `implement` from the `development` plugin when it
   is installed; it validates each finding against the code before fixing it. Otherwise do it directly. This
