@@ -25,6 +25,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`document-codebase`** (`docs` 1.4.0) defines the Coordinator, Analyst, Writer and Reviewer roles, with a
+  task contract for each and a Coordinator-only rule for shared files. The skill uses subagents only when the
+  host offers them, records `independent` or `self_review` truthfully, routes each finding to the role that
+  caused it, and states a stop rule that never becomes `confirmed`. Instructions only; no script changed.
+  Immutable revision snapshots and resume are not implemented yet.
 - **`review-code`** hands the rendered interface, accessibility and visual change to `review-ui`.
 - Skills and READMEs in `development` (0.5.2), `reasoning` (0.2.2), `skill-authoring` (0.1.2), `testing`
   (0.3.6) and `verification` (0.3.1) name the `review` plugin where they named it by its old install name.

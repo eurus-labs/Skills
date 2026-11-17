@@ -3,7 +3,8 @@
 **No command.** These three files are yours to write, between `check` and `document`, and they are what
 checkpoint P3 asks about. They are read by the `outside-in` preset and by `manual`, whose initializer adds
 their eligible ids to the draft's `facts` inventory so the model can inspect and cite them while writing answers.
-They do not write or complete an answer. Every schema and finding code is in
+They do not write or complete an answer. The Coordinator reconciles the Analysts' results into them before any
+Writer starts; see [`workflow.md`](workflow.md#transitions). Every schema and finding code is in
 [`schemas.md`](schemas.md).
 
 **`architecture-analysis.json`** — components, the layers they sit in, what crosses between them, and which

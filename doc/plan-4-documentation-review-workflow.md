@@ -185,9 +185,24 @@ Mechanical verb-strength heuristics remain useful findings, not a substitute for
 
 ## Implementation work packages
 
-All packages below are pending. Implement in this order, with W1/W2 drafted together so schema and scope
+Implement in this order, with W1/W2 drafted together so schema and scope
 contracts agree. Ship changes to instructions and their supporting behavior together, not as contradictory
 intermediate instructions. Keep the plan updated with commit references as packages land.
+
+Progress, checked on `feat/docs-review-roles` (baseline `35d8736`). Evidence: `git show --stat` of each
+commit, and `python3 tools/test_manual_preset.py` (25 tests, OK) and `python3 tools/test_prose.py` (all
+checks passed), both run for this update. Those tests check script behavior, not that prose is useful.
+
+| ID | State | Evidence |
+| --- | --- | --- |
+| W1 | Done | `cff0701` locks the review and scope schemas (`schemas.md`, `review_records.py`, `scope_record.py`); `a6b0733` splits the answer status in `manual.py`; `ef83115` requires fresh reviews (`check_prose.py`, `quality_docs.py`, `pipeline.py`). Covered by `test_manual_preset.py`, `test_prose.py` and `test_review_scope_schema.py` |
+| W2 | Partial | `scope_record.py` exists and `pipeline.py` binds `scope.json` into the checkpoint identity, but no script uses the `scope_record` module outside its test, and `select_units.py` still defaults to `--top 25`. Unread files and the product view are not yet wired through selection, assembly and coverage |
+| W3 | Done | `a6b0733` removes `prefill()` (no `def prefill` remains in `manual.py`) and `test_manual_preset.py` passes |
+| W4 | Done by plan 9 | `references/workflow.md`, `analyst.md`, `writer.md`, `reviewer.md`, and the `SKILL.md` Roles section. Instructions only; sequential and subagent paths are written but not run end to end |
+| W5 | Partial | Staging (`staging_of` in `pipeline.py`) and the fresh-review rule (`ef83115`) exist. No immutable `rev-NNNN` snapshots, and no resume command |
+| W6 | Pending | A v1 review row and a `manual_version` 1 answer are refused (`review_records.py`, `manual.py`); there is no migrator and no end-to-end evaluation |
+
+The package definitions follow.
 
 | ID | Work and main files | Acceptance criteria |
 | --- | --- | --- |
