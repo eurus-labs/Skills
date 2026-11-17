@@ -33,6 +33,8 @@ The rows and a short summary of what you inspected, to the Coordinator, who writ
 
 ## Never
 
-- Confirm a section you wrote, or one whose content changed after you read it.
+- Confirm a section you drafted in this same pass, or one whose content changed after you read it.
+  A later sequential review of your own earlier draft may confirm a section only after re-checking
+  it against source, and records `self_review`, never `independent`.
 - Confirm because a mechanical check passed. Mechanical checks cover format and consistency only.
 - Edit the draft, the analyses or the docs directory.
