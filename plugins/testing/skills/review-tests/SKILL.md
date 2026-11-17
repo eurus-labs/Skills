@@ -28,7 +28,7 @@ This skill does not rewrite the suite. It tells you what is wrong and what the f
   diagnoses a specific failure; this one audits the suite. "This test fails intermittently"
   is a `debug-failing-test` job; "our suite is flaky, find out why" is this one.
 - **The production code is what needs reviewing**, not the tests — use the `review-code` skill from the
-  `code-review` plugin.
+  `review` plugin.
 - **The user wants coverage measured** — run their coverage tool; that is ordinary work, not this skill.
 
 ## Steps

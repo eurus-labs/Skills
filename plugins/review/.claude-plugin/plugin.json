@@ -1,0 +1,25 @@
+{
+  "name": "review",
+  "description": "Review code against Google's Standard of Code Review and the repository's own rules files and review checklist, reporting findings with Conventional Comments labels and CWE-named security categories. Also generates those rules files and the checklist the review reads. It also reviews the interface a change produces, from screenshots, DOM and styles, for WCAG 2.1 AA accessibility, consistency, clarity and unintended visual change.",
+  "version": "0.3.0",
+  "keywords": [
+    "review",
+    "ui-review",
+    "accessibility",
+    "wcag",
+    "pull-request",
+    "security",
+    "cwe",
+    "conventions"
+  ],
+  "author": {
+    "name": "eurus-labs"
+  },
+  "repository": "https://github.com/eurus-labs/Skills",
+  "license": "MIT",
+  "skills": [
+    "./skills/review-code/",
+    "./skills/review-ui/",
+    "./skills/setup-review-rules/"
+  ]
+}

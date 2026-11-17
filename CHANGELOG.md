@@ -7,6 +7,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Breaking changes
+
+- **`code-review` renamed to `review`** (`review` 0.3.0), because the plugin now reviews the interface as well
+  as the code. The install name changes, so a copy installed as `code-review@eurus-labs` stops updating.
+  Reinstall with `copilot plugin install review@eurus-labs` (or `claude plugin install review@eurus-labs`) and
+  remove the old one. The skills `review-code` and `setup-review-rules` keep their names.
+
+### Added
+
+- **`review-ui`** (`review` 0.3.0): review the interface a change produces from rendered screenshots, the DOM
+  and styles, and the same screens on the base revision. It checks accessibility against WCAG 2.1 AA (with a
+  measured contrast ratio, never an eyeballed one), consistency with the existing interface, clarity of
+  wording and states, and unintended visual change, and ranks each finding by severity with the screen, the
+  element, the criterion and who is affected. It reports and edits nothing. Trigger cases for it (two that
+  must fire, one that must stay quiet). Not run yet.
+
+### Changed
+
+- **`review-code`** hands the rendered interface, accessibility and visual change to `review-ui`.
+- Skills and READMEs in `development` (0.5.2), `reasoning` (0.2.2), `skill-authoring` (0.1.2), `testing`
+  (0.3.6) and `verification` (0.3.1) name the `review` plugin where they named it by its old install name.
+
 ## [0.3.0] — 2026-11-17
 
 Adds the **`reasoning`** plugin for planning on a high-tier model and handing approved plans to a coder

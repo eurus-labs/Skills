@@ -30,7 +30,7 @@ Three levels, from cheap to expensive:
 ## When not to use this skill
 
 - **A code change needs verifying** — use `verify-change` from the `verification` plugin.
-- **Application code needs reviewing** — use `review-code` from the `code-review` plugin.
+- **Application code needs reviewing** — use `review-code` from the `review` plugin.
 - **The user wants the skill written or rewritten**, not evaluated — that is authoring work; this skill
   reports recommendations and does not edit the skill under evaluation unless asked.
 

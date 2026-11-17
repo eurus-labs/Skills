@@ -34,7 +34,7 @@ more. A design longer than the change it describes is a defect.
   its branch; this skill answers in the conversation.
 - **The user approves a plan and wants it handed to a coder** — use `coder-handoff`. It owns the hand-off,
   the review, and the pull request.
-- **Review of a diff or pull request** — use `review-code` from the `code-review` plugin.
+- **Review of a diff or pull request** — use `review-code` from the `review` plugin.
 - **A question about how existing code works**, with no change in view — answer it directly.
 - **System or architecture design with no repository to ground it in** — answer directly; this skill designs
   changes to code it can read.

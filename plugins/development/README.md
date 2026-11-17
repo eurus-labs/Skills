@@ -31,7 +31,7 @@ a planning session; `implement` does not need it.
 | A plan written to a file for another session | `write-plan`, in the `reasoning` plugin |
 | An approved plan handed to a coder subagent and its branch reviewed | `coder-handoff`, in the `reasoning` plugin |
 | A change that already exists verified, without changing it | `verify-change`, in the `verification` plugin |
-| A review of changes | `review-code`, in the `code-review` plugin |
+| A review of changes | `review-code`, in the `review` plugin |
 
 ## Building a plan
 
@@ -57,7 +57,7 @@ installed. When the repository has a verification skill from `setup-verification
 When it has none, `implement` recommends setting one up — only when the change touches runtime behavior, or
 when you are setting the repository up for these skills for the first time — and asks before running it.
 
-An independent review from `code-review` adds to verification and never replaces it. Acceptance criteria are
+An independent review from `review` adds to verification and never replaces it. Acceptance criteria are
 fixed before coding, and the handoff reports one status:
 
 - `implemented and verified` — every criterion has evidence that could have failed, and required checks pass.
