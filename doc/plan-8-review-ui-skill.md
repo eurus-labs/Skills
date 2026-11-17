@@ -1,6 +1,6 @@
 # Plan 8 — add a `review-ui` skill and rename `code-review` to `review`
 
-Status: draft
+Status: approved
 Date: 2026-11-17
 Branch: `feat/review-ui-skill`
 Baseline: `origin/main` at `c2bafbccbf83ca63d08d87bade5c5d82f4ceb04c`
@@ -139,15 +139,16 @@ Keep `SKILL.md` under ~500 lines.
 | A tool or test hardcodes `code-review` | Decision 5's grep covers `tools/`; the full test loop runs |
 | `review-ui` and `review-code` fire on each other's requests | Decision 4's deferral, plus a quiet trigger case |
 | `materialize.py` loses track of the moved plugin | Decision 7's `--check` |
-| The skill text reproduces another plugin's wording | Open question 1 |
+| The skill text reproduces another plugin's wording | The user confirmed the wording is their own; the README credits the inspiration |
 
 ## Open questions
 
-1. **Source and license.** The draft draws on Claude's `design:accessibility-review` and
-   `design:design-critique` skills. Is the draft's wording the user's own, or copied from those skills? If
-   copied, their license must allow it in this MIT repository, and `plugins/review/README.md` should credit
-   them. Assumed until the user answers: the wording is the user's own, and the README credits the two
-   skills as inspiration.
+None. Answered by the user before approval:
+
+- The rename applies to the **plugin** (`code-review` → `review`); the new skill is named `review-ui`.
+- The draft's wording is the user's own. It draws ideas from Claude's `design:accessibility-review` and
+  `design:design-critique` skills without copying their text. `plugins/review/README.md` credits the two
+  skills as inspiration in one line.
 
 ## Appendix A — `review-ui/SKILL.md` as written by the user
 
