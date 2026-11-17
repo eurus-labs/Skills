@@ -20,14 +20,16 @@ Today the skill only says "a subagent on the implementing model, for example the
 - nothing tells the skill what to do when no lower model exists, or when it does not know its own model.
 
 When this is done, the skill picks the coder model by a written rule and names it in its report. It never
-dispatches to a model of the same or a higher tier than the planner, or to a model outside the allowed coder
-set, unless the user explicitly confirms.
+dispatches to a model of the same or a higher tier than the planner (except at the lowest tier), or to a
+model outside the allowed coder set, unless the user explicitly confirms.
 
 ## Decisions
 
 1. **New hard rule: the coder is at least one tier below the planner, and only from the allowed set.**
    Both conditions must hold:
    - **At least one tier lower:** two or more tiers lower is fine; the same tier or a higher one is not.
+     **Exception, the lowest tier:** a planner on Haiku or luna hands off to the same model, because no
+     allowed coder is lower.
    - **The allowed coder set:** Claude **Sonnet** or **Haiku**, or GPT **terra** or **luna**. No other model
      is a coder; Fable, Opus, astra and sol are planning models only.
 
@@ -41,10 +43,10 @@ set, unless the user explicitly confirms.
    | --- | --- |
    | Claude Fable or Opus | Sonnet by default, Haiku if the user names it |
    | Claude Sonnet | Haiku |
-   | Claude Haiku | none allowed: stop (Decision 4) |
+   | Claude Haiku | Haiku (lowest tier, same model) |
    | GPT astra or sol | terra by default, luna if the user names it |
    | GPT terra | luna |
-   | GPT luna | none allowed: stop (Decision 4) |
+   | GPT luna | luna (lowest tier, same model) |
 
    The coder comes from the planner's own family, because each host runs one family's subagents. A planner
    on another family or model asks the user (Decision 3). When two allowed coders are both lower, the default
@@ -60,13 +62,13 @@ set, unless the user explicitly confirms.
    Reading a model name the host states is a different matter, and it is allowed.
 3. **Other models.** If the planner's model is in neither tier list, ask the user which allowed coder to use.
    Do not guess a tier.
-4. **No allowed coder: stop.** If no model in the allowed set is at least one tier below the planner (a
-   Claude Haiku planner or a GPT luna planner), or the host cannot run the allowed model, do not
-   dispatch. Tell the user, the same way as rule 3 (no subagent): give the branch, the plan path and the
-   baseline, and say that a planner on a higher tier, or `implement` run by the user, can build it.
+4. **No allowed coder: stop.** If the host cannot run the coder that Decision 1 gives, do not dispatch.
+   With the lowest-tier exception, every listed planner has a coder, so this happens only when the host
+   lacks the model. Tell the user, the same way as rule 3 (no subagent): give the branch, the plan path and the
+   baseline, name the missing model, and say that `implement` run by the user can build it.
 5. **The user can override only explicitly.** Ask for confirmation before dispatching if the user names a
    coder that:
-   - is not at least one tier below the planner; or
+   - is not at least one tier below the planner, apart from the lowest-tier exception; or
    - is outside the allowed set (for example Opus).
 
    Say which rule the choice breaks, and dispatch only after they confirm. A user naming another allowed coder
@@ -137,8 +139,9 @@ Default. Skill text only; no script changes. `SKILL.md` stays under about 500 li
       and by reading.
 - [ ] The failure cases are covered in the text. Checked by reading; the coder's report quotes the lines.
       - An unknown planner model asks the user (Decisions 2 and 3).
-      - No allowed coder stops the hand-off and gives the branch, plan and baseline (Decision 4). This
-        This includes a Haiku planner.
+      - A Haiku planner hands off to Haiku, and a luna planner to luna (Decision 1's exception).
+      - A host that cannot run the chosen coder stops the hand-off and gives the branch, plan and baseline
+        (Decision 4).
       - A coder the user requests that is not lower, or is outside the set, needs confirmation (Decision 5).
 - [ ] Step 3 and the Output format name the chosen model, and the review report example has a line like
       `Coder: sonnet (planner: opus; one tier lower)`. Checked by
