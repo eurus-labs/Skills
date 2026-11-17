@@ -19,38 +19,56 @@ Today the skill only says "a subagent on the implementing model, for example the
 - a planner on Sonnet would hand off to Sonnet, the same tier;
 - nothing tells the skill what to do when no lower model exists, or when it does not know its own model.
 
-When this is done, the skill picks the coder model by a written rule, names it in its report, and never
-dispatches to the same or a higher tier unless the user explicitly confirms.
+When this is done, the skill picks the coder model by a written rule and names it in its report. It never
+dispatches to a model of the same or a higher tier than the planner, or to a model outside the allowed coder
+set, unless the user explicitly confirms.
 
 ## Decisions
 
-1. **New hard rule: the coder model is one tier below the planner's.** The tiers, highest first, are Fable,
-   Opus, Sonnet, Haiku. The mapping is:
+1. **New hard rule: the coder is at least one tier below the planner, and only from the allowed set.**
+   Both conditions must hold:
+   - **At least one tier lower:** two or more tiers lower is fine; the same tier or a higher one is not.
+   - **The allowed coder set:** Claude **Sonnet**, or GPT **terra** or **luna**. No other model is a coder.
+     Haiku is not a coder, because it is too weak to build a plan.
+
+   The tiers, highest first, are:
+   - Claude: Fable, Opus, Sonnet, Haiku;
+   - GPT on Copilot: astra, terra, luna.
+
+   This gives:
 
    | Planner | Coder |
    | --- | --- |
-   | Fable or Opus | Sonnet |
-   | Sonnet | Haiku |
-   | Haiku | none lower: stop (Decision 4) |
+   | Claude Fable or Opus | Sonnet |
+   | Claude Sonnet or Haiku | none allowed: stop (Decision 4) |
+   | GPT astra | terra by default, luna if the user names it |
+   | GPT terra | luna |
+   | GPT luna | none allowed: stop (Decision 4) |
 
-   Fable and Opus both go to Sonnet, not Fable to Opus, because Sonnet is the implementing model this
-   workflow has used and verified (plans 5 to 10). Rejected: always `model: sonnet`, because a Sonnet planner
-   would then hand off to its own tier.
+   The coder comes from the planner's own family, because each host runs one family's subagents. A planner
+   on another family or model asks the user (Decision 3). For an astra planner, terra is the default because
+   it is the stronger of the two allowed coders. Rejected:
+   - always `model: sonnet`, because a Sonnet planner would then hand off to its own tier;
+   - exactly one tier lower, because the user asked for "at least one tier lower", bounded by the allowed set.
 2. **The planner learns its own model from the host, never by guessing.** Use what the host states about the
    session: the model named in its system prompt or session information, or a model the user named. If the
    host states nothing, ask the user which model the planning session runs on before dispatching. Rejected:
    inferring the model from the planner's own sense of its identity, because the plugin README already notes
    that a model cannot reliably tell which one it is. That note is about enforcing who may *use* the plugin.
    Reading a model name the host states is a different matter, and it is allowed.
-3. **Other model families.** On a host whose models are not in the table (for example GPT on Copilot), pick a
-   model from the host's own list that is clearly smaller or cheaper than the planner's, and name both models
-   in the report. If no model is clearly lower, ask the user which one to use. Do not guess.
-4. **No lower tier: stop.** If the planner is already on the lowest tier, or the host offers no lower model,
-   do not dispatch. Tell the user, the same way as rule 3 (no subagent): give the branch, plan path and
-   baseline, and say that a planner on a higher tier or `implement` run by the user can build it.
-5. **The user can override only explicitly.** If the user names a coder model of the same or a higher tier,
-   say that this breaks the lower-tier rule and dispatch only after they confirm. A user naming a lower model
-   than Decision 1's choice (for example Haiku from an Opus planner) is followed without asking.
+3. **Other models.** If the planner's model is in neither tier list, ask the user which allowed coder to use.
+   Do not guess a tier.
+4. **No allowed coder: stop.** If no model in the allowed set is at least one tier below the planner (a
+   Claude Sonnet or Haiku planner, or a GPT luna planner), or the host cannot run the allowed model, do not
+   dispatch. Tell the user, the same way as rule 3 (no subagent): give the branch, the plan path and the
+   baseline, and say that a planner on a higher tier, or `implement` run by the user, can build it.
+5. **The user can override only explicitly.** Ask for confirmation before dispatching if the user names a
+   coder that:
+   - is not at least one tier below the planner; or
+   - is outside the allowed set (for example Haiku).
+
+   Say which rule the choice breaks, and dispatch only after they confirm. A user naming the other allowed
+   coder (luna in place of terra) is followed without asking.
 6. **The model is named where it matters:**
    - the dispatch step says to pass the chosen model to the subagent tool;
    - the report to the user names the planner's model and the coder's, for example
@@ -111,12 +129,15 @@ Default. Skill text only; no script changes. `SKILL.md` stays under about 500 li
 
 ## Acceptance criteria
 
-- [ ] `coder-handoff/SKILL.md` has a hard rule that holds the tier table from Decision 1 and the rules of
-      Decisions 2 to 5. Checked by
-      `grep -n "Fable\|Opus\|Sonnet\|Haiku" plugins/reasoning/skills/coder-handoff/SKILL.md` and by reading.
-- [ ] Failure cases are covered in the text: an unknown planner model asks the user (Decision 2); no lower
-      tier stops with the branch, plan and baseline (Decision 4); a same-or-higher coder requested by the user
-      needs confirmation (Decision 5). Checked by reading. Quote the lines in the report.
+- [ ] `coder-handoff/SKILL.md` has a hard rule that holds the tier lists, the allowed coder set and the
+      table from Decision 1, and the rules of Decisions 2 to 5. Checked by
+      `grep -n "Fable\|Opus\|Sonnet\|Haiku\|astra\|terra\|luna" plugins/reasoning/skills/coder-handoff/SKILL.md`
+      and by reading.
+- [ ] The failure cases are covered in the text. Checked by reading; the coder's report quotes the lines.
+      - An unknown planner model asks the user (Decisions 2 and 3).
+      - No allowed coder stops the hand-off and gives the branch, plan and baseline (Decision 4). This
+        includes a Sonnet planner.
+      - A coder the user requests that is not lower, or is outside the set, needs confirmation (Decision 5).
 - [ ] Step 3 and the Output format name the chosen model, and the review report example has a line like
       `Coder: sonnet (planner: opus; one tier lower)`. Checked by
       `grep -n "Coder:" plugins/reasoning/skills/coder-handoff/SKILL.md`.
@@ -140,7 +161,8 @@ Default. Skill text only; no script changes. `SKILL.md` stays under about 500 li
 | The planner misreads its own model and picks the wrong tier | Decision 2: only a model the host or the user states counts; otherwise ask. The report names both models, so the user sees the choice |
 | Tier names change (a new family or a renamed model) | The table is the default for Claude models; Decision 3 covers others by asking. A new family needs a one-row edit |
 | The description change makes the skill fire differently | The trigger phrases are kept. The planner reruns the `reasoning` trigger evals in review (`claude plugin eval plugins/reasoning --tag trigger --ablation none --no-publish --max-cost-usd 3`) and reports the score |
-| A Haiku coder is too weak for a plan from a Sonnet planner | Decision 1 follows the user's "always lower" rule; Decision 5 lets the user ask for another model explicitly |
+| A Sonnet planner can no longer hand off at all | Intended: the allowed set has nothing below Sonnet. Decision 4 stops with what the user needs to run it another way |
+| The GPT tier order astra > terra > luna is wrong | It comes from the user's naming in this conversation (astra as the high tier, terra and luna as coders). The planner confirms the order with the user before approval |
 
 ## Open questions
 
