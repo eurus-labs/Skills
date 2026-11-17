@@ -28,8 +28,8 @@ set, unless the user explicitly confirms.
 1. **New hard rule: the coder is at least one tier below the planner, and only from the allowed set.**
    Both conditions must hold:
    - **At least one tier lower:** two or more tiers lower is fine; the same tier or a higher one is not.
-   - **The allowed coder set:** Claude **Sonnet**, or GPT **terra** or **luna**. No other model is a coder.
-     Haiku is not a coder, because it is too weak to build a plan.
+   - **The allowed coder set:** Claude **Sonnet** or **Haiku**, or GPT **terra** or **luna**. No other model
+     is a coder; Fable, Opus and astra are planning models only.
 
    The tiers, highest first, are:
    - Claude: Fable, Opus, Sonnet, Haiku;
@@ -39,15 +39,17 @@ set, unless the user explicitly confirms.
 
    | Planner | Coder |
    | --- | --- |
-   | Claude Fable or Opus | Sonnet |
-   | Claude Sonnet or Haiku | none allowed: stop (Decision 4) |
+   | Claude Fable or Opus | Sonnet by default, Haiku if the user names it |
+   | Claude Sonnet | Haiku |
+   | Claude Haiku | none allowed: stop (Decision 4) |
    | GPT astra | terra by default, luna if the user names it |
    | GPT terra | luna |
    | GPT luna | none allowed: stop (Decision 4) |
 
    The coder comes from the planner's own family, because each host runs one family's subagents. A planner
-   on another family or model asks the user (Decision 3). For an astra planner, terra is the default because
-   it is the stronger of the two allowed coders. Rejected:
+   on another family or model asks the user (Decision 3). When two allowed coders are both lower, the default
+   is the stronger one (Sonnet, terra), because a plan is built best by the strongest model the rule allows.
+   Rejected:
    - always `model: sonnet`, because a Sonnet planner would then hand off to its own tier;
    - exactly one tier lower, because the user asked for "at least one tier lower", bounded by the allowed set.
 2. **The planner learns its own model from the host, never by guessing.** Use what the host states about the
@@ -59,16 +61,16 @@ set, unless the user explicitly confirms.
 3. **Other models.** If the planner's model is in neither tier list, ask the user which allowed coder to use.
    Do not guess a tier.
 4. **No allowed coder: stop.** If no model in the allowed set is at least one tier below the planner (a
-   Claude Sonnet or Haiku planner, or a GPT luna planner), or the host cannot run the allowed model, do not
+   Claude Haiku planner or a GPT luna planner), or the host cannot run the allowed model, do not
    dispatch. Tell the user, the same way as rule 3 (no subagent): give the branch, the plan path and the
    baseline, and say that a planner on a higher tier, or `implement` run by the user, can build it.
 5. **The user can override only explicitly.** Ask for confirmation before dispatching if the user names a
    coder that:
    - is not at least one tier below the planner; or
-   - is outside the allowed set (for example Haiku).
+   - is outside the allowed set (for example Opus).
 
-   Say which rule the choice breaks, and dispatch only after they confirm. A user naming the other allowed
-   coder (luna in place of terra) is followed without asking.
+   Say which rule the choice breaks, and dispatch only after they confirm. A user naming another allowed coder
+   that is also lower (Haiku in place of Sonnet, luna in place of terra) is followed without asking.
 6. **The model is named where it matters:**
    - the dispatch step says to pass the chosen model to the subagent tool;
    - the report to the user names the planner's model and the coder's, for example
@@ -136,7 +138,7 @@ Default. Skill text only; no script changes. `SKILL.md` stays under about 500 li
 - [ ] The failure cases are covered in the text. Checked by reading; the coder's report quotes the lines.
       - An unknown planner model asks the user (Decisions 2 and 3).
       - No allowed coder stops the hand-off and gives the branch, plan and baseline (Decision 4). This
-        includes a Sonnet planner.
+        This includes a Haiku planner.
       - A coder the user requests that is not lower, or is outside the set, needs confirmation (Decision 5).
 - [ ] Step 3 and the Output format name the chosen model, and the review report example has a line like
       `Coder: sonnet (planner: opus; one tier lower)`. Checked by
@@ -161,7 +163,7 @@ Default. Skill text only; no script changes. `SKILL.md` stays under about 500 li
 | The planner misreads its own model and picks the wrong tier | Decision 2: only a model the host or the user states counts; otherwise ask. The report names both models, so the user sees the choice |
 | Tier names change (a new family or a renamed model) | The table is the default for Claude models; Decision 3 covers others by asking. A new family needs a one-row edit |
 | The description change makes the skill fire differently | The trigger phrases are kept. The planner reruns the `reasoning` trigger evals in review (`claude plugin eval plugins/reasoning --tag trigger --ablation none --no-publish --max-cost-usd 3`) and reports the score |
-| A Sonnet planner can no longer hand off at all | Intended: the allowed set has nothing below Sonnet. Decision 4 stops with what the user needs to run it another way |
+| A Haiku coder is too weak for a plan from a Sonnet planner | The user allowed Haiku as a coder. The report names the coder, and the review checks every acceptance criterion before any pull request, so a weak result is caught and sent back |
 | The GPT tier order astra > terra > luna is wrong | It comes from the user's naming in this conversation (astra as the high tier, terra and luna as coders). The planner confirms the order with the user before approval |
 
 ## Open questions
