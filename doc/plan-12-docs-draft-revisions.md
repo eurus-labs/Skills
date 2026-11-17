@@ -1,6 +1,6 @@
 # Plan 12 — immutable draft revisions for `document-codebase` (plan 4, W5 part 1)
 
-Status: draft
+Status: approved
 Date: 2026-11-17
 Branch: `feat/docs-draft-revisions`
 Baseline: `origin/main` at `24169e440ba0e772d519a65d5762b14b05ec7922`
