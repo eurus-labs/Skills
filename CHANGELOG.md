@@ -7,6 +7,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-11-17
+
+Adds the **`reasoning`** plugin for planning on a high-tier model and handing approved plans to a coder
+subagent, and the contributor eval tooling.
+
 ### Breaking changes
 
 - **`design-solution` moved** from `development` to the new `reasoning` plugin (`development` 0.4.0).
@@ -123,11 +128,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   sets the author and committer explicitly on every commit, never changes the repository's configuration,
   and lists the author and committer of every commit it is about to push; on a mismatch it recommits first.
   `coder-handoff` puts the identity and that check in the subagent prompt and checks every commit's identity
-  in its review. A commit pushed with the wrong identity is replaced with `--force-with-lease` on the
-  unmerged branch and reported as public. `design-solution` now sends hand-offs to `coder-handoff` instead of
+  in its review, counting only the commits unique to the plan's branch. A commit already pushed with the
+  wrong identity is reported as public, and it is rewritten with `--force-with-lease` on the plan's own
+  unmerged branch only after you confirm. `design-solution` now sends hand-offs to `coder-handoff` instead of
   `write-plan`.
 
-## [0.2.0] — Unreleased
+## [0.2.0] — 2026-11-09
 
 The first release under the **`eurus-labs`** name. It renames the marketplace, regroups skills into plugins by
 capability, and adds three plugins and eval suites.
