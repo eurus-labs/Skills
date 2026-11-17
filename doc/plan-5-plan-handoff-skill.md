@@ -1,6 +1,6 @@
 # Plan 5 — a `reasoning` plugin for planning, handed off to an implementing session
 
-Status: approved
+Status: implemented
 Date: 2026-11-16
 Branch: `feat/development-plan-handoff`
 Baseline: `origin/main` at `6c545ea51bdb3476b43d232cb40e09a26ab016c6`
