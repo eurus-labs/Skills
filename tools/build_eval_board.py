@@ -417,6 +417,7 @@ th{color:var(--muted);font-weight:500} td.num{font-family:var(--mono);font-varia
 .grid table{min-width:720px} .grid td,.grid th{padding:10px 12px;vertical-align:middle}
 .grid td .sub{display:block;color:var(--muted);font-size:.76rem}
 .slots{display:grid;grid-template-columns:repeat(2,7.5rem);gap:6px}
+.slots.head{grid-template-columns:repeat(3,7.5rem)}
 .slots .btn{width:100%}
 .slots .hold{visibility:hidden}
 </style>
@@ -486,19 +487,19 @@ const T = {
   stop:"Stop", sRunning:"running", sWaiting:"waiting for you", sDone:"finished", sFailed:"failed", sStopped:"stopped", sStopping:"stopping",
   yes:"Yes", no:"No", skip:"Skip", stopHint:"Stop takes effect at the next question or when the current command ends.",
   qHint:"Answer from the transcript: what did the agent actually do?",
-  backEvals:"← Back to evals", backInstall:"← Back to install", caseOf:"case {i} of {n}", stepOf:"step {i} of {n}", costCeil:"cost ceiling ${c}",
+  backEvals:"← Back to evals", backInstall:"← Back to skills", caseOf:"case {i} of {n}", stepOf:"step {i} of {n}", costCeil:"cost ceiling ${c}",
   working:"Working. A question appears here when the run needs your judgement.",
   mDone:"Finished. The scores are on the Evals tab.", mStopped:"Stopped. What was graded so far is saved.", mFailed:"Failed. The output says why.",
   mStopping:"Stopping. It takes effect at the next question or when the current command ends.",
   transcripts:"Transcripts", noTranscripts:"No transcript yet.", tally:"Answers so far", output:"Output", jobChip:"● {s}: {t}",
-  tabInstall:"Install", tabEvals:"Evals",
+  tabInstall:"Skills", tabEvals:"Evals",
   colInstalled:"Installed", colLatest:"Latest runs",
   stNoEvals:"no evals", stNotRun:"not run", stUntrusted:"no trusted run", stPartly:"partly run ({k}/{n})", stNeedsWork:"needs work", stPassing:"passing", stChanged:"changed since last run", stLatestUntrusted:"latest run untrusted ({k})", untrustedN:"{k} untrusted",
   runAll:"Run all cases…", passOf:"{p}/{n} pass", loading:"Loading…", notFound:"not found on PATH", notInstalled:"not installed",
   installTitle:"Install plugins", installLede:"Choose a platform, then install, update or remove this marketplace's plugins in it. Every action shows its command and runs only after you confirm.",
   marketplace:"Marketplace", notRegistered:"not registered", registerFirst:"Register the marketplace first: the plugin actions need it.",
   fromCheckout:"Register from this checkout", fromGithub:"Register from GitHub", updateMarket:"Update marketplace",
-  colPlugin:"Plugin", colHere:"In this checkout", colIn:"In {host}", install:"Install", update:"Update", uninstall:"Uninstall", installAll:"Install all", updateAll:"Update all",
+  colPlugin:"Plugin", colHere:"In this checkout", colIn:"In {host}", install:"Install", update:"Update", uninstall:"Uninstall", installAll:"Install all", updateAll:"Update all", enable:"Enable", uninstallAll:"Uninstall all", staleNote:"no longer in this marketplace",
   willRun:"This runs:", older:"older", refresh:"Refresh", disabled:"disabled", nInstalled:"{k} of {n} installed",
   fixPath:"{label} was not found on PATH. Install it, open a new terminal so that `{exe}` runs, start this manager again from there, then Refresh.",
   installRunning:"Running: {t}", showOutput:"Show output"},
@@ -524,19 +525,19 @@ const T = {
   stop:"Dừng", sRunning:"đang chạy", sWaiting:"chờ bạn trả lời", sDone:"xong", sFailed:"lỗi", sStopped:"đã dừng", sStopping:"đang dừng",
   yes:"Có", no:"Không", skip:"Bỏ qua", stopHint:"Dừng có hiệu lực ở câu hỏi tiếp theo hoặc khi lệnh hiện tại kết thúc.",
   qHint:"Trả lời theo transcript: agent đã thực sự làm gì?",
-  backEvals:"← Về Evals", backInstall:"← Về Cài đặt", caseOf:"case {i}/{n}", stepOf:"bước {i}/{n}", costCeil:"trần chi phí ${c}",
+  backEvals:"← Về Evals", backInstall:"← Về Skills", caseOf:"case {i}/{n}", stepOf:"bước {i}/{n}", costCeil:"trần chi phí ${c}",
   working:"Đang chạy. Câu hỏi sẽ hiện ở đây khi lượt chạy cần bạn đánh giá.",
   mDone:"Xong. Điểm ở tab Evals.", mStopped:"Đã dừng. Phần đã chấm vẫn được lưu.", mFailed:"Lỗi. Xem output để biết lý do.",
   mStopping:"Đang dừng. Có hiệu lực ở câu hỏi tiếp theo hoặc khi lệnh hiện tại kết thúc.",
   transcripts:"Transcript", noTranscripts:"Chưa có transcript.", tally:"Đã trả lời", output:"Output", jobChip:"● {s}: {t}",
-  tabInstall:"Cài đặt", tabEvals:"Evals",
+  tabInstall:"Skills", tabEvals:"Evals",
   colInstalled:"Đã cài", colLatest:"Lần chạy gần nhất",
   stNoEvals:"chưa có eval", stNotRun:"chưa chạy", stUntrusted:"chưa có lần chạy tin được", stPartly:"chạy một phần ({k}/{n})", stNeedsWork:"cần sửa", stPassing:"đạt", stChanged:"đã đổi từ lần chạy cuối", stLatestUntrusted:"lần chạy mới nhất không tin được ({k})", untrustedN:"{k} không tin được",
   runAll:"Chạy mọi case…", passOf:"{p}/{n} đạt", loading:"Đang tải…", notFound:"không có trong PATH", notInstalled:"chưa cài",
   installTitle:"Cài plugin", installLede:"Chọn một nền tảng, rồi cài, cập nhật hoặc gỡ các plugin của marketplace này trên đó. Mỗi thao tác hiện lệnh sẽ chạy và chỉ chạy sau khi bạn xác nhận.",
   marketplace:"Marketplace", notRegistered:"chưa đăng ký", registerFirst:"Hãy đăng ký marketplace trước: các thao tác với plugin cần nó.",
   fromCheckout:"Đăng ký từ bản checkout này", fromGithub:"Đăng ký từ GitHub", updateMarket:"Cập nhật marketplace",
-  colPlugin:"Plugin", colHere:"Trong checkout này", colIn:"Trong {host}", install:"Cài", update:"Cập nhật", uninstall:"Gỡ", installAll:"Cài tất cả", updateAll:"Cập nhật tất cả",
+  colPlugin:"Plugin", colHere:"Trong checkout này", colIn:"Trong {host}", install:"Cài", update:"Cập nhật", uninstall:"Gỡ", installAll:"Cài tất cả", updateAll:"Cập nhật tất cả", enable:"Bật", uninstallAll:"Gỡ tất cả", staleNote:"không còn trong marketplace",
   willRun:"Sẽ chạy:", older:"cũ hơn", refresh:"Tải lại", disabled:"đang tắt", nInstalled:"đã cài {k}/{n}",
   fixPath:"Không tìm thấy {label} trong PATH. Hãy cài nó, mở terminal mới để lệnh `{exe}` chạy được, khởi động lại trình quản lý này từ terminal đó, rồi bấm Tải lại.",
   installRunning:"Đang chạy: {t}", showOutput:"Xem output"}
@@ -857,7 +858,8 @@ function commandText(host, action, plugin, source){
   const exe = hostOf(host).exe;
   if (action === "marketplace-add") return `${exe} plugin marketplace add ${source === "checkout" ? "<this checkout>" : "eurus-labs/Skills"}`;
   if (action === "marketplace-update") return `${exe} plugin marketplace update eurus-labs`;
-  return (Array.isArray(plugin) ? plugin : [plugin]).map(p => `${exe} plugin ${action} ${p}@eurus-labs`).join("\n");
+  /* Copilot enables a plugin by its bare name; every other command names the marketplace. */
+  return (Array.isArray(plugin) ? plugin : [plugin]).map(p => `${exe} plugin ${action} ${action === "enable" && host === "copilot" ? p : p + "@eurus-labs"}`).join("\n");
 }
 function hostStatus(id){
   const h = INSTALLED && !INSTALLED.error ? INSTALLED[id] : null;
@@ -900,7 +902,9 @@ function installTab(){
   /* Fixed slots: Install or Update always first, Uninstall always second, so the buttons line up on every row. */
   const slots = p => {
     const got = h.plugins[p.name];
-    const one = b(got ? "update" : "install", got ? t("update") : t("install"), `data-iplugin="${esc(p.name)}"`, noMarket);
+    /* A disabled plugin gets Enable here: updating it would leave it off. */
+    const one = got && !got.enabled ? b("enable", t("enable"), `data-iplugin="${esc(p.name)}"`, noMarket)
+      : b(got ? "update" : "install", got ? t("update") : t("install"), `data-iplugin="${esc(p.name)}"`, noMarket);
     const two = got ? b("uninstall", t("uninstall"), `data-iplugin="${esc(p.name)}"`, noMarket)
       : `<button type="button" class="btn ghost small hold" tabindex="-1" aria-hidden="true" disabled>${t("uninstall")}</button>`;
     return `<div class="slots">${one}${two}</div>`;
@@ -909,10 +913,15 @@ function installTab(){
     if (!got) return `<span class="pill missing">${t("notInstalled")}</span>`;
     if (!got.enabled) return `<span class="pill idle">${esc(got.version)} · ${t("disabled")}</span>`;
     return got.version === p.version ? `<span class="pill ok">${esc(got.version)}</span>` : `<span class="pill warn">${esc(got.version)} · ${t("older")}</span>`; };
+  /* Plugins this host lists from this marketplace that the checkout no longer has (a renamed plugin). */
+  const stale = Object.keys(h.plugins).filter(n => !DATA.plugins.some(p => p.name === n)).sort();
+  const staleRow = n => `<tr><td><b class="mono">${esc(n)}</b><span class="sub">${t("staleNote")}</span></td><td class="mono"></td>
+      <td><span class="pill idle">${esc(h.plugins[n].version)}${h.plugins[n].enabled ? "" : " · " + t("disabled")}</span></td>
+      <td><div class="slots"><button type="button" class="btn ghost small hold" tabindex="-1" aria-hidden="true" disabled>${t("install")}</button>${b("uninstall", t("uninstall"), `data-iplugin="${esc(n)}"`, noMarket)}</div></td></tr>`;
   body.innerHTML = market + `<div class="grid"><table><thead><tr><th>${t("colPlugin")}</th><th>${t("colHere")}</th><th>${esc(fill(t("colIn"), {host: host.label}))}</th>
-      <th><div class="slots">${b("install", t("installAll"), 'data-all="1"', noMarket)}${b("update", t("updateAll"), 'data-all="1"', noMarket)}</div></th></tr></thead><tbody>${
+      <th><div class="slots head">${b("install", t("installAll"), 'data-all="1"', noMarket)}${b("update", t("updateAll"), 'data-all="1"', noMarket)}${b("uninstall", t("uninstallAll"), 'data-allinstalled="1"', noMarket || !Object.keys(h.plugins).length)}</div></th></tr></thead><tbody>${
     DATA.plugins.map(p => `<tr><td><b class="mono">${esc(p.name)}</b><span class="sub">${p.skills.map(s => esc(s[0])).join(", ")}</span></td>
-      <td class="mono">${esc(p.version || "")}</td><td>${chip(p)}</td><td>${slots(p)}</td></tr>`).join("")}</tbody></table></div>`;
+      <td class="mono">${esc(p.version || "")}</td><td>${chip(p)}</td><td>${slots(p)}</td></tr>`).join("") + stale.map(staleRow).join("")}</tbody></table></div>`;
 }
 
 function renderEvals(){ stats(); skillRows(); casePanel(); }
@@ -1002,7 +1011,8 @@ document.addEventListener("click", async e => {
   const ins = el("[data-install]");
   if (ins) {
     const host = ins.dataset.host, action = ins.dataset.install;
-    const plugins = ins.dataset.all ? DATA.plugins.map(p => p.name) : ins.dataset.iplugin ? [ins.dataset.iplugin] : null;
+    const own = INSTALLED && INSTALLED[host] ? Object.keys(INSTALLED[host].plugins) : [];
+    const plugins = ins.dataset.all ? DATA.plugins.map(p => p.name) : ins.dataset.allinstalled ? own : ins.dataset.iplugin ? [ins.dataset.iplugin] : null;
     state.installing = {host, action, plugins, source: ins.dataset.source}; installTab();
     window.scrollTo({top: $("installconfirm").offsetTop - 80, behavior: "smooth"}); return;
   }

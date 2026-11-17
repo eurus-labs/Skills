@@ -443,6 +443,67 @@ class Install(Server):
             self.assertEqual(ebs.plugin_command("copilot", "marketplace-update")[1:],
                              ["plugin", "marketplace", "update", "eurus-labs"])
 
+    def test_enable_is_built_per_host(self):
+        with patch("shutil.which", side_effect=on_path("copilot", "claude")):
+            self.assertEqual(ebs.plugin_command("copilot", "enable", "review")[1:], ["plugin", "enable", "review"])
+            self.assertEqual(ebs.plugin_command("claude", "enable", "review")[1:],
+                             ["plugin", "enable", "review@eurus-labs"])
+
+    def fake_listing(self, plugins):
+        entry = {"available": True, "marketplace": "x", "error": None, "plugins": plugins}
+        return {"copilot": dict(entry), "claude": dict(entry)}
+
+    def test_enable_and_uninstall_need_a_listed_plugin_and_stale_names_get_nothing_else(self):
+        listing = self.fake_listing({"reasoning": {"version": "0.2.2", "enabled": False},
+                                     "code-review": {"version": "0.2.0", "enabled": True}})
+        with patch("shutil.which", side_effect=on_path("copilot", "claude")), patch.object(ebs, "installed", lambda: listing):
+            for body in ({"action": "enable", "plugin": "review"},         # catalog plugin the host does not list
+                         {"action": "uninstall", "plugin": "review"},
+                         {"action": "enable", "plugin": "ghost"},
+                         {"action": "uninstall", "plugin": "ghost"},
+                         {"action": "install", "plugin": "code-review"},    # stale: uninstall only
+                         {"action": "update", "plugin": "code-review"},
+                         {"action": "enable", "plugin": "code-review", "plugins": ["code-review", "review"]}):
+                body = dict(body, host="copilot")
+                self.assertEqual(self.request("POST", "/api/install", body)[0], 400, body)
+        hostile = "a;rm -rf ~"
+        listing = self.fake_listing({hostile: {"version": "1", "enabled": True}, "Bad": {"version": "1", "enabled": True}})
+        with patch("shutil.which", side_effect=on_path("copilot", "claude")), patch.object(ebs, "installed", lambda: listing):
+            for name in (hostile, "Bad", "-x"):
+                for action in ("uninstall", "enable"):
+                    body = {"host": "copilot", "action": action, "plugin": name}
+                    self.assertEqual(self.request("POST", "/api/install", body)[0], 400, body)
+
+    def test_a_stale_plugin_is_uninstalled_and_a_disabled_one_enabled(self):
+        started = []
+
+        class FakeProc:
+            def __init__(self, command, **kwargs):
+                started.append(command)
+                self.stdout = io.StringIO("ok\n")
+
+            def wait(self):
+                return 0
+
+            def poll(self):
+                return 0
+
+            def terminate(self):
+                pass
+
+        listing = self.fake_listing({"reasoning": {"version": "0.2.2", "enabled": False},
+                                     "code-review": {"version": "0.2.0", "enabled": True}})
+        with patch("shutil.which", side_effect=on_path("copilot")), patch.object(ebs, "spawn", FakeProc), \
+                patch.object(ebs, "installed", lambda: listing):
+            self.assertEqual(self.request("POST", "/api/install", {"host": "copilot", "action": "uninstall",
+                                                                   "plugin": "code-review"})[0], 200)
+            self.assertEqual(self.wait_for(lambda j: j["status"] != "running")["status"], "done")
+            self.assertEqual(self.request("POST", "/api/install", {"host": "copilot", "action": "enable",
+                                                                   "plugin": "reasoning"})[0], 200)
+            self.assertEqual(self.wait_for(lambda j: j["status"] != "running")["status"], "done")
+        self.assertEqual([c[1:] for c in started], [["plugin", "uninstall", "code-review@eurus-labs"],
+                                                    ["plugin", "enable", "reasoning"]])
+
     def test_odd_requests_are_refused(self):
         with patch("shutil.which", side_effect=on_path("copilot", "claude")):
             for body in ({"host": "copilot", "action": "install", "plugin": "not-a-plugin"},
@@ -476,6 +537,18 @@ class Install(Server):
         self.assertEqual(job["status"], "done")
         self.assertEqual([c[-1] for c in started], ["testing@eurus-labs", "docs@eurus-labs"])
         self.assertIn('Plugin "docs@eurus-labs" installed successfully.', job["log"])
+
+    def test_a_missing_enabled_field_means_enabled(self):
+        def fake(command, timeout=60):
+            if "marketplace" in command:
+                return [], None
+            return [{"name": "a", "marketplace": "eurus-labs", "version": "1"},
+                    {"name": "b", "marketplace": "eurus-labs", "version": "1", "enabled": False},
+                    {"name": "c", "marketplace": "eurus-labs", "version": "1", "enabled": True}], None
+
+        with patch("shutil.which", side_effect=on_path("copilot")), patch.object(ebs, "list_json", fake):
+            plugins = ebs.installed()["copilot"]["plugins"]
+        self.assertEqual({k: v["enabled"] for k, v in plugins.items()}, {"a": True, "b": False, "c": True})
 
     def test_installed_reads_both_hosts_listings(self):
         listings = {

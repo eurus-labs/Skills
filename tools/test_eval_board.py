@@ -11,6 +11,9 @@ as a pass would mislead more than no board.
 
 import json
 import os
+import re
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -208,6 +211,71 @@ class Page(unittest.TestCase):
         # A job that ended before its output was opened keeps its chip and, for installs, its notice.
         self.assertIn('(j.status !== "running" && JOB.seen)', page)
         self.assertIn('(j.status === "running" || !JOB.seen)', page)
+
+
+HARNESS = """
+const els = {};
+const mk = () => ({innerHTML:"", textContent:"", hidden:false, style:{}, dataset:{}, setAttribute(){}, addEventListener(){},
+  closest(){return null}, querySelector(){return null}, querySelectorAll(){return []}});
+global.document = {getElementById: id => els[id] || (els[id] = mk()), querySelectorAll: () => [], addEventListener(t, f){ if (t === "click") global.clickHandler = f; }, documentElement:{}};
+global.window = {scrollTo(){}};
+global.localStorage = {getItem(){return null}, setItem(){}};
+global.fetch = () => new Promise(() => {});
+"""
+LISTING = """
+;INSTALLED = {copilot:{available:true, marketplace:"x", plugins:{reasoning:{version:"0.2.2", enabled:false},
+  review:{version:"0.3.0", enabled:true}, "code-review":{version:"0.2.0", enabled:true}}},
+  claude:{available:true, marketplace:"x", plugins:{}}};
+state.platform = "copilot"; installTab();
+const pick = {"[data-install]": {dataset: {install: "uninstall", host: "copilot", allinstalled: "1"}}};
+global.clickHandler({target: {closest: sel => pick[sel] || null}}).then(() => {
+console.log(JSON.stringify({all: state.installing, body: els.installbody.innerHTML, confirm: commandText("copilot", "enable", ["reasoning"]),
+  confirmClaude: commandText("claude", "enable", ["reasoning"]), uninstall: commandText("copilot", "uninstall", ["code-review"])}));
+});
+"""
+
+
+class SkillsTab(unittest.TestCase):
+    def test_the_tab_reads_skills_and_keeps_its_view_id(self):
+        page = board.board([], {}, {"token": "t"})
+        self.assertIn('tabInstall:"Skills"', page)
+        self.assertEqual(page.count('tabInstall:"Skills"'), 2, "in English and in Vietnamese")
+        self.assertIn('backInstall:"← Back to skills"', page)
+        self.assertIn('backInstall:"← Về Skills"', page)
+        self.assertIn('data-tab="install"', page)
+        self.assertIn('data-view="install"', page)
+
+    @unittest.skipUnless(shutil.which("node"), "node is needed to run the page script")
+    def test_the_plugin_table_shows_enable_uninstall_all_and_stale_rows(self):
+        plugins = [{"name": n, "version": "0.3.0", "skills": [["s-" + n, "g"]], "cases": []}
+                   for n in ("reasoning", "review", "docs")]
+        script = re.search(r"<script>(.*)</script>", board.board(plugins, {}, {"token": "t"}), re.S).group(1)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "page.js")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(HARNESS + script + LISTING)
+            out = subprocess.run(["node", path], capture_output=True, text=True, timeout=60)
+        self.assertEqual(out.returncode, 0, out.stderr)
+        got = json.loads(out.stdout.strip().splitlines()[-1])
+        rows = {m.group(1): m.group(2) for m in re.finditer(r'<tr><td><b class="mono">([^<]+)</b>(.*?)</tr>', got["body"], re.S)}
+        self.assertEqual(sorted(rows), ["code-review", "docs", "reasoning", "review"])
+        def buttons(row):
+            return re.findall(r'data-install="([a-z-]+)"[^>]*data-iplugin="([^"]+)"', rows[row])
+        self.assertEqual(buttons("reasoning"), [("enable", "reasoning"), ("uninstall", "reasoning")])
+        self.assertEqual(buttons("review"), [("update", "review"), ("uninstall", "review")])
+        self.assertEqual(buttons("docs"), [("install", "docs")])
+        self.assertEqual(buttons("code-review"), [("uninstall", "code-review")], "a stale plugin offers Uninstall only")
+        self.assertIn("no longer in this marketplace", rows["code-review"])
+        head = re.search(r'<th><div class="slots head">(.*?)</div></th>', got["body"], re.S).group(1)
+        self.assertEqual(re.findall(r'data-install="([a-z-]+)"([^>]*)data-(all|allinstalled)="1"', head)[2][::2],
+                         ("uninstall", "allinstalled"))
+        self.assertNotIn(" disabled>Uninstall all", head)
+        self.assertEqual(got["confirm"], "copilot plugin enable reasoning")
+        self.assertEqual(got["confirmClaude"], "claude plugin enable reasoning@eurus-labs")
+        self.assertEqual(got["uninstall"], "copilot plugin uninstall code-review@eurus-labs")
+        self.assertEqual(got["all"]["plugins"], ["reasoning", "review", "code-review"],
+                         "Uninstall all names exactly what the host has installed, stale ones included")
+        self.assertEqual(got["all"]["action"], "uninstall")
 
 
 if __name__ == "__main__":
