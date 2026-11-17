@@ -29,8 +29,11 @@ where you run a plan yourself. `implement` works from a plan without `reasoning`
   default branch, commits the plan with `Status: draft`, confirms before the first push, and revises it until
   you approve. Fires on "write the plan to a file", "plan this for another session".
 - **`coder-handoff`** — starts when you approve a plan. It sets `Status: approved` and pushes (its last push
-  to the branch), then dispatches the plan to a subagent on the implementing model (in Claude Code, the Agent
-  tool with `model: sonnet` and `isolation: worktree`). When the subagent's report returns, it reviews the
+  to the branch), then dispatches the plan to a subagent on a model at least one tier below the planner's, from
+  Sonnet, Haiku, terra or luna (Opus or Fable hands off to Sonnet, Sonnet to Haiku, astra or sol to terra, terra
+  to luna; the lowest tier hands off to itself). In Claude Code that is the Agent tool with `model: sonnet`
+  and `isolation: worktree`. It asks you when it does not know the planner's model, and asks before using a
+  coder you name that breaks the rule. When the subagent's report returns, it reviews the
   branch against the plan's acceptance criteria and opens the pull request only if every one is met; otherwise
   it sends the gaps to a new subagent run. It merges only when you ask. A host that cannot start a subagent
   gets a stop and the instruction to run the plan with `implement`. Fires on "approved, hand it to the coder",
@@ -49,7 +52,8 @@ where you run a plan yourself. `implement` works from a plan without `reasoning`
    confirm the push), and revises it with you.
 2. You approve. `coder-handoff` sets `Status: approved` (only you decide this), pushes it, and stops pushing to
    that branch.
-3. It dispatches the plan to a subagent on the implementing model. The planner does not touch the branch while
+3. It dispatches the plan to a subagent on a lower-tier model than the planner's (Sonnet when the planner is
+   Opus or Fable). The planner does not touch the branch while
    the subagent runs. If the host cannot start a subagent, it stops and tells you to run the plan with
    `implement`, with the branch, plan path, and baseline sha. It never writes session ids into committed files.
 4. `implement` starts only when `Status` is `approved`, works and commits on the plan's branch, follows the

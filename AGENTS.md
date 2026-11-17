@@ -60,8 +60,8 @@ Use Problem → Design → Predict → Build → Validate → Learn.
   (`plugins/reasoning/skills/write-plan/references/plan-template.md`). The planning session creates the plan's
   branch from `origin/main`, commits and pushes the plan there, then stops pushing to it. After the user
   approves, the `coder-handoff` skill pushes `Status: approved` (its last push) and dispatches the plan to a
-  subagent on the implementing model (in Claude Code, the Agent tool with `model: sonnet` and
-  `isolation: worktree`); where the host cannot start a subagent, it stops and tells the user to run the plan
+  subagent on a lower-tier model than the planner (here `model: sonnet`, because planning runs on Opus or
+  Fable; in Claude Code with `isolation: worktree`); where the host cannot start a subagent, it stops and tells the user to run the plan
   with `implement`. The subagent works and commits on the plan's branch, starts only when `Status` is
   `approved`, never opens a pull request or merges, and makes its last commit change only `Status` to
   `implemented`. Its final report returns to the planning session, which reviews the branch against the

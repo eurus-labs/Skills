@@ -1,7 +1,7 @@
 {
   "name": "reasoning",
   "description": "Plan a change for review and hand-off, without touching code: design-solution answers advice and comparison questions in the conversation, write-plan saves a plan on its own branch, and coder-handoff dispatches the approved plan to a coder subagent, reviews the branch, and opens the pull request. Meant for sessions on a high-tier model.",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "keywords": [
     "planning",
     "design",

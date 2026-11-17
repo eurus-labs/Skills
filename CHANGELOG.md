@@ -25,6 +25,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`coder-handoff`** (`reasoning` 0.3.0) always dispatches the plan to a model at least one tier below the
+  planner's, from the allowed coders Sonnet, Haiku, terra and luna (the lowest tier hands off to itself). It
+  learns the planner's model from the host or asks, stops when the host lacks the coder, asks before using a
+  coder the user names that breaks the rule, and names both models in its report.
 - **`document-codebase`** (`docs` 1.4.0) defines the Coordinator, Analyst, Writer and Reviewer roles, with a
   task contract for each and a Coordinator-only rule for shared files. The skill uses subagents only when the
   host offers them, records `independent` or `self_review` truthfully, routes each finding to the role that
