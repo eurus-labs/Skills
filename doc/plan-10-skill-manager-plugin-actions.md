@@ -1,6 +1,6 @@
 # Plan 10 — skill manager: Skills tab, Enable, Uninstall all, and stale plugins
 
-Status: draft
+Status: approved
 Date: 2026-11-17
 Branch: `feat/tools-skill-manager-plugin-actions`
 Baseline: `origin/main` at `e679abc4fe12215a6eee3cb71898946f65bfeedf`
