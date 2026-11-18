@@ -3,8 +3,8 @@
 Status: draft
 Date: 2026-11-18
 Branch: `feat/docs-product-scope`
-Baseline: `origin/main` at `24169e440ba0e772d519a65d5762b14b05ec7922`. Plan 12 (`feat/docs-draft-revisions`) also
-changes `pipeline.py`; whichever lands second rebases onto the other.
+Baseline: `origin/main` at `2cf65aa34c15c9452be44540ec40def1ecdab631`, with plans 12 and 13 merged. Any
+line numbers below for `pipeline.py` predate them, so read the code, not the numbers.
 Target: `shared/scripts/` (`survey/`, `pipeline.py`, `publish/render_docs.py`, `publish/quality_docs.py`),
 their plugin copies, `plugins/docs/skills/document-codebase/` (`SKILL.md`, references), tests
 
@@ -89,8 +89,19 @@ This plan covers the three as separate groups. The coder pushes after each group
    - `survey/read_feature_map.py` looks for `verify-*/references/features/*.md` under `.github/skills/`,
      `.claude/skills/` and `.agents/skills/` in the repository being documented.
    - It parses each area's name and its `owns:` and `uses:` globs into `.docs-build/feature-map.json`.
-   - With no feature map, it writes nothing and the run proceeds unchanged. The map is optional, and
-     `document-codebase` must not depend on the `verification` plugin being installed.
+   - With no feature map, it writes nothing and prints `no feature map found`.
+   - **No feature map: offer to create one** (the user's decision).
+     - At checkpoint P1, if the `setup-verification` skill is available in the session, `SKILL.md` tells the
+       Coordinator to ask the user whether to run it now.
+     - Before asking, say what it does: it writes `<skills-dir>/verify-<app>/` into the user's repository,
+       trial-runs the project's own build and test commands, and may start the app.
+     - On yes, run `setup-verification`, then run `survey` again so the new map is read.
+     - On no, or when the skill is not available, continue without a map and say so in the final report.
+     - Name the skill in plain text, never as a link, because plugins install standalone (`AGENTS.md`).
+       `document-codebase` must still work when the `verification` plugin is not installed.
+
+     Rejected: running `setup-verification` without asking, because it writes files into the user's
+     repository and runs their commands (`.github/instructions/universal/safety.instructions.md`).
 6. **The map is a checklist, never evidence.**
    - Each area becomes a required topic in `scope.json` (`feature:<area>`).
    - The product files it owns are grouped into one reading task, so tasks follow user journeys (plan 4).
@@ -104,20 +115,31 @@ This plan covers the three as separate groups. The coder pushes after each group
 
 ### Group C — reader edition and audit edition
 
-8. **Citations live in `evidence`, not in the text.**
+8. **Citations live in `evidence`, not in the text, one list per block** (the user's choice: per block, not
+   per sentence).
    - The Writer puts `path:line` only in each block's `evidence` list and writes clean prose.
+   - Rejected: per-sentence citations, because the Writer would tag every sentence and the Reviewer check
+     every one, for little gain over a block's list.
    - `check_prose.py` adds an advisory finding when a block's text contains a `path:line` pattern.
 9. **One source, two builds.**
    - `render_docs.py` emits each block's citations inside a Sphinx `only` block: `.. only:: audit` in RST,
      `{only} audit` in MyST.
-   - A normal Sphinx build is the **reader edition**, with no line numbers.
+   - A normal Sphinx build is the **reader edition**. It shows **no source reference at all**: no line
+     numbers, and no "Source: module X" line (the user's choice).
    - `sphinx-build -t audit` is the **audit edition**, where every cited block is followed by its
      `path:line` list.
+   - **The audit edition is built on demand, never stored** (the user's choice).
+     - No `docs-audit/` directory, no second site, and no `publish` step for it.
+     - The citations travel inside the published RST or MyST source, in the `only` blocks. Anyone can
+       build the audit edition from `docs/` whenever it is needed.
+     - `rendering.md` gives the exact command.
    - Both come from the same reviewed revision, so they cannot disagree and need one review, not two.
 
    Rejected: rendering two separate trees, because two trees could drift apart and would each need review.
-10. **The open questions decide citation granularity, where the audit edition lives, and what the reader
-    edition keeps.** The coder does not implement Decisions 8–9 until those answers are recorded here.
+10. **A quality check keeps the two editions honest.** `quality_docs.py` (or the existing Sphinx check in
+    `render_docs.py --check`) confirms both of these:
+    - the reader build's output contains no `path:line` pattern;
+    - every block with evidence has a matching `only:: audit` block in the source.
 
 ### All groups
 
@@ -189,8 +211,13 @@ already within the renderer's markup. No new dependency.
       test cited as evidence still resolves.
 - [ ] With the feature map, each area is a `feature:<area>` required topic. An area with no citing section
       is listed by `quality_docs.py`. Without a feature map, the run's outputs are unchanged.
-- [ ] Group C, once the open questions are answered: a reader build contains no `path:line`; an audit build
-      (`-t audit`) contains every block's evidence; both build from the same staged tree.
+- [ ] Group C, on the same staged tree:
+      - a reader build contains no `path:line` and no "Source:" line;
+      - an audit build (`-t audit`) contains every block's evidence;
+      - nothing is written to any `docs-audit/` or second output by `publish`.
+- [ ] No feature map: the `survey` output says `no feature map found`, and `SKILL.md` tells the Coordinator
+      to offer `setup-verification` at P1, ask before running it, and continue without a map on a no.
+      Checked by a test of the survey output and by reading `SKILL.md`.
 - [ ] `check_prose.py` flags a block whose text contains `path:line`.
 - [ ] Required checks pass: `python3 tools/validate.py`, `python3 tools/materialize.py --check`, and
       `for t in tools/test_*.py; do python3 "$t" || break; done`.
@@ -202,20 +229,11 @@ already within the renderer's markup. No new dependency.
 | Listing every product file makes a large repository's reading far longer | `--top` still sets the batch, and coverage reports what is left. Plan 13's resume continues the next batch |
 | A feature map is stale or wrong | It only adds topics to check. It is never cited, and disagreements go to the user (Decision 6) |
 | Symbol-free rows weaken the analysis checks | Accepted only for `product` files with no symbols, and they still need one statement saying what the file does |
-| Group C is large next to Groups A and B | Separate group with its own push. It can be split into its own plan if the open questions take time |
+| Group C is large next to Groups A and B | Separate group with its own push |
+| `setup-verification` runs the user's build and may start their app | Only after the user says yes at P1, with what it does stated first (Decision 5) |
 | Plan 12 and this plan both edit `pipeline.py` | The second to land rebases. Neither plan changes the other's functions |
 
 ## Open questions
 
-These must be answered before Group C (Decisions 8–9) is implemented. Groups A and B do not depend on them.
-
-1. **Citation granularity.**
-   - Per block: evidence already exists, so this is ready now.
-   - Per sentence: more precise, but the Writer must tag each sentence and the Reviewer must check each one.
-2. **Where the audit edition lives.**
-   - Built on demand and not committed.
-   - Committed as its own directory, for example `docs-audit/`.
-   - Published as a second site.
-3. **What the reader edition keeps.**
-   - No source reference at all.
-   - A short "Source: module X" line per page, with no line numbers.
+None. The three Group C questions and the missing-map case were answered by the user on 2026-11-18
+and are recorded in Decisions 5, 8 and 9.
