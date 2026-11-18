@@ -51,8 +51,10 @@ present, empty, still holding placeholder text, or a copy of the template's ques
 
 1. Get imports, symbols, coverage, and file sizes from `structure.json`, never from memory. An import edge
    does not prove a call: cite and verify the bound call site before saying A calls B.
-2. Give every claim a `path:line` citation. Use `query_graph.py --packet` for each module's
-   neighbours; do not describe a module from its file alone.
+2. Give every claim `path:line` evidence, in the block's `evidence` list and never inside the sentence. The
+   reader edition of the docs shows clean prose with no source reference; the audit edition
+   (`sphinx-build -t audit`) lists each block's citations after it. Use `query_graph.py --packet` for each
+   module's neighbours; do not describe a module from its file alone.
 3. Put only `verified` and `supported_inference` claims in prose. Label `candidate`, `unsupported`, and
    `needs_context` as limitations; never ship `rejected` claims. Mark evidence with `exact: false` as
    *(approximate)*, and describe only the scanned scope.
@@ -112,7 +114,7 @@ permit exit `1` while their component continues; see [pipeline](references/pipel
 | Analyze | `analyze` | Read source and write `module-analysis.jsonl`, `fragments.jsonl`, and call claims; read [analyze](references/analyze.md), [analyst](references/analyst.md), [context policy](references/context-policy.md), and the [schemas](references/schemas.md) sections its contents point to. P2 follows. |
 | Check | `check` | Repair named findings; read [check](references/check.md). For an unfamiliar finding code, read `scripts/findings.py` as a catalog; do not run it. Write architecture, flow, and operations analyses using [three analyses](references/three-analyses.md); P3 follows. |
 | Document | `document` | Builds the recorded choice. Read [document](references/document.md) and [writer](references/writer.md); for a preset, [presets](references/presets.md); for a question template, [manual](references/manual.md). A question template's first run stops at exit `1` with an answer draft: complete and compose its pages, then rerun. |
-| Render | `render --docs docs` | Inspect the isolated draft and read [rendering](references/rendering.md). Run `python3 scripts/publish/readability.py .docs-build/rendered-docs --for-review` and judge the flagged passages before accepting any rendered page. Show the user the authored pages still owed. |
+| Render | `render --docs docs` | Inspect the isolated draft and read [rendering](references/rendering.md), which also gives the audit-edition build command. Run `python3 scripts/publish/readability.py .docs-build/rendered-docs --for-review` and judge the flagged passages before accepting any rendered page. Show the user the authored pages still owed. |
 | Final review | `review`, then `review --review` | Write `prose-review.jsonl` under [prose rules](references/prose-rules.md) and [reviewer](references/reviewer.md); show queued readings and evidence for P4 before the reviewed pass. |
 | Publish | `approve` if signatures are required, then `publish --docs docs` | Promote only the sealed draft, once the template is chosen and any required signatures verify; read [publish](references/publish.md). |
 

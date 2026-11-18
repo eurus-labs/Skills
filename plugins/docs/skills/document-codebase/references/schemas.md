@@ -642,14 +642,60 @@ work — it may not quietly decide which features are in the manual.
   "scope_version": 1,
   "index_hash": "sha256:…",
   "product_roots": ["src"],
-  "required_topics": ["configuration", "failure-modes"],
+  "required_topics": ["feature:checkout", "question:review.1"],
   "files": [
-    {"path": "src/app.py", "disposition": "product", "reading": "analyzed"},
+    {"path": "src/app.py", "disposition": "product", "reading": "analyzed",
+     "symbols": 4, "source_hash": "sha256:…", "batch": 1},
+    {"path": "src/shop/runner.py", "disposition": "product", "reading": "unread",
+     "symbols": 0, "entry_point": true, "source_hash": "sha256:…", "batch": 1},
+    {"path": "src/checkout/cart.py", "disposition": "product", "reading": "unread",
+     "symbols": 3, "features": ["checkout"], "task": "feature:checkout",
+     "source_hash": "sha256:…", "batch": 2},
     {"path": "tests/test_app.py", "disposition": "test", "reading": "excluded",
-     "reason": "pytest suite under tests/"}
+     "reason": "scanner marks it a test: it sits under tests/"}
   ]
 }
 ```
+
+`survey` writes it (`build_scope.py`); nothing is written by hand. Beyond the required fields, a row may carry:
+
+| Field | On | Meaning |
+| --- | --- | --- |
+| `symbols` | product | how many symbols the scanner found. `0` is a file that defines nothing — an entry script, a module that only registers things on import — and is owed one statement saying what it does, not four kinds. `validate_analysis.py`, `assemble.py` and `quality_docs.py` take it from here with `--scope` |
+| `source_hash` | product | the hash of the file read; a rerun keeps `read`/`analyzed` only while it is unchanged |
+| `entry_point` | product | the scanner lists the file as a way in |
+| `batch` | unread product | `1` is `units.txt`; later numbers are the next reading batches, in connection order. Written by `select_units.py --scope` |
+| `features`, `task` | product | the feature-map areas whose `owns:` globs match, and the first of them as a reading task (`feature:<area>`); only when a feature map exists |
+| `override` | any | a person's note that they changed this row's disposition at P1. `quality_docs.py` reports it as a scope change, so a deliberately partial draft is not mistaken for a forgotten one |
+
+`required_topics` holds `question:<id>` for each question of the chosen template (when one is recorded when
+the scope is built) and `feature:<area>` for each area of a feature map. `product_roots` are the directories
+that hold the product files. The classification rules, in order: the scanner's `is_test`; a vendored
+directory (`vendor/`, `third_party/`, `node_modules/` …); a generated-file name (`*_pb2.py`, `*.pb.go` …) or
+a marker in the first lines (`@generated`, `DO NOT EDIT`); example and documentation-tooling source; every
+non-source file the scanner inventoried is an `asset`. Everything else is `product`.
+
+`reading` is derived: `pipeline.py analyze` and `check` set a product file `analyzed` when
+`module-analysis.jsonl` holds a row for it, and `status` and `quality_docs.py` compute the same from the
+ledger. A run with an `unread` product file reports `incomplete: N product files unread`.
+
+## `feature-map.json` — feature_map_version 1
+
+Written by `read_feature_map.py` only when the repository has a feature map: `verify-*/references/features/`
+under `.github/skills/`, `.claude/skills/` or `.agents/skills/` (the layout `setup-verification` writes).
+With none, nothing is written and the survey prints `no feature map found`.
+
+```json
+{"feature_map_version": 1, "skills": [".github/skills/verify-shop"],
+ "sources": [".github/skills/verify-shop/references/features/README.md"],
+ "areas": [{"name": "cart", "skill": ".github/skills/verify-shop", "file": "cart.md",
+            "owns": ["src/shop/cart.py", "tests/test_cart.py"], "uses": ["src/shop/money.py"]}]}
+```
+
+**It is a checklist and never evidence.** The map was written by an agent and can be wrong. It adds the
+`feature:<area>` topics and groups the files an area owns into one reading task; `quality_docs.py` lists an
+area no section cites a file of. A sentence never cites the map, and where its expected behavior disagrees with
+the code the disagreement is an open question for the user.
 
 `disposition` is `product`, `test`, `generated`, `vendor` or `asset`. `reading` is `unread`, `read`,
 `analyzed` or `excluded`, and is tracked **apart from** disposition: they answer "is this ours?" and "did

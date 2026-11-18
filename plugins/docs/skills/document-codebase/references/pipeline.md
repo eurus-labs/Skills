@@ -20,7 +20,7 @@ it, and hands the next one a file rather than a call:
 
 | Component | Asks | Writes |
 | --- | --- | --- |
-| `survey/` | what is in this repository | `structure.json`, `units.txt` |
+| `survey/` | what is in this repository | `structure.json`, `scope.json`, `units.txt`, `feature-map.json` when the repository has one |
 | `analyze/` | what the model needs in front of it | `claims.jsonl`, `packets/` |
 | `check/` | whether a claim holds | `claims.verified.jsonl`, `fragments.verified.jsonl`, `findings.jsonl` |
 | `document/` | what the pages will say | `.docs-build/diagrams/`, `flow-report.json`, `doc.json` |
@@ -272,7 +272,7 @@ stalled loop; the Coordinator decides whether to stop (see [workflow](workflow.m
 
 | Component | Stages, in order |
 | --- | --- |
-| `survey` | `scan_repo` → `validate_index` → optional `annotate_import_usage` → `select_units` → `extract_config` → `validate_config` |
+| `survey` | `scan_repo` → `validate_index` → optional `annotate_import_usage` → `read_feature_map` → `build_scope` → `select_units --scope` → `extract_config` → `validate_config` |
 | `analyze` | `derive_claims` → `query_graph --packet`, once per unit |
 | `check` | `validate_analysis` → `assemble` → `verify_doc` |
 | `document` | `validate_architecture` → `validate_flows` → `validate_operations` → `build_class_graph` → `build_diagrams` → `validate_diagrams` → `build_flow_diagrams` → `validate_flow_diagrams` → `build_document_model` |
@@ -316,7 +316,7 @@ the prose check and the gate. A run without them is a visibly thinner document, 
 | `--build` | all | `.docs-build` | where intermediates go; relative paths here and in `--docs`, `--staging` and `--review` resolve against `--root` |
 | `--docs` | `render`, `publish` | `docs` | existing/target documentation tree; render reads it, publish replaces it |
 | `--staging` | `render`, `review`, `publish` | `.docs-build/rendered-docs` | isolated rendered draft |
-| `--top` | `survey` | `25` | the cutoff for `units.txt`, by connections (fan-in plus fan-out) |
+| `--top` | `survey` | `25` | the size of the next reading batch in `units.txt`, by connections (fan-in plus fan-out); every product file stays in `scope.json` |
 | `--policy` | `survey` | `optional` | `disabled` drops the Ruff stage entirely |
 | `--force` | `analyze` | off | re-derive `claims.jsonl` over hand-written claims |
 | `--preset` | `document` | `auto` | `auto` builds the recorded choice, or records the survey's recommendation as provisional; a name builds that preset and records it when nothing is recorded |

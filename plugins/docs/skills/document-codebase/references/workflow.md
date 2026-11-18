@@ -60,6 +60,10 @@ review JSONL files, `manual-analysis.json` and the three analyses. This is the a
 [`analyze.md`](analyze.md) and [`context-policy.md`](context-policy.md): each parallel task returns its
 results to you, because two writers on one JSONL file interleave into corrupt lines.
 
+`scope.json` is the denominator for every task: it lists each product file and whether it is `unread`. Give an
+Analyst a reading task that follows a user journey (a feature area's owned files go together when a feature
+map exists), and keep dispatching until no product file is unread or the user narrowed the scope at P1.
+
 A worker may instead write isolated artifacts under `.docs-build/tasks/<task-id>/`. You merge them into the
 shared files and resolve conflicting readings of the same source yourself, by reading it.
 
