@@ -705,6 +705,47 @@ def revision_tests(tmp):
         check("the counter records the highest number ever used",
               json.load(fh) == {"highest": 7})
 
+    # --- The P4 identity ignores the revision label.
+    def queue_hash(label):
+        write(os.path.join(build, "prose-report.json"), json.dumps({"review_queue": [
+            {"block": "block:a", "target_id": "block:a", "content_hash": "sha256:1",
+             "draft_revision": label}]}))
+        return pipeline.review_queue_hash(build)
+
+    check("review_queue_hash is the same for queues that differ only in draft_revision",
+          queue_hash("rev-0001") == queue_hash("rev-0002") and queue_hash("rev-0001"))
+    write(os.path.join(build, "prose-report.json"), json.dumps({"review_queue": [
+        {"block": "block:a", "target_id": "block:a", "content_hash": "sha256:2",
+         "draft_revision": "rev-0001"}]}))
+    check("but a changed reading still changes it",
+          pipeline.review_queue_hash(build) != queue_hash("rev-0001"))
+
+    # --- Review history is kept per revision, and never overwritten.
+    revision = manifest()["revision"]
+    meta = os.path.join(drafts, revision + ".meta")
+    review_file = os.path.join(build, "prose-review.jsonl")
+    args = type("Args", (), {"build": build, "review": review_file})()
+    for round_number in (1, 2):
+        write(review_file, '{"round": %d}\n' % round_number)
+        before = pipeline.file_stamp(os.path.join(build, "prose-report.json"))
+        write(os.path.join(build, "prose-report.json"),
+              json.dumps({"review_queue": [], "round": round_number}))
+        pipeline.record_review_history(args, before)
+    check("two review rounds leave numbered history beside the revision",
+          sorted(n for n in os.listdir(meta) if n != "revision.json")
+          == ["prose-report-01.json", "prose-report-02.json",
+              "review-01.jsonl", "review-02.jsonl"], repr(os.listdir(meta)))
+    with open(os.path.join(meta, "review-01.jsonl"), encoding="utf-8") as fh:
+        check("the first round survives the second", fh.read() == '{"round": 1}\n')
+    with open(os.path.join(meta, "revision.json"), encoding="utf-8") as fh:
+        recorded = json.load(fh)["draft_hash"]
+    check("and nothing is written inside the snapshot",
+          tree_hash(os.path.join(drafts, revision)) == recorded)
+    check("a review that did not rewrite the prose report records no round",
+          pipeline.record_review_history(
+              args, pipeline.file_stamp(os.path.join(build, "prose-report.json"))) is None
+          and len(os.listdir(meta)) == 5)
+
     code, text = run("pipeline.py", "render", "--root", root, "--build", build,
                      "--docs", docs, "--dry-run")
     check("render --dry-run names the new stage",

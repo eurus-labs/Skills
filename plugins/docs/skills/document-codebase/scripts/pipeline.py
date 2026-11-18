@@ -50,6 +50,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -618,6 +619,9 @@ def review(args):
     report = os.path.join(build, "flow-report.json")
 
     checker = [doc, "--require-review", "--out", prose]
+    revision = (_json(os.path.join(build, "render-manifest.json"), {}) or {}).get("revision")
+    if revision:
+        checker.extend(["--draft-revision", revision])
     gate = ["--index", os.path.join(build, "structure.json"),
             "--analysis", os.path.join(build, "module-analysis.jsonl"),
             "--units", os.path.join(build, "units.txt"),
@@ -670,6 +674,39 @@ def review(args):
                "--drafts", drafts_of(args),
                "--out", os.path.join(build, "publish-seal.json")]),
     ]
+
+
+def record_review_history(args, prose_before):
+    """Keep this round's reviewer rows and prose report beside the revision they judged.
+
+    Each round overwrites `prose-review.jsonl` and `prose-report.json`, so the findings of
+    the round before would be lost. `KK` is the next free round number on the revision, and
+    the two files share it, so a round with no `--review` file still takes a number.
+    """
+    report = os.path.join(args.build, "prose-report.json")
+    revision = (_json(os.path.join(args.build, "render-manifest.json"), {}) or {}).get("revision")
+    if not revision or file_stamp(report) in (None, prose_before):
+        return None
+    meta = os.path.join(drafts_of(args), revision + ".meta")
+    if not os.path.isdir(meta):
+        return None
+    taken = [int(m.group(1) or m.group(2)) for name in os.listdir(meta)
+             for m in [re.match(r"^(?:review-(\d+)\.jsonl|prose-report-(\d+)\.json)$", name)]
+             if m] or [0]
+    number = max(taken) + 1
+    shutil.copyfile(report, os.path.join(meta, "prose-report-%02d.json" % number))
+    if args.review:
+        shutil.copyfile(args.review, os.path.join(meta, "review-%02d.jsonl" % number))
+    return "%s round %02d" % (revision, number)
+
+
+def file_stamp(path):
+    """Changes whenever the file is rewritten; None when it is absent."""
+    try:
+        stat = os.stat(path)
+    except OSError:
+        return None
+    return (stat.st_mtime_ns, stat.st_size)
 
 
 def publish(args):
@@ -971,6 +1008,9 @@ def review_queue_hash(build):
         return None
     if not isinstance(queue, list):
         return None
+    # The revision label changes on every re-render; what P4 asked about is the readings.
+    queue = [{k: v for k, v in entry.items() if k != "draft_revision"}
+             if isinstance(entry, dict) else entry for entry in queue]
     payload = json.dumps(queue, sort_keys=True, separators=(",", ":"))
     return "sha256:" + hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
@@ -1822,8 +1862,13 @@ def main():
         return stages
     print("== %s: %d stage(s)" % (args.component, len(stages)))
     timings = None if args.dry_run else os.path.join(args.build, "timings.jsonl")
+    prose_before = file_stamp(os.path.join(args.build, "prose-report.json"))
     code = run(stages, dry_run=args.dry_run, timings=timings,
                invocation_id=invocation_id)
+    if args.component == "review" and not args.dry_run:
+        kept = record_review_history(args, prose_before)
+        if kept:
+            print("-- review history kept for %s" % kept)
     if args.component == "survey" and code == 0 and not args.dry_run:
         # The cutoff and import-annotation policy are part of the scope question,
         # even when two cutoffs happen to select the same modules.

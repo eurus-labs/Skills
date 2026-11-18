@@ -304,6 +304,37 @@ def main():
               code == 1 and report["status"] == "review_required"
               and report["stale_reviews"] == ["block:c"], repr(report))
 
+        # --- A draft revision label is not a freshness input.
+        with open(review, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(review_row()) + "\n")
+        code, report = check_prose(queued, "rev2.json", "--require-review",
+                                   "--review", review, "--draft-revision", "rev-0002")
+        check("a row made on rev-0001 still applies on rev-0002",
+              code == 0 and report["status"] == "passed" and report["stale_reviews"] == [],
+              repr(report)[:300])
+        check("--draft-revision labels each queue entry",
+              all(q["draft_revision"] == "rev-0002" for q in report["review_queue"])
+              and report["review_queue"], repr(report["review_queue"]))
+        code, report = check_prose(queued, "norev.json")
+        check("without --draft-revision the old source label remains the fallback",
+              report["review_queue"][0]["draft_revision"] == "unknown"
+              or report["review_queue"][0]["draft_revision"].startswith("sha256:"),
+              repr(report["review_queue"][0]))
+        with open(review, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(review_row(draft_revision="9f2c1ab")) + "\n")
+        code, report = check_prose(queued, "oldlabel.json", "--require-review",
+                                   "--review", review, "--draft-revision", "rev-0002")
+        check("a row labelled with a source revision is still accepted",
+              code == 0 and report["status"] == "passed", repr(report)[:300])
+        edited = json.loads(json.dumps(queued))
+        edited["pages"][0]["blocks"][0]["text"] = ("Inferred, not observed: the split "
+                                                   "exists to keep the store separate.")
+        code, report = check_prose(edited, "edited.json", "--require-review",
+                                   "--review", review, "--draft-revision", "rev-0002")
+        check("an edited block's row is stale (P008) on the new revision",
+              code == 1 and report["stale_reviews"] == ["block:c"]
+              and "P008" in {f["code"] for f in report["findings"]}, repr(report)[:300])
+
         code, out, err = run("check_prose.py",
                              write_json(os.path.join(tmp, "typo.json"), honest),
                              "--review", os.path.join(tmp, "not-here.jsonl"))
