@@ -221,6 +221,25 @@ def main():
               code == 0 and pages_in(out) == {"overview", "index"}, output)
         check("and is told what to enable to see the picture",
               "sphinxcontrib.plantuml" in output and "WARN" in output, output)
+
+        # `render` always passes --diagrams. A document with no figure has no diagram
+        # directory to give it, and that must not crash the copy.
+        absent = os.path.join(tmp, "no-such-diagrams")
+        code, output, out = render(tmp, doc, "no-figures", "rst", "--diagrams", absent)
+        destination = os.path.join(out, "_diagrams")
+        check("no figures and a missing diagrams directory still renders",
+              code == 0 and "Traceback" not in output
+              and "overview" in pages_in(out), output)
+        check("and leaves an empty _diagrams for the review stage",
+              os.path.isdir(destination) and os.listdir(destination) == [], output)
+        check("and says no diagram directory was needed",
+              "none was needed" in output, output)
+
+        code, output, out = render(tmp, illustrated, "figure-no-dir", "rst",
+                                   "--diagrams", absent)
+        check("a figure and a missing diagrams directory fails naming the figure",
+              code == 2 and "figure(s) are not in" in output
+              and "Traceback" not in output, output)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
