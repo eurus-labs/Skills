@@ -14,7 +14,7 @@ Commands, flags and exit codes are in [`pipeline.md`](pipeline.md); this file do
 - [Independent review and self-review](#independent-review-and-self-review)
 - [Routing findings](#routing-findings)
 - [Budget and the stop rule](#budget-and-the-stop-rule)
-- [Not yet implemented](#not-yet-implemented)
+- [Stopping and continuing a run](#stopping-and-continuing-a-run)
 
 ## Roles
 
@@ -110,18 +110,33 @@ which mode each review used.
 Track the iteration number, budget remaining, draft revision, findings open and next actions as you go.
 
 Stop when the budget is spent, or after two consecutive revision rounds that leave the same blocking
-findings open with no substantive progress. Then:
+findings open with no substantive progress. `pipeline.py resume` prints a `no progress` line when the last two
+reviewed revisions left the same open blocking findings; it only reports, and you decide whether the stop rule
+applies, because a half-finished repair looks the same. Then:
 
 1. Keep the readable draft.
-2. Write a continuation report: findings still open, the next actions, and the budget used.
+2. Write a continuation report to `.docs-build/continuation.md`: findings still open, the next actions, and the
+   budget used.
 3. Report the run as unfinished. A stop is never turned into `confirmed`.
 
 The two-attempt retry for structural claims in `check` is a separate loop.
 
-## Not yet implemented
+## Stopping and continuing a run
 
-Immutable `rev-NNNN` revision snapshots, the per-revision review history and delivery bound to the reviewed
-revision exist (plan 12). Only a **resume command** and the report for the same blocking findings two rounds
-running are still planned (plan 4, W5; plan 13) and **do not exist yet**. Do not run a resume command. Carry
-the continuation report in your own reply and in `.docs-build/`; the review history in
-`drafts/rev-NNNN.meta/` holds each round's findings. `pipeline.py status` shows where a run stands.
+**To stop.** When you stop a run, keep the readable draft and write `.docs-build/continuation.md` in plain
+prose: the iteration, the budget used, the findings still open, the next actions, and anything the records
+cannot hold. No script writes or checks this file, so say only what you know.
+
+**To continue.** Run `python3 scripts/pipeline.py resume` before anything else. It runs no stage and writes
+nothing. It prints:
+
+- the latest `rev-NNNN`, and whether the staging tree still equals it;
+- the revision the publish seal names;
+- the queued, unreviewed and stale blocks of the latest review round;
+- every open finding, with the revision where it first appeared;
+- the no-progress line, when it applies;
+- your continuation note, labelled as unchecked and flagged if it is older than the latest revision;
+- one suggested next command.
+
+The note is the previous session's memory, not a record: where it disagrees with what `resume` printed from the
+files, believe the files. `pipeline.py status` still shows where the whole run stands.

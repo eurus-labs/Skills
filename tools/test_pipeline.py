@@ -752,6 +752,268 @@ def revision_tests(tmp):
           code == 0 and "render/snapshot_revision" in text, text[-300:])
 
 
+def resume_tests(tmp):
+    """`resume` reports the draft-review loop and never writes or blocks anything."""
+    from draft_artifact import tree_hash
+    created = "2026-01-01T00:00:00Z"
+
+    def loop(name, scan=True):
+        root = os.path.join(tmp, name)
+        build = os.path.join(root, ".docs-build")
+        os.makedirs(build)
+        if scan:
+            write(os.path.join(build, "structure.json"),
+                  json.dumps({"index_hash": "sha256:s"}))
+        return root, build
+
+    def mint(build, number, rounds=(), previous=None, stage=False, report=None):
+        """Fabricate rev-NNNN and its review rounds; each round is a list of findings."""
+        drafts, name = os.path.join(build, "drafts"), "rev-%04d" % number
+        snapshot = os.path.join(drafts, name)
+        os.makedirs(snapshot)
+        write(os.path.join(snapshot, "index.rst"), "Draft %d\n" % number)
+        meta = os.path.join(drafts, name + ".meta")
+        os.makedirs(meta)
+        write(os.path.join(meta, "revision.json"), json.dumps({
+            "revision_version": 1, "revision": name, "created_at": created,
+            "draft_hash": tree_hash(snapshot), "previous": previous}))
+        for index, findings in enumerate(rounds, 1):
+            write(os.path.join(meta, "review-%02d.jsonl" % index), json.dumps(
+                {"review_version": 2, "findings": [
+                    {"finding_id": fid, "severity": sev, "location": "page:%s" % fid,
+                     "why": "w", "requested": "fix %s" % fid, "state": state}
+                    for fid, sev, state in findings]}) + "\n")
+            write(os.path.join(meta, "prose-report-%02d.json" % index), json.dumps(
+                report or {"coverage": {"queued": 2}, "unreviewed": ["block:u"],
+                           "stale_reviews": ["block:s"]}))
+        if stage:
+            shutil.rmtree(os.path.join(build, "rendered-docs"), ignore_errors=True)
+            shutil.copytree(snapshot, os.path.join(build, "rendered-docs"))
+        return name
+
+    def resume(root, build):
+        return run("pipeline.py", "resume", "--root", root, "--build", build)
+
+    def next_line(text):
+        return [l for l in text.splitlines() if l.startswith("next")][-1]
+
+    def snapshot_of(build):
+        held = {}
+        for directory, _dirs, files in os.walk(build):
+            for name in files:
+                path = os.path.join(directory, name)
+                with open(path, "rb") as fh:
+                    held[path] = (fh.read(), os.stat(path).st_mtime_ns)
+        return held
+
+    # --- No scan: says so, creates nothing.
+    root = os.path.join(tmp, "resume-none")
+    os.makedirs(root)
+    code, text = resume(root, os.path.join(root, ".docs-build"))
+    check("resume with no build exits 0 and says there is no scan",
+          code == 0 and "no scan yet" in text, text)
+    check("and creates no directory", os.listdir(root) == [])
+
+    # --- Built before revision snapshots.
+    root, build = loop("resume-old")
+    write(os.path.join(build, "continuation.md"), "Old note body.\n")
+    code, text = resume(root, build)
+    check("a build with no drafts/ predates revision snapshots",
+          code == 0 and "predates revision snapshots; run render" in text
+          and "Old note body." in text, text)
+
+    # --- The full picture, and read-only.
+    root, build = loop("resume-full")
+    mint(build, 1, rounds=[[("F1", "blocking", "open"), ("F2", "blocking", "open")]])
+    mint(build, 2, previous="rev-0001", stage=True,
+         rounds=[[("F1", "blocking", "open"), ("F2", "blocking", "resolved"),
+                  ("F3", "minor", "open")]])
+    write(os.path.join(build, "publish-seal.json"),
+          json.dumps({"seal_version": 2, "revision": "rev-0001"}))
+    write(os.path.join(build, "continuation.md"), "Budget: 3 of 5 rounds used.\n")
+    before = snapshot_of(build)
+    code, text = resume(root, build)
+    check("resume exits 0 on a build with revisions, reviews, a seal and a note",
+          code == 0, text)
+    check("resume changes no file and appends no timing",
+          before == snapshot_of(build)
+          and not os.path.exists(os.path.join(build, "timings.jsonl")))
+    check("the sealed revision is named and marked not the latest",
+          "rev-0001 (not the latest: latest is rev-0002)" in text, text)
+    check("review state counts queued, unreviewed and stale blocks",
+          "2 block(s) queued, 1 unreviewed, 1 stale" in text
+          and "stale: block:s" in text, text)
+    check("a blocking finding raised on rev-0001 and still open says since rev-0001",
+          "[blocking] F1" in text and "since rev-0001" in text, text)
+    check("a finding resolved on rev-0002 is not listed",
+          "F2" not in text.split("open findings")[1].split("continuation")[0], text)
+    check("the note prints under the not-checked heading, with no age warning when fresh",
+          "continuation note (written by the previous session, not checked)" in text
+          and "Budget: 3 of 5 rounds used." in text and "older than" not in text, text)
+    check("open blocking findings route before render",
+          "route the open findings" in next_line(text), next_line(text))
+    code, text = run("pipeline.py", "status", "--root", root, "--build", build)
+    check("status points at resume when drafts exist",
+          "drafts     rev-0002 latest; 1 open blocking finding(s) -- `resume` for the "
+          "loop" in text, text)
+    root_s, build_s = loop("resume-nodrafts")
+    code, text = run("pipeline.py", "status", "--root", root_s, "--build", build_s)
+    check("status prints no drafts line otherwise",
+          code == 0 and "drafts " not in text, text)
+
+    # --- A note older than the latest revision is flagged.
+    os.utime(os.path.join(build, "continuation.md"), (1_500_000_000, 1_500_000_000))
+    code, text = resume(root, build)
+    check("a note older than the latest revision gets the warning",
+          "this note is older than rev-0002" in text, text)
+
+    # --- Next step, one case each.
+    root, build = loop("resume-next-render")
+    mint(build, 1, stage=True)
+    write(os.path.join(build, "rendered-docs", "index.rst"), "edited after render\n")
+    code, text = resume(root, build)
+    check("staging that differs from the latest revision suggests render",
+          code == 0 and "differs from rev-0001" in text and " render " in next_line(text),
+          text)
+    root, build = loop("resume-next-review")
+    mint(build, 1, stage=True)
+    code, text = resume(root, build)
+    check("a revision with no review round suggests review",
+          " review " in next_line(text), text)
+    root, build = loop("resume-next-publish")
+    mint(build, 1, stage=True, rounds=[[]], report={"coverage": {"queued": 0}})
+    write(os.path.join(build, "publish-seal.json"),
+          json.dumps({"seal_version": 2, "revision": "rev-0001"}))
+    write(os.path.join(build, "generation-report.json"), json.dumps({"status": "passed"}))
+    code, text = resume(root, build)
+    check("a sealed latest revision with a passed report suggests publish",
+          " publish " in next_line(text), text)
+    root, build = loop("resume-next-p4")
+    mint(build, 1, stage=True, rounds=[[]], report={"coverage": {"queued": 1}})
+    write(os.path.join(build, "prose-report.json"),
+          json.dumps({"review_queue": [{"block": "block:a"}]}))
+    os.makedirs(os.path.join(build, "checkpoints"))
+    write(os.path.join(build, "checkpoints", "P4.json"),
+          json.dumps({"checkpoint": "P4", "state": "pending", "index_hash": "sha256:s"}))
+    code, text = resume(root, build)
+    check("an open P4 suggests decide",
+          " decide " in next_line(text) and "--checkpoint P4" in next_line(text), text)
+
+    # --- No progress, and the cases that must not print it.
+    both = [("F1", "blocking", "open"), ("F2", "blocking", "open")]
+    marker = ("no progress: the same 2 blocking finding(s) stayed open across rev-0002 "
+              "and rev-0003: F1, F2")
+    root, build = loop("resume-stall")
+    mint(build, 1, rounds=[both])
+    mint(build, 2, previous="rev-0001", rounds=[both])
+    mint(build, 3, previous="rev-0002", stage=True, rounds=[both])
+    write(os.path.join(build, "doc.json"), json.dumps({
+        "format_version": 2, "preset": "onboarding", "claims": [], "statements": [],
+        "authored_pages": [],
+        "pages": [{"id": "overview", "title": "Overview", "order": 0, "mandatory": True,
+                   "covers": [],
+                   "blocks": [{"id": "block:a", "type": "prose", "manual_block": True,
+                               "text": "Read it.", "claim_refs": [],
+                               "analysis_refs": []}]}]}))
+    os.makedirs(os.path.join(build, "diagrams"))
+    code, text = resume(root, build)
+    check("the same blocking ids open across rev-0002 and rev-0003 print no progress",
+          code == 0 and marker in text
+          and "the stop rule in workflow.md applies; the Coordinator decides whether "
+              "to stop" in text, text)
+    code, text = run("pipeline.py", "render", "--root", root, "--build", build,
+                     "--docs", os.path.join(root, "docs"))
+    check("render still runs after a no-progress report",
+          code == 0 and os.path.isdir(os.path.join(build, "drafts", "rev-0004")),
+          text[-300:])
+
+    root, build = loop("resume-subset")
+    mint(build, 1, rounds=[both])
+    mint(build, 2, previous="rev-0001", rounds=[[("F1", "blocking", "open")]])
+    code, text = resume(root, build)
+    check("{F1} against {F1, F2} is progress",
+          code == 0 and "no progress" not in text, text)
+
+    root, build = loop("resume-same-revision")
+    mint(build, 1, rounds=[both, both])
+    code, text = resume(root, build)
+    check("two rounds on the same revision are not a stall",
+          code == 0 and "no progress" not in text, text)
+
+    root, build = loop("resume-empty")
+    mint(build, 1, rounds=[[]])
+    mint(build, 2, previous="rev-0001", rounds=[[]])
+    code, text = resume(root, build)
+    check("empty sets are not a stall", code == 0 and "no progress" not in text, text)
+
+    root, build = loop("resume-pruned")
+    mint(build, 3, rounds=[both])
+    mint(build, 4, previous="rev-0003", rounds=[both])
+    code, text = resume(root, build)
+    check("a finding first seen on the oldest kept revision says it may be older",
+          "since rev-0003 (or earlier; older revisions were pruned)" in text, text)
+
+    # --- A damaged revision is named, not fatal.
+    root, build = loop("resume-damaged")
+    mint(build, 1, rounds=[[]])
+    mint(build, 2, previous="rev-0001", stage=True, rounds=[[]])
+    write(os.path.join(build, "drafts", "rev-0002.meta", "revision.json"), "{not json")
+    code, text = resume(root, build)
+    check("an unreadable revision.json is named and resume still exits 0",
+          code == 0 and "rev-0002: revision.json is missing or unreadable" in text, text)
+
+    # --- Valid JSON of the wrong type is damage, not a crash.
+    root, build = loop("resume-wrongtype-report")
+    mint(build, 1, stage=True, rounds=[[]])
+    write(os.path.join(build, "drafts", "rev-0001.meta", "prose-report-01.json"),
+          json.dumps(["damaged report"]))
+    code, text = resume(root, build)
+    check("a list-valued prose-report-01.json leaves resume at exit 0 with a next step",
+          code == 0 and "no readable prose report for rev-0001" in text
+          and next_line(text), text)
+
+    root, build = loop("resume-wrongtype-generation")
+    mint(build, 1, stage=True, rounds=[[]], report={"coverage": {"queued": 0}})
+    write(os.path.join(build, "publish-seal.json"),
+          json.dumps({"seal_version": 2, "revision": "rev-0001"}))
+    write(os.path.join(build, "generation-report.json"), json.dumps(["damaged report"]))
+    code, text = resume(root, build)
+    check("a list-valued generation-report.json leaves resume at exit 0 with a next step",
+          code == 0 and " review " in next_line(text), text)
+
+    # --- The suggested command carries the options that say where the work is.
+    root, build = loop("resume-options")
+    mint(build, 1, stage=True, rounds=[[]], report={"coverage": {"queued": 0}})
+    write(os.path.join(build, "publish-seal.json"),
+          json.dumps({"seal_version": 2, "revision": "rev-0001"}))
+    write(os.path.join(build, "generation-report.json"), json.dumps({"status": "passed"}))
+    code, text = resume(root, build)
+    check("a default run's suggestion carries neither --docs nor --staging",
+          " publish " in next_line(text) and "--docs" not in next_line(text)
+          and "--staging" not in next_line(text), next_line(text))
+    code, text = run("pipeline.py", "resume", "--root", root, "--build", build,
+                     "--docs", "site-docs")
+    check("--docs site-docs is carried onto the suggested publish",
+          " publish " in next_line(text) and "--docs %s" % os.path.join(root, "site-docs")
+          in next_line(text), next_line(text))
+    root, build = loop("resume-options-review")
+    mint(build, 1)
+    shutil.copytree(os.path.join(build, "drafts", "rev-0001"),
+                    os.path.join(root, "elsewhere"))
+    code, text = run("pipeline.py", "resume", "--root", root, "--build", build,
+                     "--staging", "elsewhere")
+    check("--staging is carried onto the suggested review",
+          " review " in next_line(text)
+          and "--staging %s" % os.path.join(root, "elsewhere") in next_line(text),
+          next_line(text))
+    args = pipeline.argparse.Namespace(root=".", build=pipeline.DEFAULT_BUILD, docs="x/docs",
+                                       staging=None)
+    check("invocation_args carries --docs for render and publish only",
+          "--docs x/docs" in pipeline.invocation_args(args, "render")
+          and "--docs x/docs" in pipeline.invocation_args(args, "publish")
+          and "--docs" not in pipeline.invocation_args(args, "review"))
+
+
 def main():
     tmp = tempfile.mkdtemp(prefix="pipeline-test-")
     try:
@@ -759,6 +1021,7 @@ def main():
         driver_tests(tmp, root)
         diagram_directory_test(tmp)
         revision_tests(tmp)
+        resume_tests(tmp)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
