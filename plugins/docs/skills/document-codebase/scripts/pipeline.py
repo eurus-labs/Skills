@@ -571,6 +571,10 @@ def staging_of(args):
     return args.staging or os.path.join(args.build, "rendered-docs")
 
 
+def drafts_of(args):
+    return os.path.join(args.build, "drafts")
+
+
 def render(args):
     """Render a reviewable draft without changing the published documentation."""
     build, staging = args.build, staging_of(args)
@@ -593,6 +597,12 @@ def render(args):
         Stage("render", "snapshot_draft.py",
               ["--draft", staging, "--doc", os.path.join(build, "doc.json"),
                "--out", os.path.join(build, "render-manifest.json")]),
+        # Last, so the revision is a copy of exactly the tree the manifest describes.
+        Stage("render", "snapshot_revision.py",
+              ["--draft", staging,
+               "--manifest", os.path.join(build, "render-manifest.json"),
+               "--drafts", drafts_of(args), "--keep", args.keep_revisions,
+               "--seal", os.path.join(build, "publish-seal.json")]),
     ]
 
 
@@ -657,6 +667,7 @@ def review(args):
         Stage("review", "seal_draft.py",
               ["--draft", staging, "--doc", doc, "--report", generation,
                "--render-manifest", os.path.join(build, "render-manifest.json"),
+               "--drafts", drafts_of(args),
                "--out", os.path.join(build, "publish-seal.json")]),
     ]
 
@@ -680,7 +691,8 @@ def publish(args):
                   ["--draft", staging_of(args), "--target", args.docs,
                    "--doc", os.path.join(args.build, "doc.json"),
                    "--report", os.path.join(args.build, "generation-report.json"),
-                   "--seal", os.path.join(args.build, "publish-seal.json")]),
+                   "--seal", os.path.join(args.build, "publish-seal.json"),
+                   "--drafts", drafts_of(args)]),
     ]
 
 
@@ -1602,6 +1614,8 @@ def main():
     parser.add_argument("--format", default="rst", choices=("rst", "myst"),
                         help="render: markup the renderer emits")
     parser.add_argument("--review", help="review: prose-review.jsonl with your verdicts")
+    parser.add_argument("--keep-revisions", type=int, default=5,
+                        help="render: how many recent draft revisions to keep (minimum 3)")
     parser.add_argument("--write-conf", action="store_true",
                         help="render: generate a Sphinx conf.py in staging if none exists")
     parser.add_argument("--project", help="render: project name for --write-conf")
@@ -1622,6 +1636,9 @@ def main():
                 setattr(args, name, os.path.join(args.root, value))
     if args.top < 0:
         return fail("--top must not be negative")
+    if args.keep_revisions < 3:
+        return fail("--keep-revisions must be at least 3, so two review rounds' findings "
+                    "survive")
     if args.review and not os.path.isfile(args.review):
         return fail("no such review file: %s" % args.review)
 

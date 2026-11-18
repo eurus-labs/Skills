@@ -131,6 +131,9 @@ class CheckpointBindingTests(unittest.TestCase):
         self.assertEqual(self.run_script("snapshot_draft.py", "--draft", staging,
                                          "--doc", self.build / "doc.json", "--out",
                                          self.build / "render-manifest.json").returncode, 0)
+        self.assertEqual(self.run_script("snapshot_revision.py", "--draft", staging,
+                                         "--manifest", self.build / "render-manifest.json",
+                                         "--drafts", self.build / "drafts").returncode, 0)
 
         first = self.pipeline("review")
         self.assertEqual(first.returncode, 1, first.stdout + first.stderr)

@@ -616,12 +616,108 @@ def diagram_directory_test(tmp):
           code == 1 and "stray.puml" in text, text[-300:])
 
 
+def revision_tests(tmp):
+    """render mints immutable draft revisions, prunes them, and never reuses a number."""
+    from draft_artifact import tree_hash, verify_revision
+    root = os.path.join(tmp, "rev-repo")
+    build = os.path.join(root, ".docs-build")
+    docs = os.path.join(root, "docs")
+    drafts = os.path.join(build, "drafts")
+    os.makedirs(os.path.join(build, "diagrams"))
+    os.makedirs(docs)
+
+    def model(text):
+        write(os.path.join(build, "doc.json"), json.dumps({
+            "format_version": 2, "preset": "onboarding", "claims": [], "statements": [],
+            "authored_pages": [],
+            "pages": [{"id": "overview", "title": "Overview", "order": 0,
+                       "mandatory": True, "covers": [],
+                       "blocks": [{"id": "block:a", "type": "prose", "manual_block": True,
+                                   "text": text, "claim_refs": [], "analysis_refs": []}]}]}))
+
+    def render(*extra):
+        return run("pipeline.py", "render", "--root", root, "--build", build,
+                   "--docs", docs, *extra)
+
+    def manifest():
+        with open(os.path.join(build, "render-manifest.json"), encoding="utf-8") as fh:
+            return json.load(fh)
+
+    def revisions():
+        return sorted(n for n in os.listdir(drafts)
+                      if n.startswith("rev-") and not n.endswith(".meta"))
+
+    model("Read the configuration before starting.")
+    code, text = render()
+    check("render mints rev-0001", code == 0 and revisions() == ["rev-0001"], text[-300:])
+    check("the manifest names the revision and is version 2",
+          manifest().get("revision") == "rev-0001"
+          and manifest().get("render_manifest_version") == 2, repr(manifest()))
+    first_hash = tree_hash(os.path.join(drafts, "rev-0001"))
+    record_path = os.path.join(drafts, "rev-0001.meta", "revision.json")
+    with open(record_path, encoding="utf-8") as fh:
+        record = json.load(fh)
+    check("revision.json sits beside the snapshot and records its hash",
+          record["revision_version"] == 1 and record["draft_hash"] == first_hash
+          and record["previous"] is None, repr(record))
+    check("nothing but the rendered tree is inside the snapshot",
+          not os.path.exists(os.path.join(drafts, "rev-0001", "revision.json")))
+
+    code, text = render()
+    check("rendering the same model again mints nothing",
+          code == 0 and revisions() == ["rev-0001"] and manifest()["revision"] == "rev-0001",
+          text[-300:])
+
+    model("Read the configuration, then start the service.")
+    code, text = render()
+    check("a changed block mints rev-0002",
+          code == 0 and revisions() == ["rev-0001", "rev-0002"]
+          and manifest()["revision"] == "rev-0002", text[-300:])
+    check("and leaves rev-0001 byte-for-byte as it was",
+          tree_hash(os.path.join(drafts, "rev-0001")) == first_hash
+          and verify_revision(drafts, "rev-0001") is None)
+
+    code, text = render("--keep-revisions", "2")
+    check("--keep-revisions below 3 is refused", code != 0 and "at least 3" in text, text[-200:])
+
+    # Seal rev-0002, then render until it would be pruned: the seal protects it.
+    write(os.path.join(build, "publish-seal.json"),
+          json.dumps({"seal_version": 2, "revision": "rev-0002"}))
+    for n in (3, 4, 5):
+        model("Distinct draft number %d." % n)
+        code, text = render("--keep-revisions", "3")
+        check("distinct render %d succeeds" % n, code == 0, text[-300:])
+    check("with --keep-revisions 3 the latest three survive, and the sealed rev-0002 too",
+          revisions() == ["rev-0002", "rev-0003", "rev-0004", "rev-0005"], repr(revisions()))
+    check("pruning removes the metadata beside the snapshot too",
+          not os.path.exists(os.path.join(drafts, "rev-0001.meta")))
+    os.remove(os.path.join(build, "publish-seal.json"))
+    model("Distinct draft number 6.")
+    code, text = render("--keep-revisions", "3")
+    check("an unsealed old revision is pruned and the cap holds",
+          revisions() == ["rev-0004", "rev-0005", "rev-0006"] and "pruned rev-0002" in text,
+          repr(revisions()))
+    model("Distinct draft number 7.")
+    render("--keep-revisions", "3")
+    check("numbers are never reused after pruning",
+          revisions() == ["rev-0005", "rev-0006", "rev-0007"], repr(revisions()))
+    with open(os.path.join(drafts, "counter.json"), encoding="utf-8") as fh:
+        check("the counter records the highest number ever used",
+              json.load(fh) == {"highest": 7})
+
+    code, text = run("pipeline.py", "render", "--root", root, "--build", build,
+                     "--docs", docs, "--dry-run")
+    check("render --dry-run names the new stage",
+          code == 0 and "render/snapshot_revision" in text, text[-300:])
+
+
 def main():
     tmp = tempfile.mkdtemp(prefix="pipeline-test-")
     try:
         _index, root = units_tests(tmp)
         driver_tests(tmp, root)
         diagram_directory_test(tmp)
+        revision_tests(tmp)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
