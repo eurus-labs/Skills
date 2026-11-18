@@ -58,6 +58,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 import build_dir  # noqa: E402
+from draft_artifact import read_revision, tree_hash  # noqa: E402
 
 
 def fail(message, code=2):
@@ -1407,11 +1408,278 @@ def status(args, build):
               % (coverage.get("queued") or 0, coverage.get("reviewed") or 0,
                  len(report.get("unreviewed") or ())))
 
+    kept = revisions_of(os.path.join(build, "drafts"))
+    if kept:
+        review_file = latest_review_file(os.path.join(build, "drafts"), kept[-1])
+        print("drafts     %s latest; %d open blocking finding(s) -- `resume` for the loop"
+              % (kept[-1], len(open_blocking(review_file)) if review_file else 0))
+
     # The breakdown above uses the gate's two-of-four floor, which is the right line between
     # a module somebody worked on and one nobody touched. What is *owed* is four of four, so
     # the advice is computed from that and not from the same split.
     print("\nnext       %s" % next_step(build, digest,
                                         remaining=unanswered_modules(build)))
+    return 0
+
+
+REVISION_NAME = re.compile(r"^rev-(\d{4,})$")
+ROUND_FILE = re.compile(r"^(review)-(\d+)\.jsonl$|^(prose-report)-(\d+)\.json$")
+
+
+def revisions_of(drafts):
+    """The kept revision names under `drafts/`, oldest first."""
+    try:
+        names = os.listdir(drafts)
+    except OSError:
+        return []
+    return sorted((n for n in names if REVISION_NAME.match(n)
+                   and os.path.isdir(os.path.join(drafts, n))),
+                  key=lambda n: int(REVISION_NAME.match(n).group(1)))
+
+
+def round_files(drafts, revision, kind):
+    """Paths of one revision's `review` or `prose-report` round files, lowest round first."""
+    meta = os.path.join(drafts, revision + ".meta")
+    found = []
+    try:
+        names = os.listdir(meta)
+    except OSError:
+        return []
+    for name in names:
+        match = ROUND_FILE.match(name)
+        if match and (match.group(1) or match.group(3)) == kind:
+            found.append((int(match.group(2) or match.group(4)), os.path.join(meta, name)))
+    return [path for _number, path in sorted(found)]
+
+
+def review_findings(path):
+    """({finding_id: finding}, unreadable row count) for one review round file.
+
+    A later row for the same id wins, so a finding a reviewer resolved further down the
+    file is not reported as open. A line that is not JSON is counted, never fatal: this
+    reads files a concurrent run may be writing.
+    """
+    found, unreadable = {}, 0
+    for line in _lines(path):
+        try:
+            row = json.loads(line)
+        except ValueError:
+            unreadable += 1
+            continue
+        if not isinstance(row, dict):
+            unreadable += 1
+            continue
+        for finding in row.get("findings") or ():
+            if isinstance(finding, dict) and finding.get("finding_id"):
+                found[finding["finding_id"]] = finding
+    return found, unreadable
+
+
+def open_blocking(path):
+    """The ids of the open blocking findings in one review round file."""
+    found, _bad = review_findings(path)
+    return {fid for fid, f in found.items()
+            if f.get("state", "open") == "open" and f.get("severity") == "blocking"}
+
+
+def latest_review_file(drafts, revision):
+    files = round_files(drafts, revision, "review")
+    return files[-1] if files else None
+
+
+def staged_equals(args, record):
+    """Whether the staging tree still hashes to the revision, or None when unknowable."""
+    staging = staging_of(args)
+    if not record or not record.get("draft_hash"):
+        return None
+    if not os.path.isdir(staging):
+        return False
+    try:
+        return tree_hash(staging) == record["draft_hash"]
+    except OSError:
+        return None
+
+
+def no_progress(drafts, revisions):
+    """(older, newer, ids) when the two newest reviewed revisions left the same blocking
+    findings open, else None. Compared across revisions, never across two rounds of one:
+    re-reviewing an unchanged draft is not a repair attempt."""
+    reviewed = [(r, latest_review_file(drafts, r)) for r in revisions]
+    reviewed = [(r, p) for r, p in reviewed if p]
+    if len(reviewed) < 2:
+        return None
+    (older, older_path), (newer, newer_path) = reviewed[-2], reviewed[-1]
+    first, second = open_blocking(older_path), open_blocking(newer_path)
+    if first and first == second:
+        return older, newer, sorted(first)
+    return None
+
+
+def p4_open(build, digest):
+    """Whether P4 stands open for the current scan and review queue."""
+    path = checkpoint_path(build, "P4")
+    if not os.path.isfile(path):
+        return False
+    record = _json(path, {}) or {}
+    if record.get("state") == "retired" and not prose_queued(build):
+        return False
+    return decision_for(build, "P4", digest) is None
+
+
+def resume_step(args, build, digest, latest, matches, sealed):
+    """The one command to run next, by the first rule that applies (Decision 5)."""
+    drafts = drafts_of(args)
+
+    def command(component, extra=""):
+        return "python3 %s %s%s%s" % (invoked_as(), component,
+                                      invocation_args(args, component), extra)
+
+    if not latest or matches is not True:
+        return command("render")
+    reports = round_files(drafts, latest, "prose-report")
+    review_file = latest_review_file(drafts, latest)
+    if not reports and not review_file:
+        return command("review")
+    report = _json(reports[-1], {}) if reports else {}
+    blocking = open_blocking(review_file) if review_file else set()
+    if blocking or (report or {}).get("stale_reviews"):
+        return ("route the open findings (workflow.md, \"Routing findings\"), then %s"
+                % command("render"))
+    if p4_open(build, digest):
+        return command("decide", " --checkpoint P4 --user-response '<the user's answer>' "
+                                 "--p4-verdict accepted|changes-requested")
+    generation = _json(os.path.join(build, "generation-report.json"), {}) or {}
+    if sealed == latest and generation.get("status") == "passed":
+        return command("publish")
+    return command("review")
+
+
+def resume(args, build):
+    """Where the draft-review loop stands, read-only.
+
+    Like `status`, this declines nothing and writes nothing -- not even `timings.jsonl` --
+    and it reports a stalled loop rather than stopping one: whether to stop is the
+    Coordinator's call, so nothing here blocks `render`, `review` or `publish`.
+    """
+    digest = index_hash_of(build)
+    if not digest:
+        print("no scan yet in %s. Start with: python3 %s survey --root %s"
+              % (build, os.path.basename(__file__), args.root))
+        return 0
+    drafts = drafts_of(args)
+    revisions = revisions_of(drafts)
+    latest = revisions[-1] if revisions else None
+    record = read_revision(drafts, latest) if latest else None
+    created = (record or {}).get("created_at")
+    matches = staged_equals(args, record) if latest else None
+
+    print("revision")
+    if not os.path.isdir(drafts):
+        print("  no revisions: this build predates revision snapshots; run render")
+    elif not latest:
+        print("  no revisions yet; run render")
+    else:
+        if record is None:
+            print("  %s: revision.json is missing or unreadable" % latest)
+        else:
+            print("  %s created %s, previous %s" % (latest, created or "unknown",
+                                                    record.get("previous") or "none"))
+        print("  staging %s" % {True: "still equals %s" % latest,
+                                False: "differs from %s (or is missing)" % latest,
+                                None: "could not be compared with %s" % latest}[matches])
+        for name in revisions[:-1]:
+            if read_revision(drafts, name) is None:
+                print("  %s: revision.json is missing or unreadable" % name)
+
+    seal_path = os.path.join(build, "publish-seal.json")
+    seal = _json(seal_path)
+    sealed = seal.get("revision") if isinstance(seal, dict) else None
+    print("\nsealed revision")
+    if sealed:
+        print("  %s%s" % (sealed, " (the latest)" if sealed == latest else
+                          " (not the latest%s)" % (": latest is %s" % latest if latest else "")))
+    elif os.path.exists(seal_path):
+        print("  publish-seal.json names no readable revision")
+    else:
+        print("  none")
+
+    if latest:
+        reports = round_files(drafts, latest, "prose-report")
+        print("\nreview state")
+        report = _json(reports[-1], {}) if reports else None
+        if not isinstance(report, dict):
+            print("  no readable prose report for %s" % latest)
+        else:
+            stale = report.get("stale_reviews") or []
+            print("  %d block(s) queued, %d unreviewed, %d stale (%s)"
+                  % ((report.get("coverage") or {}).get("queued") or 0,
+                     len(report.get("unreviewed") or ()), len(stale),
+                     os.path.basename(reports[-1])))
+            if stale:
+                print("  stale: %s" % ", ".join(str(b) for b in stale))
+
+        print("\nopen findings")
+        review_file = latest_review_file(drafts, latest)
+        if not review_file:
+            print("  none recorded: %s has no review file" % latest)
+        else:
+            found, unreadable = review_findings(review_file)
+            opened = [f for f in found.values() if f.get("state", "open") == "open"]
+            first_seen = {}
+            for name in revisions:
+                for path in round_files(drafts, name, "review"):
+                    for fid in review_findings(path)[0]:
+                        first_seen.setdefault(fid, name)
+            if not opened:
+                print("  none open in %s" % os.path.basename(review_file))
+            for severity in ("blocking", "major", "minor"):
+                for finding in opened:
+                    if finding.get("severity") != severity:
+                        continue
+                    since = first_seen.get(finding["finding_id"], latest)
+                    caveat = (" (or earlier; older revisions were pruned)"
+                              if since == revisions[0] and since != "rev-0001" else "")
+                    print("  [%s] %s  %s -- %s (since %s%s)"
+                          % (severity, finding["finding_id"], finding.get("location"),
+                             finding.get("requested"), since, caveat))
+            if unreadable:
+                print("  %d row(s) in %s could not be read"
+                      % (unreadable, os.path.basename(review_file)))
+
+        stalled = no_progress(drafts, revisions)
+        if stalled:
+            older, newer, ids = stalled
+            print("\nno progress: the same %d blocking finding(s) stayed open across "
+                  "%s and %s: %s\nthe stop rule in workflow.md applies; the Coordinator "
+                  "decides whether to stop" % (len(ids), older, newer, ", ".join(ids)))
+
+    note = os.path.join(build, "continuation.md")
+    if os.path.isfile(note):
+        print("\ncontinuation note (written by the previous session, not checked)")
+        try:
+            stamp = os.stat(note).st_mtime
+            with open(note, encoding="utf-8") as fh:
+                text = fh.read().rstrip("\n")
+        except (OSError, ValueError) as exc:
+            print("  could not be read: %s" % exc)
+        else:
+            modified = datetime.fromtimestamp(stamp, timezone.utc)
+            print("  modified %s; latest revision created %s"
+                  % (modified.isoformat().replace("+00:00", "Z"), created or "n/a"))
+            try:
+                made = datetime.fromisoformat((created or "").replace("Z", "+00:00"))
+                if made.tzinfo is None:
+                    made = made.replace(tzinfo=timezone.utc)
+                if modified < made:
+                    print("  this note is older than %s; check it against the records "
+                          "above" % latest)
+            except ValueError:
+                pass
+            print("  ---")
+            print(text)
+            print("  ---")
+
+    print("\nnext       %s" % resume_step(args, build, digest, latest, matches, sealed))
     return 0
 
 
@@ -1607,10 +1875,11 @@ def blocking_checkpoint(build, component, digest, review_file=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("component",
-                        choices=ORDER + ["decide", "measure", "status", "template",
-                                         "approve"],
+                        choices=ORDER + ["decide", "measure", "status", "resume",
+                                         "template", "approve"],
                         metavar="COMPONENT",
-                        help="one of: %s, decide, measure, status, template, or approve"
+                        help="one of: %s, decide, measure, status, resume, template, "
+                             "or approve"
                              % ", ".join(ORDER))
     parser.add_argument("--use", help="template: record the chosen preset, `manual`, or a "
                                       "template file")
@@ -1684,6 +1953,10 @@ def main():
     # directory would be the command changing the thing it was asked to describe.
     if args.component == "status":
         return status(args, args.build)
+
+    # Read-only for the same reason: it reports the draft-review loop and starts nothing.
+    if args.component == "resume":
+        return resume(args, args.build)
 
     if args.component == "template":
         # Listing the choices or checking a document must not create a build directory;
