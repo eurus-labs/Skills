@@ -23,7 +23,7 @@ it, and hands the next one a file rather than a call:
 | `analyze/` | what the model needs in front of it | `claims.jsonl`, `packets/` |
 | `check/` | whether a claim holds | `claims.verified.jsonl`, `fragments.verified.jsonl`, `findings.jsonl` |
 | `document/` | what the pages will say | `.docs-build/diagrams/`, `flow-report.json`, `doc.json` |
-| `render/` | what the draft looks like | `.docs-build/rendered-docs/`, `render-manifest.json` |
+| `render/` | what the draft looks like | `.docs-build/rendered-docs/`, `render-manifest.json`, `.docs-build/drafts/rev-NNNN/` |
 | `review/` | whether that exact draft may ship | `prose-report.json`, `generation-report.json`, `publish-seal.json` |
 | `publish/` | which reviewed revision readers get | atomically promoted documentation tree |
 
@@ -242,7 +242,7 @@ whether Ruff runs — it is a flag with a default, not a rule hidden in the driv
 | `analyze` | `derive_claims` → `query_graph --packet`, once per unit |
 | `check` | `validate_analysis` → `assemble` → `verify_doc` |
 | `document` | `validate_architecture` → `validate_flows` → `validate_operations` → `build_class_graph` → `build_diagrams` → `validate_diagrams` → `build_flow_diagrams` → `validate_flow_diagrams` → `build_document_model` |
-| `render` | `prepare_stage` → `render_docs` → `snapshot_draft` |
+| `render` | `prepare_stage` → `render_docs` → `snapshot_draft` → `snapshot_revision` |
 | `review` | `validate_draft` → `check_prose` → `release_hygiene` → `quality_docs` → `seal_draft` |
 | `publish` | `approvals` → `promote_docs` |
 
@@ -293,10 +293,28 @@ the prose check and the gate. A run without them is a visibly thinner document, 
 | `--detail` | `document` | `public` | class-diagram detail level |
 | `--format` | `render` | `rst` | `rst` or `myst` |
 | `--review` | `review` | — | your `prose-review.jsonl` verdicts |
+| `--keep-revisions` | `render` | `5` | how many recent draft revisions to keep under `drafts/`; at least 3, so two review rounds' findings survive. The latest and the sealed revision are never pruned |
 | `--write-conf`, `--project` | `render` | off | generate a Sphinx `conf.py` in staging if none exists |
 | `--dry-run` | all | off | print the commands, run nothing (and neither open nor consult a checkpoint) |
 | `--checkpoint`, `--note` | `decide` for P1–P3 | — | which judgement is being recorded, and what was decided |
 | `--checkpoint P4`, `--user-response`, `--p4-verdict` | `decide` for P4 | — | user's answer and acceptance or requested changes |
+
+## Draft revisions
+
+`render` ends with `snapshot_revision`, which keeps each distinct rendered draft:
+
+```text
+.docs-build/drafts/
+  counter.json            highest revision number ever used; numbers are never reused
+  rev-0001/               a copy of the rendered tree, never written to again
+  rev-0001.meta/          revision.json, review-01.jsonl, prose-report-01.json, ...
+```
+
+A re-render that changes nothing reuses the latest revision. The records sit beside the snapshot because
+anything written inside it would change the hash it is checked against. `seal_draft` and `promote_docs`
+recompute that hash and refuse a revision edited after it was rendered; the seal names one revision, and a
+draft re-rendered after review is a new revision with no seal. Pruning removes the oldest pairs beyond
+`--keep-revisions` and prints what it removed.
 
 ## Timing the workflow
 

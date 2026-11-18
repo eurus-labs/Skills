@@ -18,6 +18,7 @@ what the fields mean.
 - [`operations-analysis.json` — operations_version 1](#operations-analysisjson--operations_version-1)
 - [Sequence diagrams — flow diagram manifest_version 1](#sequence-diagrams--flow-diagram-manifest_version-1)
 - [`generation-report.json` — schema_version 1](#generation-reportjson--schema_version-1)
+- [Draft revisions — `render-manifest.json` 2, `revision.json` 1, `publish-seal.json` 2](#draft-revisions)
 - [`doc.json` — format_version 2](#docjson--format_version-2)
 - [PlantUML diagram artifacts — manifest_version 3](#plantuml-diagram-artifacts--manifest_version-3)
 - [Exit codes](#exit-codes)
@@ -530,6 +531,37 @@ chooses which of those still exits `0`, defaulting to `partial`.
 **Coverage is measured against the budget, not the repository.** `units.txt` names the modules the run paid to
 read; everything else is covered in a line and counted in `out_of_budget`. A run that read everything it
 undertook to read is `per_module` on four files and on four thousand.
+
+## Draft revisions
+
+Written by `snapshot_draft.py`, `snapshot_revision.py` and `seal_draft.py`; read by `validate_draft.py`,
+`seal_draft.py` and `promote_docs.py`.
+
+```json
+{"render_manifest_version": 2, "draft_hash": "sha256:…", "doc_hash": "sha256:…", "revision": "rev-0003"}
+```
+
+`render-manifest.json` binds the staged tree to `doc.json` and names the revision that holds a copy of it
+(`render_manifest_version` 1 had no `revision`).
+
+```json
+{"revision_version": 1, "revision": "rev-0003", "draft_hash": "sha256:…", "doc_hash": "sha256:…",
+ "created_at": "2026-11-17T10:00:00Z", "previous": "rev-0002"}
+```
+
+`drafts/rev-NNNN.meta/revision.json`; `previous` is the prior revision id, or null for the first. `draft_hash`
+is the tree hash of `drafts/rev-NNNN/`, which skips `_build`.
+
+```json
+{"seal_version": 2, "revision": "rev-0003", "draft_hash": "sha256:…", "doc_hash": "sha256:…",
+ "report_hash": "sha256:…"}
+```
+
+`publish-seal.json` names the one revision it vouches for. A `seal_version` 1 seal has no revision and is
+refused by `promote_docs.py` with "run review again".
+
+The review rows' `draft_revision` is a label, not a freshness input: it is outside the hashes that make a row
+stale, so a row made on `rev-0001` still applies to an unchanged block on `rev-0002`.
 
 ## `doc.json` — format_version 2
 

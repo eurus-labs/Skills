@@ -7,7 +7,7 @@ rewrite the draft.
 
 The task contract from [`workflow.md`](workflow.md#the-task-contract): the draft revision and the sections
 to review, the scope, source access, the analyses, the grounding record, and the mechanical reports.
-Copy `target_id`, `draft_revision` and the hash fields from the review queue in `prose-report.json`, as
+Copy `target_id`, `draft_revision` (the `rev-NNNN` this queue was built for) and the hash fields from the review queue in `prose-report.json`, as
 [`prose-rules.md`](prose-rules.md) says.
 
 ## Do

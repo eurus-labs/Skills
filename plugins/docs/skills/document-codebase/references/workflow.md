@@ -77,9 +77,11 @@ covers it.
 | Reviewer | Coordinator | Findings returned, or a verdict bound to the reviewed content |
 | Coordinator | Analyst or Writer | Each finding routed to the role that caused it |
 
-The revision loop with what exists today: `render`, then `review`, repair, `render` again. Each review row
-records the `draft_revision` that `review` printed in its queue; copy it, as
-[`prose-rules.md`](prose-rules.md) says. A repair that changes content needs a fresh review of the changed
+The revision loop: `render`, then `review`, repair, `render` again. A render that changes the draft keeps it
+as the next immutable `.docs-build/drafts/rev-NNNN/`; a render that changes nothing reuses the latest. Each
+review row records the `draft_revision` (`rev-NNNN`) that `review` printed in its queue; copy it, as
+[`prose-rules.md`](prose-rules.md) says. Each review round's reviewer rows and prose report are kept in
+`drafts/rev-NNNN.meta/`. A repair that changes content needs a fresh review of the changed
 sections, and P4 as `SKILL.md` describes.
 
 ## Independent review and self-review
@@ -118,7 +120,8 @@ The two-attempt retry for structural claims in `check` is a separate loop.
 
 ## Not yet implemented
 
-Immutable `rev-NNNN` revision snapshots and a resume command are planned (plan 4, W5) and **do not exist
-yet**. Do not look for a snapshot directory or run a resume command. Today, keep the draft in the staging
-and rendered output the driver already writes, record `draft_revision` on each review row, and carry the
-continuation report in your own reply and in `.docs-build/`. `pipeline.py status` shows where a run stands.
+Immutable `rev-NNNN` revision snapshots, the per-revision review history and delivery bound to the reviewed
+revision exist (plan 12). Only a **resume command** and the report for the same blocking findings two rounds
+running are still planned (plan 4, W5; plan 13) and **do not exist yet**. Do not run a resume command. Carry
+the continuation report in your own reply and in `.docs-build/`; the review history in
+`drafts/rev-NNNN.meta/` holds each round's findings. `pipeline.py status` shows where a run stands.

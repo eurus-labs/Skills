@@ -199,7 +199,7 @@ checks passed), both run for this update. Those tests check script behavior, not
 | W2 | Partial | `scope_record.py` exists and `pipeline.py` binds `scope.json` into the checkpoint identity, but no script uses the `scope_record` module outside its test, and `select_units.py` still defaults to `--top 25`. Unread files and the product view are not yet wired through selection, assembly and coverage |
 | W3 | Done | `a6b0733` removes `prefill()` (no `def prefill` remains in `manual.py`) and `test_manual_preset.py` passes |
 | W4 | Done by plan 9 | `references/workflow.md`, `analyst.md`, `writer.md`, `reviewer.md`, and the `SKILL.md` Roles section. Instructions only; sequential and subagent paths are written but not run end to end |
-| W5 | Partial | Staging (`staging_of` in `pipeline.py`) and the fresh-review rule (`ef83115`) exist. No immutable `rev-NNNN` snapshots, and no resume command |
+| W5 | Partial: snapshots, review history and delivery binding done by plan 12; resume pending (plan 13) | Staging (`staging_of` in `pipeline.py`), the fresh-review rule (`ef83115`), and `drafts/rev-NNNN` snapshots with per-revision review history and a seal bound to one revision (`snapshot_revision.py`, `seal_draft.py`, `promote_docs.py`). No resume command |
 | W6 | Pending | A v1 review row and a `manual_version` 1 answer are refused (`review_records.py`, `manual.py`); there is no migrator and no end-to-end evaluation |
 
 The package definitions follow.

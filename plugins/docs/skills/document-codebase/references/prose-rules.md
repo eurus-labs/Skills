@@ -83,7 +83,7 @@ agent writes version 2 review records bound to the exact content and inputs it r
  "findings": []}
 ```
 
-Copy `target_id`, `draft_revision` and the hash fields from `prose-report.json`'s `review_queue`; do not
+Copy `target_id`, `draft_revision` (the `rev-NNNN` that `render` kept) and the hash fields from `prose-report.json`'s `review_queue`; do not
 reconstruct them from memory. The checker recomputes them from the current document when the review returns.
 
 `confirmed` only applies while the content and input hashes still match. `changes_requested` fails the prose
