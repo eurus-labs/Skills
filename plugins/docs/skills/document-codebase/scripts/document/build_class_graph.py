@@ -30,6 +30,10 @@ Detail levels: `summary` (name only), `public` (public methods and typed attribu
 `full` (everything extracted). Bounded on purpose -- `full` on a large repository
 produces a diagram nobody can read, and the level chosen is recorded in the output.
 
+With `--scope scope.json` the graph is drawn from the documented product only: a test
+class is evidence a claim may cite and never a node, a module or a diagram. Without it the
+graph covers every scanned file, as it always did.
+
 Exit codes: 0 written, 1 the graph is not valid, 2 input/schema error, 3 internal error.
 
 Standard library only. Reads its inputs; writes only --out.
@@ -40,6 +44,11 @@ import hashlib
 import json
 import os
 import sys
+
+# The same layout in `shared/` and in a materialized plugin, so this resolves in both.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                "survey"))
+import scope_record  # noqa: E402
 
 SCHEMA_VERSION = 1
 SUPPORTED_INDEX_SCHEMA = {2, 3}
@@ -359,6 +368,7 @@ def main():
     parser.add_argument("--claims", help="verified claims, JSONL; adds the calls layer")
     parser.add_argument("--detail", default="public", choices=DETAIL_LEVELS)
     parser.add_argument("--out", default=".docs-build/class-graph.json")
+    parser.add_argument("--scope", help="scope.json: draw only the documented product")
     args = parser.parse_args()
 
     index, error = load_index(args.index)
@@ -374,6 +384,13 @@ def main():
         sys.stderr.write("FAIL  the index carries no class detail; rerun scan_repo.py "
                          "with --detail\n")
         return 2
+
+    if args.scope:
+        scope = scope_record.load(args.scope)
+        if scope is None:
+            sys.stderr.write("FAIL  %s is not a valid scope.json\n" % args.scope)
+            return 2
+        index = scope_record.product_view(index, scope)
 
     graph = build(index, claims, args.detail)
     problems = validate(graph, index)

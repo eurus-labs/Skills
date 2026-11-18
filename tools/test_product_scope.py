@@ -1,0 +1,530 @@
+#!/usr/bin/env python3
+"""Plan 14, groups A and B: the product scope and the feature-map cross-check."""
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import unittest
+
+from component_scripts import component_paths, script
+sys.path[:0] = component_paths()
+import quality_docs
+import scope_record
+import scope_fixture
+import validate_analysis
+import build_scope
+import read_feature_map
+
+PIPELINE = script("pipeline.py")
+
+
+def run(cwd, *argv):
+    return subprocess.run([sys.executable] + list(argv), cwd=cwd, capture_output=True,
+                          text=True)
+
+
+def read(path):
+    with open(path, encoding="utf-8") as fh:
+        return fh.read()
+
+
+def load(path):
+    return json.loads(read(path))
+
+
+class Repo(unittest.TestCase):
+    """A surveyed copy of the scope fixture, `--top 2`, with or without a feature map."""
+    feature_map = False
+    top = "2"
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.root = scope_fixture.write(cls.tmp.name, feature_map=cls.feature_map)
+        cls.build = os.path.join(cls.root, ".docs-build")
+        cls.survey = run(cls.root, PIPELINE, "survey", "--root", cls.root, "--top", cls.top)
+        cls.scope = load(os.path.join(cls.build, "scope.json"))
+        cls.rows = {row["path"]: row for row in cls.scope["files"]}
+        cls.units = [l.strip() for l in read(os.path.join(cls.build, "units.txt")).split()]
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+
+class SurveyWritesScope(Repo):
+    def test_survey_succeeds_and_the_scope_is_valid(self):
+        self.assertEqual(self.survey.returncode, 0, self.survey.stdout + self.survey.stderr)
+        self.assertIsNone(scope_record.malformed(self.scope))
+
+    def test_tests_generated_vendor_and_assets_are_classified_with_a_reason(self):
+        expected = {"tests/test_cart.py": "test", "src/shop/schema_pb2.py": "generated",
+                    "src/shop/rates_table.py": "generated",
+                    "third_party/slugify.py": "vendor", "examples/demo.py": "asset",
+                    "docs/conf.py": "asset", "README.md": "asset"}
+        for path, disposition in expected.items():
+            self.assertEqual(self.rows[path]["disposition"], disposition, path)
+            self.assertEqual(self.rows[path]["reading"], "excluded", path)
+            self.assertTrue(self.rows[path]["reason"].strip(), path)
+
+    def test_the_generated_file_is_found_by_its_header_and_the_rule_is_named(self):
+        self.assertIn("generated", self.rows["src/shop/rates_table.py"]["reason"])
+        self.assertIn("pb2", self.rows["src/shop/schema_pb2.py"]["reason"])
+
+    def test_latest_and_contest_are_not_mistaken_for_tests(self):
+        for path in ("src/latest/feed.py", "src/shop/contest.py"):
+            self.assertEqual(self.rows[path]["disposition"], "product", path)
+            self.assertEqual(self.rows[path]["reading"], "unread", path)
+
+    def test_product_roots_name_the_directories_holding_product_files(self):
+        self.assertEqual(self.scope["product_roots"], ["src/latest", "src/shop"])
+
+    def test_no_feature_map_means_no_feature_topics_and_no_map_file(self):
+        self.assertEqual(self.scope["required_topics"], [])
+        self.assertFalse(os.path.exists(os.path.join(self.build, "feature-map.json")))
+        self.assertIn("no feature map found", self.survey.stdout)
+        self.assertFalse(any("features" in row or "task" in row for row in self.rows.values()))
+
+
+class CutoffOrdersTheReading(Repo):
+    def test_every_product_file_is_in_the_scope_including_the_low_fan_in_feature(self):
+        for path in ("src/latest/feed.py", "src/shop/runner.py", "src/shop/__init__.py"):
+            self.assertEqual(self.rows[path]["disposition"], "product", path)
+
+    def test_the_symbol_free_entry_module_is_a_unit_and_is_marked_symbol_free(self):
+        self.assertIn("src/shop/runner.py", self.units)
+        self.assertEqual(self.rows["src/shop/runner.py"]["symbols"], 0)
+        self.assertTrue(self.rows["src/shop/runner.py"]["entry_point"])
+        self.assertIn("src/shop/runner.py", scope_record.symbol_free(self.scope))
+
+    def test_top_two_gives_the_first_batch_only(self):
+        connected = [u for u in self.units if u != "src/shop/runner.py"]
+        self.assertEqual(len(connected), 2, self.units)
+        self.assertNotIn("src/latest/feed.py", self.units)
+        self.assertEqual({self.rows[u]["batch"] for u in self.units}, {1})
+
+    def test_what_is_left_has_a_place_in_the_order_not_a_drop(self):
+        later = [r for p, r in self.rows.items()
+                 if r["disposition"] == "product" and p not in self.units]
+        self.assertTrue(later)
+        self.assertTrue(all(r["batch"] >= 2 and r["reading"] == "unread" for r in later))
+        self.assertGreaterEqual(self.rows["src/latest/feed.py"]["batch"], 2)
+
+    def test_the_next_batch_reaches_the_low_fan_in_feature(self):
+        """After the first batch is analysed, selecting again yields the rest."""
+        with tempfile.TemporaryDirectory() as tmp:
+            build = os.path.join(tmp, ".docs-build")
+            os.makedirs(build)
+            for name in ("structure.json", "scope.json"):
+                with open(os.path.join(build, name), "w", encoding="utf-8") as fh:
+                    fh.write(read(os.path.join(self.build, name)))
+            scope = load(os.path.join(build, "scope.json"))
+            scope = scope_record.sync_reading(scope, set(self.units))
+            with open(os.path.join(build, "scope.json"), "w", encoding="utf-8") as fh:
+                json.dump(scope, fh)
+            done = run(tmp, script("select_units.py"), "--index",
+                       os.path.join(build, "structure.json"), "--scope",
+                       os.path.join(build, "scope.json"), "--top", "2", "--out",
+                       os.path.join(build, "units.txt"))
+            self.assertEqual(done.returncode, 0, done.stderr)
+            second = read(os.path.join(build, "units.txt")).split()
+            self.assertFalse(set(second) & set(self.units))
+            self.assertEqual(len(second), 2)
+
+    def test_without_scope_the_selection_is_what_it_was(self):
+        out = os.path.join(self.build, "legacy-units.txt")
+        done = run(self.root, script("select_units.py"), "--index",
+                   os.path.join(self.build, "structure.json"), "--top", "2", "--out", out)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        legacy = read(out).split()
+        # Symbol-free modules, tests and (here) generated files are not units: the old rule.
+        self.assertNotIn("src/shop/runner.py", legacy)
+        self.assertNotIn("tests/test_cart.py", legacy)
+
+    def test_a_scope_from_another_scan_is_refused(self):
+        stale = dict(self.scope, index_hash="sha256:other")
+        path = os.path.join(self.build, "stale-scope.json")
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(stale, fh)
+        done = run(self.root, script("select_units.py"), "--index",
+                   os.path.join(self.build, "structure.json"), "--scope", path,
+                   "--out", os.path.join(self.build, "never.txt"))
+        self.assertEqual(done.returncode, 2)
+        self.assertIn("different scan", done.stderr)
+
+
+class CoverageAgainstTheScope(Repo):
+    def report(self, analysed, *extra):
+        ledger = os.path.join(self.build, "ledger.jsonl")
+        with open(ledger, "w", encoding="utf-8") as fh:
+            for path in analysed:
+                fh.write(json.dumps({"path": path, "statements": []}) + "\n")
+        return quality_docs.scope_report(self.scope, ledger, None)
+
+    def test_one_product_file_unread_is_named_and_the_run_is_incomplete(self):
+        product = sorted(scope_record.documented_paths(self.scope))
+        report, status, reasons = self.report(product[:-1])
+        self.assertEqual(report["unread"], [product[-1]])
+        self.assertFalse(report["complete"])
+        self.assertEqual(status, quality_docs.STATUS_PARTIAL)
+        self.assertTrue(any(r.startswith("incomplete: 1 product file(s) unread")
+                            and product[-1] in r for r in reasons), reasons)
+
+    def test_every_product_file_read_is_complete(self):
+        product = sorted(scope_record.documented_paths(self.scope))
+        report, status, reasons = self.report(product)
+        self.assertTrue(report["complete"])
+        self.assertIsNone(status)
+        self.assertEqual(reasons, [])
+
+    def test_the_gate_cli_reports_incomplete_with_the_scope(self):
+        out = os.path.join(self.build, "report.json")
+        done = run(self.root, script("quality_docs.py"), "--index",
+                   os.path.join(self.build, "structure.json"), "--units",
+                   os.path.join(self.build, "units.txt"), "--scope",
+                   os.path.join(self.build, "scope.json"), "--out", out)
+        report = load(out)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(report["scope"]["product_files"], 8)
+        self.assertIn("src/latest/feed.py", report["scope"]["unread"])
+        self.assertTrue(any(r.startswith("incomplete:") for r in report["reasons"]))
+
+    def test_status_prints_the_unread_count_and_writes_nothing(self):
+        before = {p: os.stat(p).st_mtime_ns for p in
+                  (os.path.join(self.build, n) for n in os.listdir(self.build))
+                  if os.path.isfile(p)}
+        done = run(self.root, PIPELINE, "status", "--root", self.root)
+        after = {p: os.stat(p).st_mtime_ns for p in before}
+        self.assertEqual(before, after)
+        self.assertIn("8 unread", done.stdout)
+        self.assertIn("incomplete: 8 product file(s) unread", done.stdout)
+
+    def test_analyze_syncs_reading_from_the_ledger_and_status_follows(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            os.makedirs(os.path.join(tmp, ".docs-build"))
+            build = os.path.join(tmp, ".docs-build")
+            for name in os.listdir(self.build):
+                if os.path.isfile(os.path.join(self.build, name)):
+                    with open(os.path.join(build, name), "w", encoding="utf-8") as fh:
+                        fh.write(read(os.path.join(self.build, name)))
+            with open(os.path.join(build, "module-analysis.jsonl"), "w",
+                      encoding="utf-8") as fh:
+                fh.write(json.dumps({"path": "src/shop/money.py", "statements": []}) + "\n")
+            done = run(tmp, PIPELINE, "status", "--root", tmp)
+            self.assertIn("1 analyzed, 7 unread", done.stdout)
+
+    def test_a_person_narrowing_the_scope_is_recorded_and_not_reported_unread(self):
+        narrowed = json.loads(json.dumps(self.scope))
+        for row in narrowed["files"]:
+            if row["path"] == "src/latest/feed.py":
+                row.update(disposition="asset", reading="excluded",
+                           reason="out of scope for this edition",
+                           override="user narrowed scope at P1")
+        report, _status, reasons = quality_docs.scope_report(narrowed, None, None)
+        self.assertNotIn("src/latest/feed.py", report["unread"])
+        self.assertEqual(report["narrowed"][0]["path"], "src/latest/feed.py")
+        self.assertTrue(any("scope narrowed by a person" in r for r in reasons))
+
+    def test_a_rerun_keeps_what_was_read_and_what_a_person_changed(self):
+        scope = json.loads(json.dumps(self.scope))
+        for row in scope["files"]:
+            if row["path"] == "src/shop/money.py":
+                row["reading"] = "analyzed"
+            if row["path"] == "src/latest/feed.py":
+                row.update(disposition="asset", reading="excluded", reason="narrowed",
+                           override="user narrowed scope at P1")
+        index = load(os.path.join(self.build, "structure.json"))
+        rebuilt = build_scope.build(index, self.root, previous=scope)
+        rows = {r["path"]: r for r in rebuilt["files"]}
+        self.assertEqual(rows["src/shop/money.py"]["reading"], "analyzed")
+        self.assertEqual(rows["src/latest/feed.py"]["disposition"], "asset")
+        self.assertEqual(rows["src/latest/feed.py"]["override"], "user narrowed scope at P1")
+        # A changed file is unread again, however recently someone read the old one.
+        scope["files"] = [dict(r, source_hash="sha256:old") if r["path"] ==
+                          "src/shop/money.py" else r for r in scope["files"]]
+        again = {r["path"]: r for r in build_scope.build(index, self.root,
+                                                        previous=scope)["files"]}
+        self.assertEqual(again["src/shop/money.py"]["reading"], "unread")
+
+
+class SymbolFreeModules(Repo):
+    def index(self):
+        return load(os.path.join(self.build, "structure.json"))
+
+    def row(self, text, path="src/shop/runner.py", statements=1):
+        index = self.index()
+        record = next(r for r in index["files"] if r["path"] == path)
+        return {"path": path, "source_hash": record["source_hash"],
+                "index_hash": index["index_hash"], "role": "entry point",
+                "statements": [{"id": "s%d" % n, "kind": "responsibility",
+                                "status": "observed", "text": text,
+                                "evidence": [{"path": path, "line_start": 3,
+                                              "line_end": 3}]}
+                               for n in range(statements)]}
+
+    def verdicts(self, row, scope=True):
+        checker = validate_analysis.Checker(
+            self.index(), scope_record.symbol_free(self.scope) if scope else ())
+        verdicts = checker.check_row(row, set())
+        return verdicts, checker.findings
+
+    def test_a_symbol_free_row_with_one_statement_is_accepted_under_the_scope(self):
+        verdicts, findings = self.verdicts(self.row("Entry point: prints the total."))
+        self.assertEqual(verdicts, {"s0": "valid"})
+        self.assertEqual([f for f in findings if f["severity"] == "error"], [])
+
+    def test_the_same_row_is_only_unanchored_without_the_scope(self):
+        verdicts, _ = self.verdicts(self.row("Entry point: prints the total."),
+                                    scope=False)
+        self.assertEqual(verdicts, {"s0": "unanchored"})
+
+    def test_a_symbol_free_row_still_needs_a_statement(self):
+        _, findings = self.verdicts(self.row("x", statements=0))
+        self.assertTrue(any(f["code"] == "A002" and "still owed one statement" in
+                            f["message"] for f in findings), findings)
+
+    def test_its_evidence_must_still_resolve(self):
+        row = self.row("Entry point: prints the total.")
+        row["statements"][0]["evidence"][0]["line_end"] = 400
+        verdicts, findings = self.verdicts(row)
+        self.assertEqual(verdicts, {"s0": "rejected"})
+        self.assertTrue(any(f["code"] == "A007" for f in findings))
+
+    def test_assemble_accepts_an_empty_claim_list_for_it_only(self):
+        rows = os.path.join(self.build, "fragments-test.jsonl")
+        units = os.path.join(self.build, "fragment-units.txt")
+        free = {"fragment_id": "f:runner", "source": "src/shop/runner.py", "role": "x",
+                "claim_ids": [], "status": "candidate"}
+        bound = {"fragment_id": "f:money", "source": "src/shop/money.py", "role": "x",
+                 "claim_ids": [], "status": "candidate"}
+        schema = "fragment_id:str, source:str, role:str, claim_ids:list, status:str"
+        scope = os.path.join(self.build, "scope.json")
+
+        def assemble(fragments, *extra):
+            with open(rows, "w", encoding="utf-8") as fh:
+                fh.write("".join(json.dumps(f) + "\n" for f in fragments))
+            with open(units, "w", encoding="utf-8") as fh:
+                fh.write("".join(f["source"] + "\n" for f in fragments))
+            return run(self.root, script("assemble.py"), "--schema", schema, "--input", rows,
+                       "--unit-list", units, "--unit-field", "source", *extra)
+
+        self.assertEqual(assemble([free], "--scope", scope).returncode, 0)
+        self.assertEqual(assemble([free]).returncode, 1)
+        self.assertEqual(assemble([bound], "--scope", scope).returncode, 1)
+
+    def test_the_unanswered_count_asks_it_for_one_kind(self):
+        sys.path.insert(0, os.path.dirname(PIPELINE))
+        import pipeline
+        with tempfile.TemporaryDirectory() as tmp:
+            build = os.path.join(tmp, ".docs-build")
+            os.makedirs(build)
+            with open(os.path.join(build, "scope.json"), "w", encoding="utf-8") as fh:
+                json.dump(self.scope, fh)
+            with open(os.path.join(build, "units.txt"), "w", encoding="utf-8") as fh:
+                fh.write("src/shop/runner.py\nsrc/shop/money.py\n")
+            with open(os.path.join(build, "module-analysis.jsonl"), "w",
+                      encoding="utf-8") as fh:
+                for path in ("src/shop/runner.py", "src/shop/money.py"):
+                    fh.write(json.dumps({"path": path, "statements": [
+                        {"id": "x", "kind": "responsibility"}]}) + "\n")
+            self.assertEqual(pipeline.unanswered_modules(build), ["src/shop/money.py"])
+
+
+class OneProductView(Repo):
+    @classmethod
+    def setUpClass(cls):
+        super(OneProductView, cls).setUpClass()
+        cls.detail = os.path.join(cls.build, "detail.json")
+        scan = run(cls.root, script("scan_repo.py"), "--root", cls.root, "--out",
+                   cls.detail, "--detail")
+        assert scan.returncode == 0, scan.stderr
+        # Same scan, so the scope's hash matches the index it is applied to.
+        build_scope_out = os.path.join(cls.build, "detail-scope.json")
+        built = run(cls.root, script("build_scope.py"), "--index", cls.detail, "--root",
+                    cls.root, "--out", build_scope_out)
+        assert built.returncode == 0, built.stderr
+        cls.detail_scope = build_scope_out
+
+    def graph(self, *extra):
+        out = os.path.join(self.build, "graph-%d.json" % len(extra))
+        done = run(self.root, script("build_class_graph.py"), "--index", self.detail,
+                   "--out", out, *extra)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        return load(out)
+
+    def test_a_test_class_is_a_node_only_without_the_scope(self):
+        unscoped = self.graph()
+        self.assertTrue(any("tests/test_cart.py" in str(m) for m in unscoped["modules"]))
+        scoped = self.graph("--scope", self.detail_scope)
+        self.assertFalse(any("tests/" in json.dumps(item) for item in
+                             (scoped["modules"], scoped["classes"], scoped["packages"])))
+        self.assertTrue(any("src/shop/cart.py" in json.dumps(m) for m in scoped["modules"]))
+
+    def test_the_document_model_never_lists_a_test_or_a_generated_file(self):
+        claims = os.path.join(self.build, "claims.jsonl")
+        fragments = os.path.join(self.build, "fragments.jsonl")
+        for path in (claims, fragments):
+            open(path, "w", encoding="utf-8").close()
+        out = os.path.join(self.build, "doc-scoped.json")
+        done = run(self.root, script("build_document_model.py"), "--index", self.detail,
+                   "--claims", claims, "--fragments", fragments, "--preset", "onboarding",
+                   "--scope", self.detail_scope, "--out", out)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        body = read(out)
+        self.assertNotIn("tests/test_cart.py", body)
+        self.assertNotIn("schema_pb2", body)
+        self.assertNotIn("third_party", body)
+        rows = {r[0]: r[1] for page in json.loads(body)["pages"] for block in page["blocks"]
+                if block["id"] == "block:navigation-clusters" for r in block["rows"]}
+        self.assertEqual(rows, {"src/latest": "2", "src/shop": "6"})
+
+    def test_a_test_cited_as_evidence_still_resolves(self):
+        index = load(self.detail)
+        record = next(r for r in index["files"] if r["path"] == "tests/test_cart.py")
+        cart = next(r for r in index["files"] if r["path"] == "src/shop/cart.py")
+        row = {"path": "src/shop/cart.py", "source_hash": cart["source_hash"],
+               "index_hash": index["index_hash"], "role": "the cart",
+               "statements": [{"id": "t1", "kind": "responsibility", "status": "observed",
+                               "text": "The Cart adds lines; test_total checks the total.",
+                               "evidence": [{"path": "tests/test_cart.py",
+                                             "line_start": 4, "line_end": 4,
+                                             "source_hash": record["source_hash"]}]}]}
+        checker = validate_analysis.Checker(index)
+        self.assertEqual(checker.check_row(row, set()), {"t1": "valid"})
+
+
+class FeatureMap(Repo):
+    feature_map = True
+
+    def test_each_area_is_a_required_feature_topic(self):
+        self.assertEqual(self.scope["required_topics"],
+                         ["feature:cart", "feature:invoice", "feature:latest-feed"])
+
+    def test_the_map_was_read_with_its_owns_and_uses_globs(self):
+        found = load(os.path.join(self.build, "feature-map.json"))
+        areas = {a["name"]: a for a in found["areas"]}
+        self.assertEqual(areas["cart"]["owns"], ["src/shop/cart.py", "tests/test_cart.py"])
+        self.assertEqual(areas["invoice"]["uses"], ["src/shop/money.py", "src/shop/cart.py"])
+        self.assertEqual(areas["latest-feed"]["owns"], ["src/latest/**"])
+
+    def test_the_files_an_area_owns_form_one_reading_task(self):
+        self.assertEqual(self.rows["src/latest/feed.py"]["task"], "feature:latest-feed")
+        self.assertEqual(self.rows["src/latest/__init__.py"]["task"], "feature:latest-feed")
+        self.assertEqual(self.rows["src/shop/cart.py"]["features"], ["cart"])
+        # A test an area owns is evidence and is never taken into the product.
+        self.assertEqual(self.rows["tests/test_cart.py"]["disposition"], "test")
+
+    def test_reaching_one_file_of_an_area_brings_the_rest(self):
+        # invoice and runner belong to one area, so one of them in the batch brings both.
+        self.assertIn("src/shop/invoice.py", self.units)
+        self.assertIn("src/shop/runner.py", self.units)
+
+    def doc(self, *paths):
+        return {"claims": [], "statements": [],
+                "pages": [{"id": "p", "blocks": [
+                    {"id": "b%d" % n, "type": "prose", "text": "x",
+                     "evidence": [{"path": path, "line_start": 1, "line_end": 1}]}
+                    for n, path in enumerate(paths)]}]}
+
+    def test_an_area_no_section_cites_is_listed_by_the_gate(self):
+        report, status, reasons = quality_docs.scope_report(
+            self.scope, None, self.doc("src/shop/cart.py", "src/shop/invoice.py"))
+        uncovered = report["features"]["uncovered"]
+        self.assertEqual([u["area"] for u in uncovered], ["latest-feed"])
+        self.assertEqual(status, quality_docs.STATUS_PARTIAL)
+        self.assertTrue(any("latest-feed" in r and "feature area" in r for r in reasons))
+
+    def test_a_citation_through_a_referenced_statement_counts(self):
+        doc = self.doc("src/shop/cart.py", "src/shop/invoice.py")
+        doc["statements"] = [{"id": "s1", "evidence": [{"path": "src/latest/feed.py",
+                                                         "line_start": 1, "line_end": 1}]}]
+        doc["pages"][0]["blocks"].append({"id": "b9", "type": "prose", "text": "x",
+                                          "analysis_refs": ["s1"]})
+        report, _, _ = quality_docs.scope_report(self.scope, None, doc)
+        self.assertEqual(report["features"]["uncovered"], [])
+
+    def test_a_test_owned_by_an_area_does_not_cover_it(self):
+        report, _, _ = quality_docs.scope_report(
+            self.scope, None, self.doc("tests/test_cart.py", "src/shop/invoice.py",
+                                       "src/latest/feed.py"))
+        self.assertEqual([u["area"] for u in report["features"]["uncovered"]], ["cart"])
+
+    def test_without_a_map_the_report_has_no_feature_section(self):
+        bare = dict(self.scope, required_topics=[])
+        report, _, _ = quality_docs.scope_report(bare, None, self.doc("src/shop/cart.py"))
+        self.assertNotIn("features", report)
+
+
+class FeatureMapReading(unittest.TestCase):
+    def test_no_map_prints_the_line_writes_nothing_and_clears_a_stale_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            scope_fixture.write(tmp)
+            out = os.path.join(tmp, ".docs-build", "feature-map.json")
+            done = run(tmp, script("read_feature_map.py"), "--root", tmp, "--out", out)
+            self.assertEqual(done.returncode, 0)
+            self.assertIn("no feature map found", done.stdout)
+            self.assertFalse(os.path.exists(out))
+            os.makedirs(os.path.dirname(out))
+            with open(out, "w", encoding="utf-8") as fh:
+                fh.write("{}")
+            done = run(tmp, script("read_feature_map.py"), "--root", tmp, "--out", out)
+            self.assertFalse(os.path.exists(out))
+
+    def test_the_map_is_looked_for_under_every_skills_directory(self):
+        for skills in (".claude/skills", ".agents/skills"):
+            with tempfile.TemporaryDirectory() as tmp:
+                features = os.path.join(tmp, *skills.split("/"), "verify-app", "references",
+                                        "features")
+                os.makedirs(features)
+                with open(os.path.join(features, "README.md"), "w", encoding="utf-8") as fh:
+                    fh.write("- [a](a.md) — owns: `src/a/**` — uses: `src/b.py` "
+                             "— thing.\n")
+                found = read_feature_map.read_map(tmp)
+                self.assertEqual(found["areas"][0]["owns"], ["src/a/**"], skills)
+
+    def test_a_skill_that_is_not_a_verify_skill_is_not_a_feature_map(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            features = os.path.join(tmp, ".github", "skills", "release", "references",
+                                    "features")
+            os.makedirs(features)
+            with open(os.path.join(features, "README.md"), "w", encoding="utf-8") as fh:
+                fh.write("- [a](a.md) — owns: `src/a/**`\n")
+            self.assertIsNone(read_feature_map.read_map(tmp))
+
+    def test_globs_cross_directories_only_with_double_star(self):
+        match = lambda glob, path: build_scope.glob_regex(glob).match(path) is not None
+        self.assertTrue(match("src/cart/**", "src/cart/a/b.py"))
+        self.assertTrue(match("src/*.py", "src/a.py"))
+        self.assertFalse(match("src/*.py", "src/a/b.py"))
+        self.assertTrue(match("src/cart/", "src/cart/a.py"))
+        self.assertFalse(match("src/cart.py", "src/cart.pyc"))
+
+
+class SkillOffersSetupVerification(unittest.TestCase):
+    """What the Coordinator is told when there is no feature map."""
+    TEXT = None
+
+    @classmethod
+    def setUpClass(cls):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        cls.TEXT = read(os.path.join(root, "plugins", "docs", "skills", "document-codebase",
+                                     "SKILL.md"))
+
+    def test_it_offers_the_skill_at_p1_asks_first_and_continues_on_a_no(self):
+        text = " ".join(self.TEXT.split())
+        self.assertIn("setup-verification", text)
+        self.assertIn("no feature map found", text)
+        self.assertIn("ask the user whether to run it", text)
+        self.assertIn("continue without a map", text)
+
+    def test_it_names_the_skill_in_plain_text_and_never_links_it(self):
+        for line in self.TEXT.splitlines():
+            if "setup-verification" in line:
+                self.assertNotIn("](", line.split("setup-verification")[0][-60:], line)
+                self.assertNotIn("setup-verification)", line)
+                self.assertNotIn("verification/skills", line)
+
+
+if __name__ == "__main__":
+    unittest.main()

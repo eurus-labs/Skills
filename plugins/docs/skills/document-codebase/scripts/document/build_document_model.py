@@ -63,6 +63,7 @@ import template as template_module
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                                 "survey"))
 from select_units import connections  # noqa: E402
+import scope_record  # noqa: E402
 
 FORMAT_VERSION = 2
 GENERATOR_VERSION = "0.2.0-dev"
@@ -1507,6 +1508,9 @@ def main():
                         help="rendered diagram directory; pages reference what is there "
                              "and nothing more")
     parser.add_argument("--out", default=".docs-build/doc.json")
+    parser.add_argument("--scope", help="scope.json: the pages describe the documented "
+                                        "product only, never a test, generated or vendored "
+                                        "file")
     args = parser.parse_args()
 
     if not os.path.isfile(args.index):
@@ -1522,6 +1526,16 @@ def main():
         sys.stderr.write("FAIL  %s declares schema_version %r; this script supports %s\n"
                          % (args.index, index.get("schema_version"), sorted(SUPPORTED_SCHEMA)))
         return 2
+
+    if args.scope:
+        # After the schema check and before anything is built: every page, inventory and
+        # table below reads this view, and a test cited as evidence still resolves because
+        # evidence is checked against the repository and not against these pages.
+        scope = scope_record.load(args.scope)
+        if scope is None:
+            sys.stderr.write("FAIL  %s is not a valid scope.json\n" % args.scope)
+            return 2
+        index = scope_record.product_view(index, scope)
 
     claims, error = load_rows(args.claims, "claims")
     if error:

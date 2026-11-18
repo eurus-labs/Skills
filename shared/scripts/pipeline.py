@@ -56,8 +56,10 @@ from datetime import datetime, timezone
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+sys.path.insert(0, os.path.join(HERE, "survey"))
 
 import build_dir  # noqa: E402
+import scope_record  # noqa: E402
 from draft_artifact import read_revision, tree_hash  # noqa: E402
 
 
@@ -280,6 +282,13 @@ def units_of(path):
         return [line.strip() for line in fh if line.strip()]
 
 
+def scope_args(build):
+    """`--scope <scope.json>` when this build has one, so a build made before the scope
+    record existed keeps behaving as it did."""
+    path = os.path.join(build, "scope.json")
+    return ["--scope", path] if os.path.isfile(path) else []
+
+
 def survey(args):
     """What is in this repository: scan it, check the index, and pick the scope."""
     index = os.path.join(args.build, "structure.json")
@@ -291,8 +300,20 @@ def survey(args):
     if args.policy != "disabled":
         stages.append(Stage("survey", "annotate_import_usage.py",
                             [index, "--root", args.root, "--policy", args.policy]))
+    # The scope comes before the selection, not after it: the selection reads it. Every
+    # product file is a unit, and `--top` only sizes the first batch of them. A feature map
+    # is read first because it adds the `feature:<area>` topics and the reading tasks the
+    # scope records; without one the stage says so and the scope is built without it.
+    scope = os.path.join(args.build, "scope.json")
+    feature_map = os.path.join(args.build, "feature-map.json")
+    stages.append(Stage("survey", "read_feature_map.py",
+                        ["--root", args.root, "--out", feature_map]))
+    stages.append(Stage("survey", "build_scope.py",
+                        ["--index", index, "--root", args.root, "--out", scope,
+                         "--template", os.path.join(args.build, TEMPLATE_FILE),
+                         "--feature-map", feature_map]))
     stages.append(Stage("survey", "select_units.py",
-                        ["--index", index, "--top", args.top,
+                        ["--index", index, "--top", args.top, "--scope", scope,
                          "--out", os.path.join(args.build, "units.txt")]))
     # Settings are cross-cutting: the answer to "what does this project take" is spread
     # across every file that reads one, which is the shape a per-module packet cannot
@@ -332,15 +353,16 @@ def check(args):
     build = args.build
     index = os.path.join(build, "structure.json")
     analysis = os.path.join(build, "module-analysis.jsonl")
+    scoped = scope_args(build)
     return [
-        Stage("check", "validate_analysis.py", [analysis, "--index", index],
+        Stage("check", "validate_analysis.py", [analysis, "--index", index] + scoped,
               needs=[analysis],
               skip_note="no module-analysis.jsonl -- this run has no reading in it"),
         Stage("check", "assemble.py", [
             "--schema", "fragment_id:str, source:str, role:str, claim_ids:list, status:str",
             "--input", os.path.join(build, "fragments.jsonl"),
             "--unit-list", os.path.join(build, "units.txt"),
-            "--unit-field", "source",
+            "--unit-field", "source"] + scoped + [
             "--out", os.path.join(build, "fragments.csv")]),
         Stage("check", "verify_doc.py", ["--claims", os.path.join(build, "claims.jsonl"),
                                          "--fragments", os.path.join(build, "fragments.jsonl"),
@@ -523,7 +545,7 @@ def document(args):
              "--fragments", os.path.join(build, "fragments.verified.jsonl"),
              "--analysis", os.path.join(build, "module-analysis.jsonl"),
              "--preset", preset, "--diagrams", diagrams,
-             "--out", os.path.join(build, "doc.json")]
+             "--out", os.path.join(build, "doc.json")] + scope_args(build)
     if preset == "manual":
         model.extend(["--manual-analysis", os.path.join(build, "manual-analysis.json"),
                       "--root", args.root,
@@ -551,7 +573,7 @@ def document(args):
               skip_note="no operations-analysis.json -- the operations page will say so"),
         Stage("document", "build_class_graph.py",
               ["--index", index, "--claims", verified,
-               "--detail", args.detail, "--out", graph]),
+               "--detail", args.detail, "--out", graph] + scope_args(build)),
         Stage("document", "build_diagrams.py", ["--class-graph", graph, "--out", diagrams]),
         Stage("document", "validate_diagrams.py", [diagrams, "--class-graph", graph]),
         # Exit 1 here means no flow was traceable, which is the common case and not a
@@ -629,7 +651,7 @@ def review(args):
             "--hygiene", os.path.join(build, "hygiene-report.json"),
             "--draft", staging,
             "--signers", os.path.join(args.root, SIGNERS_FILE),
-            "--out", os.path.join(build, "generation-report.json")]
+            "--out", os.path.join(build, "generation-report.json")] + scope_args(build)
     for flag, path in (("--architecture", architecture), ("--flows", flows),
                        ("--operations", operations)):
         if os.path.exists(path):
@@ -786,9 +808,13 @@ NEEDS_STAGING = ("review", "publish")
 # P1-P3 stop it by refusing the next component. P4 now does the same.
 CHECKPOINTS = (
     {"id": "P1", "opened_by": "survey", "blocks": "analyze",
-     "show": "the selected units with their fan-in, the cutoff, and every warning the "
-             "selection printed",
-     "ask": "is this the right scope to spend the budget on"},
+     "show": "the scope classification (how many files are product, test, generated, "
+             "vendor, asset, and the rule behind each exclusion), the first batch of units "
+             "with their fan-in and the cutoff, the product files still unread, and every "
+             "warning the selection printed; and, when no feature map was found, offer to "
+             "create one (see SKILL.md)",
+     "ask": "is this the right scope to spend the budget on, and is the classification "
+            "right"},
     {"id": "P2", "opened_by": "analyze", "blocks": "check",
      "show": "one line per module -- what you decided it is for -- and every `unknown`",
      "show_from": "uncertain_modules",
@@ -1201,8 +1227,38 @@ def module_kinds(build):
     return kinds
 
 
+def sync_scope(build):
+    """Bring `scope.json`'s reading states up to date with `module-analysis.jsonl`.
+
+    Returns the synced scope, or None when this build has no scope. A file is `analyzed`
+    when the analysis ledger holds a row for it; the state is derived from the ledger each
+    time rather than kept beside it, so the two cannot drift. The write is skipped when
+    nothing changed, so a run that read nothing new does not touch the file.
+    """
+    path = os.path.join(build, "scope.json")
+    scope = scope_record.load(path)
+    if scope is None:
+        return None
+    synced = scope_record.sync_reading(scope, set(module_kinds(build)))
+    if synced != scope:
+        temporary = path + ".tmp"
+        with open(temporary, "w", encoding="utf-8") as fh:
+            json.dump(synced, fh, indent=1, sort_keys=True)
+            fh.write("\n")
+        os.replace(temporary, path)
+    return synced
+
+
+def symbol_free_modules(build):
+    scope = scope_record.load(os.path.join(build, "scope.json"))
+    return scope_record.symbol_free(scope) if scope else set()
+
+
 def unanswered_modules(build):
     """Modules in scope that do not answer all four kinds, in `units.txt` order.
+
+    A product file that defines no symbol is owed one statement saying what it does, not
+    four kinds: there is no state, interface or failure for an entry script to answer.
 
     **Not `analysis_progress`'s `read`, and the difference is the point.** `read` uses the
     gate's two-of-four floor, which separates a module somebody worked on from one nobody
@@ -1214,8 +1270,10 @@ def unanswered_modules(build):
     the gate was going to reject them.
     """
     kinds = module_kinds(build)
+    free = symbol_free_modules(build)
     return [path for path in _lines(os.path.join(build, "units.txt"))
-            if len(kinds.get(path, set()) & set(READ_KINDS)) < len(READ_KINDS)]
+            if len(kinds.get(path, set()) & set(READ_KINDS))
+            < (1 if path in free else len(READ_KINDS))]
 
 
 def analysis_progress(build):
@@ -1232,8 +1290,10 @@ def analysis_progress(build):
     """
     scope = _lines(os.path.join(build, "units.txt"))
     kinds = module_kinds(build)
+    free = symbol_free_modules(build)
     read = [p for p in scope
-            if len(kinds.get(p, set()) & set(READ_KINDS)) >= READ_KINDS_FLOOR]
+            if len(kinds.get(p, set()) & set(READ_KINDS))
+            >= (1 if p in free else READ_KINDS_FLOOR)]
     # Touched but not read is its own state, and the one a resumed session most needs
     # told apart: a module with a single statement has work already in it, and reporting
     # it beside the untouched ones invites someone to write it a second time.
@@ -1373,6 +1433,31 @@ def status(args, build):
                 print("           %-6s %s" % (label, path))
             if len(paths) > 10:
                 print("           %-6s ... and %d more" % ("", len(paths) - 10))
+
+    # The denominator is the scope, not the batch above. Computed in memory from the ledger
+    # and written nowhere, so `status` keeps its promise to change nothing.
+    promised = scope_record.load(os.path.join(build, "scope.json"))
+    if promised is not None:
+        coverage = scope_record.coverage(
+            scope_record.sync_reading(promised, set(module_kinds(build))))
+        by_reading = coverage["by_reading"]
+        print("\nscope      %d product file(s): %d analyzed, %d unread%s"
+              % (coverage["product_files"], by_reading.get("analyzed", 0),
+                 len(coverage["unread"]),
+                 "; excluded: %s" % ", ".join(
+                     "%d %s" % (n, kind) for kind, n in sorted(
+                         coverage["excluded_kinds"].items()) if n)
+                 if any(coverage["excluded_kinds"].values()) else ""))
+        if coverage["unread"]:
+            print("           incomplete: %d product file(s) unread -- a draft from here "
+                  "does not cover the whole product" % len(coverage["unread"]))
+            for path in coverage["unread"][:10]:
+                print("           unread %s" % path)
+            if len(coverage["unread"]) > 10:
+                print("           unread ... and %d more" % (len(coverage["unread"]) - 10))
+        for change in scope_record.narrowed(promised)[:10]:
+            print("           narrowed %s -> %s: %s"
+                  % (change["path"], change["disposition"], change["override"]))
 
     manual = _json(os.path.join(build, "manual-analysis.json"))
     if isinstance(manual, dict):
@@ -2163,6 +2248,11 @@ def main():
                   encoding="utf-8") as fh:
             json.dump({"top": args.top, "policy": args.policy}, fh, sort_keys=True)
             fh.write("\n")
+    if args.component in ("analyze", "check") and not args.dry_run:
+        # Reading progress against the promised scope, from whatever the analysis ledger
+        # holds now. Written here as well as derived by `status` and the gate, so the file
+        # a person opens at a checkpoint says where the run is.
+        sync_scope(args.build)
     if not args.dry_run:
         append_timing(timings, {
             "schema_version": 1, "record_type": "component",

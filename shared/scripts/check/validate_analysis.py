@@ -32,6 +32,13 @@ Statuses record where a reading came from, not how sure anyone is:
 There is deliberately no confidence field. Nothing can contradict a model's assessment
 of itself, so recording one adds a number that no check can ever disagree with.
 
+**A product file that defines nothing is held to one statement, not to anchoring.** With
+`--scope`, a file `scope.json` marks `product` with no symbols -- an entry script, a module
+that only registers things on import -- has no name a statement could be anchored to, so the
+anchoring and isolation checks do not apply to it. Its row still needs one statement, and
+that statement still needs evidence that resolves: "entry point: runs X" is a reading, an
+empty row is not.
+
 Standard library only. Reads; writes only where `--out` says to.
 
 Exit codes: 0 ok, 1 findings, 2 input or schema error, 3 internal error.
@@ -42,6 +49,11 @@ import json
 import os
 import re
 import sys
+
+# The same layout in `shared/` and in a materialized plugin, so this resolves in both.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                "survey"))
+import scope_record  # noqa: E402
 
 SUPPORTED_ANALYSIS_VERSION = {1}
 
@@ -155,8 +167,10 @@ def anchored(text, names):
 
 
 class Checker(object):
-    def __init__(self, index):
+    def __init__(self, index, symbol_free=()):
         self.index = index
+        # Product files with nothing to name; see the module docstring.
+        self.symbol_free = set(symbol_free)
         self.by_path = {record["path"]: record for record in index.get("files", ())}
         # A `declared` statement is one the repository states -- in an ADR, a design
         # note, a README. Those are assets, not source files, so resolving evidence
@@ -237,6 +251,10 @@ class Checker(object):
             self.finding("A002", "role is empty", path)
 
         names = identifiers_of(record)
+        free = path in self.symbol_free
+        if free and not any(isinstance(s, dict) for s in row["statements"]):
+            self.finding("A002", "%s defines nothing, and is still owed one statement "
+                         "saying what the file does" % path, path)
         verdicts = {}
         for statement in row["statements"]:
             if not isinstance(statement, dict):
@@ -271,7 +289,7 @@ class Checker(object):
             if not good:
                 verdicts[statement_id] = "rejected"
                 continue
-            if not anchored(statement["text"], names):
+            if not free and not anchored(statement["text"], names):
                 self.finding("A014", "the statement names nothing that is in %s, so it "
                              "is not about it" % path, path, statement_id,
                              severity="advisory")
@@ -327,7 +345,7 @@ class Checker(object):
         lonely = []
         for row in rows:
             record = self.by_path.get(row.get("path"))
-            if record is None:
+            if record is None or row.get("path") in self.symbol_free:
                 continue
             names = identifiers_of(record)
             texts = [s.get("text", "") for s in row.get("statements", ())
@@ -359,6 +377,8 @@ def main():
     parser.add_argument("analysis", help="module-analysis.jsonl")
     parser.add_argument("--index", required=True, help="path to structure.json")
     parser.add_argument("--out", help="where to write the report; stdout either way")
+    parser.add_argument("--scope", help="scope.json: a product file with no symbols is "
+                                        "owed one statement, not an anchored four")
     args = parser.parse_args()
 
     index, error = load_json(args.index, "index")
@@ -375,7 +395,13 @@ def main():
         if version not in SUPPORTED_ANALYSIS_VERSION:
             return fail("unsupported analysis_version %r" % version)
 
-    checker = Checker(index)
+    free = ()
+    if args.scope:
+        scope = scope_record.load(args.scope)
+        if scope is None:
+            return fail("%s is not a valid scope.json" % args.scope)
+        free = scope_record.symbol_free(scope)
+    checker = Checker(index, free)
     verdicts, seen_ids = {}, set()
     for row in rows:
         verdicts.update(checker.check_row(row, seen_ids))

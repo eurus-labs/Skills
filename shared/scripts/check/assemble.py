@@ -24,6 +24,10 @@ Exit codes:
     0  no failures; warnings may still be printed and must be read
     1  at least one FAILURE -- the table is not safe to report from
 
+With --scope, a unit that `scope.json` marks as a product file with no symbols may leave a
+`list` field empty. Such a file has no derived claim to cite, so a fragment for it carries
+no `claim_ids`; every other field, and every other unit, is held to the schema as before.
+
 FAILURES are facts: a row did not parse, a value violates the schema, a unit produced
 no row, a unit produced more rows than --rows-per-unit allows. WARNINGS are heuristics
 that are often but not always a defect; they never set the exit code, because a
@@ -186,14 +190,20 @@ def check_value(value, field):
     return None
 
 
-def check_rows(rows, schema):
-    """Split rows into valid and invalid. Returns (good, bad)."""
+def check_rows(rows, schema, relaxed=(), unit_field="source"):
+    """Split rows into valid and invalid. Returns (good, bad).
+
+    `relaxed` names units whose `list` fields may be empty: files with nothing to cite.
+    """
     good, bad = [], []
     for index, row in enumerate(rows, 1):
         problems = []
         for field in schema:
             if field["name"] not in row:
                 problems.append("%s: missing" % field["name"])
+                continue
+            if (field["type"] == "list" and row.get(unit_field) in relaxed
+                    and is_empty(row[field["name"]])):
                 continue
             error = check_value(row[field["name"]], field)
             if error:
@@ -277,6 +287,8 @@ def main():
     parser.add_argument("--unit-field", default="source",
                         help="row field naming the source unit (default: source)")
     parser.add_argument("--unit-list", help="file of expected unit ids, one per line")
+    parser.add_argument("--scope", help="scope.json: units naming a product file with no "
+                                        "symbols may leave list fields empty")
     parser.add_argument("--rows-per-unit", choices=("one", "many"), default="one",
                         help="'one' (default) treats a repeated unit id as a failure; "
                              "'many' allows several rows per unit, as when extracting "
@@ -290,8 +302,19 @@ def main():
         return 1
     names = [f["name"] for f in schema]
 
+    relaxed = set()
+    if args.scope:
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__))), "survey"))
+        import scope_record
+        scope = scope_record.load(args.scope)
+        if scope is None:
+            print("FAIL  %s is not a valid scope.json" % args.scope)
+            return 1
+        relaxed = scope_record.symbol_free(scope)
+
     rows, parse_errors = load_rows(args.input)
-    good, bad = check_rows(rows, schema)
+    good, bad = check_rows(rows, schema, relaxed, args.unit_field)
 
     expected_list = None
     if args.unit_list:

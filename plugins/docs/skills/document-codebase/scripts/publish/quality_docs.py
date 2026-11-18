@@ -35,6 +35,13 @@ everything outside it is covered in a line. Those modules are counted separately
 never drag the coverage down; a run that analysed everything it set out to analyse is
 `per_module` on a repository of four files and on one of four thousand.
 
+**Coverage is also measured against the scope.** With `--scope`, the report says how many
+product files `scope.json` promised and how many of them were read, and a run with an unread
+product file is `incomplete`: it cannot claim to document the whole product, whatever its
+batch covered. A deliberately narrower scope stays allowed -- the person moved those files out
+at P1 -- and is recorded in the report as a scope change. A feature map's areas (the
+`feature:<area>` topics) are listed when no section cites a file the area owns.
+
 Standard library only, plus this directory's own `validate_analysis`. Reads; writes only
 where `--out` says to.
 
@@ -52,9 +59,10 @@ import sys
 # agree with it or the figures would be about a different document. The layout is the same
 # in `shared/` and in a materialized plugin, so this resolves in both.
 _HERE = os.path.dirname(os.path.abspath(__file__))
-for _sibling in ("check", "document"):
+for _sibling in ("check", "document", "survey"):
     sys.path.insert(0, os.path.join(os.path.dirname(_HERE), _sibling))
 
+import scope_record  # noqa: E402
 import validate_analysis  # noqa: E402
 from build_document_model import PRESETS, use_template  # noqa: E402
 
@@ -159,17 +167,26 @@ def load_jsonl(path):
     return rows
 
 
-def budget_of(index, units_path):
+def budget_of(index, units_path, scope=None):
     """The modules this run undertook to read.
 
     With no `units.txt` the budget is every non-test module, which is what a small
     repository does anyway. The report says which of the two it was, because
-    `coverage: 1.0` means different things under each.
+    `coverage: 1.0` means different things under each. With a scope, "non-test" is the
+    documented product, so a generated or vendored file is not owed a reading either.
     """
-    modules = [record["path"] for record in index.get("files", ())
-               if not record.get("is_test") and record.get("symbols")]
+    if scope is not None:
+        product = scope_record.documented_paths(scope)
+        modules = [record["path"] for record in index.get("files", ())
+                   if record["path"] in product
+                   and (record.get("symbols") or record["path"] in
+                        scope_record.symbol_free(scope))]
+    else:
+        modules = [record["path"] for record in index.get("files", ())
+                   if not record.get("is_test") and record.get("symbols")]
     if not units_path:
-        return sorted(modules), "every non-test module (no units.txt given)"
+        return sorted(modules), "every product module (no units.txt given)" \
+            if scope is not None else "every non-test module (no units.txt given)"
     known = set(modules) | {record["path"] for record in index.get("files", ())}
     with open(units_path, encoding="utf-8") as fh:
         wanted = [line.strip() for line in fh if line.strip()]
@@ -180,14 +197,14 @@ def budget_of(index, units_path):
     return sorted(set(wanted)), "units.txt"
 
 
-def analyse(index, analysis_path):
+def analyse(index, analysis_path, symbol_free=()):
     """Run C2's checker and turn its verdicts into counts.
 
     Returns `(kinds_by_path, tally, findings)`. The first is what a module was actually
     asked and answered -- not whether it was read, which is a weaker thing entirely.
     """
     rows = load_jsonl(analysis_path)
-    checker = validate_analysis.Checker(index)
+    checker = validate_analysis.Checker(index, symbol_free)
     verdicts, seen = {}, set()
     for row in rows:
         verdicts.update(checker.check_row(row, seen))
@@ -249,6 +266,111 @@ def depth_of(kinds_by_path, in_budget):
         "full": len(in_budget) - len(thin),
         "thin": thin[:20],
     }
+
+
+def load_doc(path):
+    document, _error = load_json(path, "document model")
+    return document
+
+
+def analysed_paths(analysis_path):
+    """Paths with a row in the analysis ledger, which is what makes a file `analyzed`."""
+    if not analysis_path or not os.path.isfile(analysis_path):
+        return set()
+    try:
+        return {row.get("path") for row in load_jsonl(analysis_path)
+                if isinstance(row, dict) and row.get("path")}
+    except (OSError, ValueError):
+        return set()
+
+
+def block_paths(block, claims, statements):
+    """Every repository path one block cites: its own evidence, and what it refers to."""
+    found = set()
+    for item in block.get("evidence") or ():
+        if isinstance(item, dict) and item.get("path"):
+            found.add(item["path"])
+    for ref in block.get("claim_refs") or ():
+        for item in (claims.get(ref) or {}).get("evidence") or ():
+            if isinstance(item, dict) and item.get("path"):
+                found.add(item["path"])
+    for ref in block.get("analysis_refs") or ():
+        for item in (statements.get(ref) or {}).get("evidence") or ():
+            if isinstance(item, dict) and item.get("path"):
+                found.add(item["path"])
+    return found
+
+
+def feature_report(scope, doc):
+    """The feature map's areas, and which of them no section of the document cites.
+
+    An area is covered when some block cites a product file the area owns. The map is a
+    checklist and never evidence: nothing here reads a sentence of it, it only asks whether
+    the document says anything about the places the map says the feature lives.
+    """
+    areas = sorted(topic.split(":", 1)[1] for topic in scope.get("required_topics", ())
+                   if str(topic).startswith("feature:"))
+    if not areas:
+        return None
+    owned = {area: sorted(row["path"] for row in scope.get("files", ())
+                          if row.get("disposition") in scope_record.DOCUMENTED
+                          and area in (row.get("features") or ()))
+             for area in areas}
+    out = {"areas": len(areas), "uncovered": [], "owns_nothing": [], "checked": doc is not None}
+    for area in areas:
+        if not owned[area]:
+            out["owns_nothing"].append(area)
+    if doc is None:
+        return out
+    claims = {c.get("id"): c for c in doc.get("claims", ())}
+    statements = {s.get("id"): s for s in doc.get("statements", ())}
+    cited = set()
+    for page in doc.get("pages", ()):
+        for block in page.get("blocks", ()):
+            cited |= block_paths(block, claims, statements)
+    for area in areas:
+        if owned[area] and not (set(owned[area]) & cited):
+            out["uncovered"].append({"area": area, "owns": owned[area]})
+    return out
+
+
+def scope_report(scope, analysis_path, doc):
+    """`(report, status or None, reasons)` for coverage against the promised scope."""
+    synced = scope_record.sync_reading(scope, analysed_paths(analysis_path))
+    coverage = scope_record.coverage(synced)
+    report = {"product_files": coverage["product_files"],
+              "by_reading": coverage["by_reading"],
+              "unread": coverage["unread"],
+              "complete": not coverage["unread"],
+              "excluded_kinds": coverage["excluded_kinds"],
+              "narrowed": scope_record.narrowed(scope)}
+    status, reasons = None, []
+    if coverage["unread"]:
+        status = STATUS_PARTIAL
+        shown = ", ".join(coverage["unread"][:10])
+        if len(coverage["unread"]) > 10:
+            shown += ", and %d more" % (len(coverage["unread"]) - 10)
+        reasons.append("incomplete: %d product file(s) unread, so this does not claim to "
+                       "document the whole product: %s" % (len(coverage["unread"]), shown))
+    if report["narrowed"]:
+        reasons.append("scope narrowed by a person: %d file(s) moved out of the product: %s"
+                       % (len(report["narrowed"]),
+                          ", ".join("%s (%s)" % (c["path"], c["override"])
+                                    for c in report["narrowed"][:5])))
+    features = feature_report(scope, doc)
+    if features is not None:
+        report["features"] = features
+        if features["uncovered"]:
+            status = STATUS_PARTIAL
+            reasons.append("%d feature area(s) have no section citing a file they own: %s"
+                           % (len(features["uncovered"]),
+                              ", ".join(f["area"] for f in features["uncovered"][:5])))
+        if features["owns_nothing"]:
+            reasons.append("%d feature area(s) own no product file in this repository, so "
+                           "nothing can be checked for them: %s"
+                           % (len(features["owns_nothing"]),
+                              ", ".join(features["owns_nothing"][:5])))
+    return report, status, reasons
 
 
 def decisions_of(directory):
@@ -542,6 +664,8 @@ def main():
                                         "complete is checked for an actual page")
     parser.add_argument("--signers", help="the repository's allowed-signers file, so the "
                                           "report says whether approvals are verified")
+    parser.add_argument("--scope", help="scope.json: measure coverage against the promised "
+                                        "product, not against units.txt alone")
     parser.add_argument("--out", help="where to write the report; stdout either way")
     args = parser.parse_args()
 
@@ -551,8 +675,15 @@ def main():
     if index.get("schema_version") not in (2, 3):
         return fail("unsupported index schema_version %r" % index.get("schema_version"))
 
+    scope = None
+    if args.scope:
+        scope = scope_record.load(args.scope)
+        if scope is None:
+            return fail("%s is not a valid scope.json" % args.scope)
+    free = scope_record.symbol_free(scope) if scope else set()
+
     try:
-        budget, budget_source = budget_of(index, args.units)
+        budget, budget_source = budget_of(index, args.units, scope)
     except (OSError, ValueError) as exc:
         return fail(str(exc))
 
@@ -561,7 +692,7 @@ def main():
         if not os.path.isfile(args.analysis):
             return fail("no such analysis file: %s" % args.analysis)
         try:
-            kinds_by_path, statements, findings = analyse(index, args.analysis)
+            kinds_by_path, statements, findings = analyse(index, args.analysis, free)
         except ValueError as exc:
             return fail("cannot read %s: %s" % (args.analysis, exc))
     else:
@@ -572,6 +703,12 @@ def main():
         reasons.append("no module analysis was supplied, so nothing was read")
 
     in_budget = set(budget)
+    # A file that defines nothing answers one question -- what it does -- and cannot answer
+    # state, interface or failure. One surviving statement is all of its reading, so it counts
+    # as answered in full; holding it to four would leave it "thin" forever.
+    for path in free:
+        if kinds_by_path.get(path):
+            kinds_by_path[path] = set(MODULE_KINDS)
     depth = depth_of(kinds_by_path, in_budget)
     # Read means answered at least `READ_KINDS_FLOOR` of the four, not "has a surviving
     # statement". A module named once and left there is counted below as touched, so the
@@ -601,7 +738,8 @@ def main():
             # Outside the budget by design: covered in a line, never read in full. They
             # are not failures and must not move the coverage above.
             "out_of_budget": len([record["path"] for record in index.get("files", ())
-                                  if not record.get("is_test")
+                                  if (record["path"] in scope_record.documented_paths(scope)
+                                      if scope is not None else not record.get("is_test"))
                                   and record["path"] not in in_budget]),
             "unanalysed": sorted(in_budget - analysed_in_budget)[:20],
             # Reported beside coverage rather than folded into it: the two answer
@@ -616,6 +754,13 @@ def main():
     }
 
     status = PASSED
+    if scope is not None:
+        scoped, scope_status, scope_reasons = scope_report(
+            scope, args.analysis, args.doc and load_doc(args.doc))
+        report["scope"] = scoped
+        if scope_status:
+            status = min(status, scope_status, key=lambda s: RANK[s])
+        reasons.extend(scope_reasons)
     if statements["rejected"]:
         status = FAILED
         reasons.append("%d statement(s) were rejected outright"
