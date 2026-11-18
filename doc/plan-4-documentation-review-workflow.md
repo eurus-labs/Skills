@@ -3,7 +3,7 @@
 Status: in progress.
 
 - W1, W3 and W4 are done.
-- W5 is half done: plan 12 (revisions) is merged, and plan 13 (resume) is pending.
+- W5 is done: plan 12 (revisions) and plan 13 (resume) are merged.
 - W2 is drafted as plan 14 on `feat/docs-product-scope`.
 - W6 is pending.
 
