@@ -31,6 +31,11 @@ and gets rendered away easily; a sentence that reads as observed fact is exactly
 analysis recorded as `unknown`: naming the open question is the answer, asserting it is
 not.
 
+**Citations belong in `evidence`, not in the sentence.** A block whose text still carries
+a `path:line` after the renderer has taken out the two shapes the generators write is
+advisory (`P009`): the reader edition would show it, and the audit edition already lists
+the block's citations. Nothing fails on it, because the sentence is not wrong.
+
 Blocks carrying no citation at all are the generator's own framing -- the introductory
 sentence above a table, the "nothing here, and why" line. They are not a rewrite of
 anything and are reported as advisory rather than checked.
@@ -52,6 +57,7 @@ import os
 import re
 import sys
 
+import citations
 import review_records
 
 SUPPORTED_FORMAT = {1, 2}
@@ -235,6 +241,15 @@ class Checker(object):
         text = block_text(block)
         if not text.strip():
             return
+        # What the renderer cannot take out of the sentence is what a reader would see.
+        # Generated parentheticals and a composed section's `Source code:` paragraph are
+        # moved into the audit edition; anything else written into the prose stays put.
+        leaked = citations.inline_in(citations.strip_inline(block.get("text", ""))[0])
+        if leaked:
+            self.finding("P009", "cites %s inside its text; put citations in `evidence`, "
+                         "which the audit edition shows and the reader edition does not"
+                         % ", ".join(sorted(set(leaked))[:3]), subject,
+                         severity="advisory")
         lowered = text.lower()
         hedged = any(h in lowered for h in HEDGES)
         # This one runs on every block, cited or not: the mechanically rendered tables

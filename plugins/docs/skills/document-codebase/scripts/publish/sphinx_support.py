@@ -708,6 +708,9 @@ def _teach_docutils_about_sphinx():
         return [nodes.literal(rawtext, text)], []
 
     directives.register_directive("toctree", Ignored)
+    # `only` is how the audit edition's citations ride in the same source as the reader's
+    # text. Its body is swallowed: docutils has no tags, so there is no edition to build.
+    directives.register_directive("only", Ignored)
     for name in sorted(set(sum((list(v) for v in OPTIONAL_DIRECTIVES.values()), []))):
         directives.register_directive(name, Ignored)
     for role in ("doc", "ref", "any", "download"):
@@ -783,6 +786,43 @@ def _with_docutils(out_dir):
                           "Sphinx build: cross-page references were not resolved, so a "
                           "broken one would not have been seen." % len(pages),
                   diagrams=ACCEPTED if _has_diagram(pages) else NO_DIAGRAMS)
+
+
+def build_text(out_dir, extensions=(), tags=()):
+    """`{page: text}` of a plain-text Sphinx build of `out_dir`, or None without Sphinx.
+
+    Text rather than HTML because an HTML build copies the page sources into `_sources/`,
+    and a check on what a reader sees must not find the audit blocks there. `tags` are
+    passed as `-t`, so `("audit",)` builds the audit edition. A build that fails returns
+    `{"": error}`: the caller reports it, and the ordinary check already says why.
+    """
+    if _tool() != "sphinx":
+        return None
+    work = tempfile.mkdtemp(prefix="sphinx-editions-")
+    try:
+        source, _stubbed = _stage(out_dir, work, extensions)
+        build = os.path.join(work, "build")
+        command = ["sphinx-build", "-q", "-b", "text"]
+        for tag in tags:
+            command.extend(["-t", tag])
+        try:
+            proc = subprocess.run(command + [source, build], capture_output=True,
+                                  text=True, timeout=BUILD_TIMEOUT)
+        except (OSError, subprocess.SubprocessError) as exc:
+            return {"": "sphinx-build could not be run: %s" % exc}
+        pages = {}
+        for base, _, names in os.walk(build):
+            for name in names:
+                if name.endswith(".txt"):
+                    path = os.path.join(base, name)
+                    with open(path, encoding="utf-8", errors="replace") as fh:
+                        pages[os.path.relpath(path, build).replace(os.sep, "/")] = fh.read()
+        if proc.returncode and not pages:
+            return {"": "sphinx-build exited %d: %s"
+                        % (proc.returncode, (proc.stderr or proc.stdout).strip()[:400])}
+        return pages
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
 
 
 def check(out_dir, extensions=(), policy="optional"):

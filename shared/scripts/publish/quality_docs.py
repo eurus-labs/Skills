@@ -59,6 +59,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 for _sibling in ("check", "document", "survey"):
     sys.path.insert(0, os.path.join(os.path.dirname(_HERE), _sibling))
 
+import editions  # noqa: E402
 import scope_record  # noqa: E402
 import validate_analysis  # noqa: E402
 from build_document_model import PRESETS, use_template  # noqa: E402
@@ -846,6 +847,25 @@ def main():
                 return fail("the template carried in %s cannot be used: %s"
                             % (args.doc, exc))
         report["pages"] = page_report(doc)
+        if args.draft and os.path.isdir(args.draft) and doc.get("pages"):
+            # The draft that is about to be sealed must keep its two editions honest: the
+            # reader's source cites nothing, and every cited block has its audit block.
+            # Source only -- the render stage already ran the Sphinx builds.
+            first = doc["pages"][0]["id"]
+            suffix = next((s for s in DRAFT_SUFFIXES
+                           if os.path.isfile(os.path.join(args.draft, first + s))), None)
+            if suffix:
+                verdict = editions.check(
+                    args.draft, doc, suffix, (),
+                    {"claims": {c.get("id"): c for c in doc.get("claims", ())},
+                     "statements": {s.get("id"): s for s in doc.get("statements", ())}},
+                    build=False)
+                report["editions"] = {"status": verdict["status"],
+                                      "problems": verdict["problems"][:10]}
+                if verdict["problems"]:
+                    status = FAILED
+                    reasons.append("the reader and audit editions disagree: %s"
+                                   % "; ".join(verdict["problems"][:2]))
         if doc.get("preset") == "manual":
             import manual
             problems = manual.validate_document(doc)
