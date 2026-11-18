@@ -962,6 +962,57 @@ def resume_tests(tmp):
     check("an unreadable revision.json is named and resume still exits 0",
           code == 0 and "rev-0002: revision.json is missing or unreadable" in text, text)
 
+    # --- Valid JSON of the wrong type is damage, not a crash.
+    root, build = loop("resume-wrongtype-report")
+    mint(build, 1, stage=True, rounds=[[]])
+    write(os.path.join(build, "drafts", "rev-0001.meta", "prose-report-01.json"),
+          json.dumps(["damaged report"]))
+    code, text = resume(root, build)
+    check("a list-valued prose-report-01.json leaves resume at exit 0 with a next step",
+          code == 0 and "no readable prose report for rev-0001" in text
+          and next_line(text), text)
+
+    root, build = loop("resume-wrongtype-generation")
+    mint(build, 1, stage=True, rounds=[[]], report={"coverage": {"queued": 0}})
+    write(os.path.join(build, "publish-seal.json"),
+          json.dumps({"seal_version": 2, "revision": "rev-0001"}))
+    write(os.path.join(build, "generation-report.json"), json.dumps(["damaged report"]))
+    code, text = resume(root, build)
+    check("a list-valued generation-report.json leaves resume at exit 0 with a next step",
+          code == 0 and " review " in next_line(text), text)
+
+    # --- The suggested command carries the options that say where the work is.
+    root, build = loop("resume-options")
+    mint(build, 1, stage=True, rounds=[[]], report={"coverage": {"queued": 0}})
+    write(os.path.join(build, "publish-seal.json"),
+          json.dumps({"seal_version": 2, "revision": "rev-0001"}))
+    write(os.path.join(build, "generation-report.json"), json.dumps({"status": "passed"}))
+    code, text = resume(root, build)
+    check("a default run's suggestion carries neither --docs nor --staging",
+          " publish " in next_line(text) and "--docs" not in next_line(text)
+          and "--staging" not in next_line(text), next_line(text))
+    code, text = run("pipeline.py", "resume", "--root", root, "--build", build,
+                     "--docs", "site-docs")
+    check("--docs site-docs is carried onto the suggested publish",
+          " publish " in next_line(text) and "--docs %s" % os.path.join(root, "site-docs")
+          in next_line(text), next_line(text))
+    root, build = loop("resume-options-review")
+    mint(build, 1)
+    shutil.copytree(os.path.join(build, "drafts", "rev-0001"),
+                    os.path.join(root, "elsewhere"))
+    code, text = run("pipeline.py", "resume", "--root", root, "--build", build,
+                     "--staging", "elsewhere")
+    check("--staging is carried onto the suggested review",
+          " review " in next_line(text)
+          and "--staging %s" % os.path.join(root, "elsewhere") in next_line(text),
+          next_line(text))
+    args = pipeline.argparse.Namespace(root=".", build=pipeline.DEFAULT_BUILD, docs="x/docs",
+                                       staging=None)
+    check("invocation_args carries --docs for render and publish only",
+          "--docs x/docs" in pipeline.invocation_args(args, "render")
+          and "--docs x/docs" in pipeline.invocation_args(args, "publish")
+          and "--docs" not in pipeline.invocation_args(args, "review"))
+
 
 def main():
     tmp = tempfile.mkdtemp(prefix="pipeline-test-")

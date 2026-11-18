@@ -1150,6 +1150,16 @@ def _json(path, default=None):
         return default
 
 
+def _json_dict(path):
+    """The JSON object at `path`, or {} when it is missing, unreadable or not an object.
+
+    `resume` must exit 0 on whatever a damaged build holds, and valid JSON of the wrong
+    type (a list, a string) passes `_json` and then fails at the first `.get`.
+    """
+    record = _json(path, {})
+    return record if isinstance(record, dict) else {}
+
+
 def _lines(path):
     try:
         with open(path, encoding="utf-8") as fh:
@@ -1469,7 +1479,8 @@ def review_findings(path):
         if not isinstance(row, dict):
             unreadable += 1
             continue
-        for finding in row.get("findings") or ():
+        rows = row.get("findings")
+        for finding in rows if isinstance(rows, list) else ():
             if isinstance(finding, dict) and finding.get("finding_id"):
                 found[finding["finding_id"]] = finding
     return found, unreadable
@@ -1520,7 +1531,7 @@ def p4_open(build, digest):
     path = checkpoint_path(build, "P4")
     if not os.path.isfile(path):
         return False
-    record = _json(path, {}) or {}
+    record = _json_dict(path)
     if record.get("state") == "retired" and not prose_queued(build):
         return False
     return decision_for(build, "P4", digest) is None
@@ -1540,15 +1551,15 @@ def resume_step(args, build, digest, latest, matches, sealed):
     review_file = latest_review_file(drafts, latest)
     if not reports and not review_file:
         return command("review")
-    report = _json(reports[-1], {}) if reports else {}
+    report = _json_dict(reports[-1]) if reports else {}
     blocking = open_blocking(review_file) if review_file else set()
-    if blocking or (report or {}).get("stale_reviews"):
+    if blocking or report.get("stale_reviews"):
         return ("route the open findings (workflow.md, \"Routing findings\"), then %s"
                 % command("render"))
     if p4_open(build, digest):
         return command("decide", " --checkpoint P4 --user-response '<the user's answer>' "
                                  "--p4-verdict accepted|changes-requested")
-    generation = _json(os.path.join(build, "generation-report.json"), {}) or {}
+    generation = _json_dict(os.path.join(build, "generation-report.json"))
     if sealed == latest and generation.get("status") == "passed":
         return command("publish")
     return command("review")
@@ -1805,10 +1816,16 @@ def invocation_args(args, component):
     parts = ["--root %s" % args.root]
     if args.build != DEFAULT_BUILD:
         parts.append("--build %s" % args.build)
-    # `render` is the only suggested producer that writes the staging tree, and `publish`
-    # the only consumer that reads it, so the flag rides those two and nothing else.
-    if component in ("render", "publish") and getattr(args, "staging", None):
+    # The staging tree is written by `render` and read by `review` and `publish`; the
+    # documentation directory is read by `render` and written by `publish`. Each flag rides
+    # the components that touch it, so a suggestion acts on the same tree the run was using.
+    if component in ("render", "review", "publish") and getattr(args, "staging", None):
         parts.append("--staging %s" % args.staging)
+    # `main()` joins a relative `--docs` onto `--root`, so the default arrives either way.
+    docs = getattr(args, "docs", None)
+    if component in ("render", "publish") and docs and docs not in (
+            "docs", os.path.join(args.root, "docs")):
+        parts.append("--docs %s" % docs)
     return " " + " ".join(parts)
 
 
