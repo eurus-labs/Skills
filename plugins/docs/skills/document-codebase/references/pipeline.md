@@ -6,6 +6,7 @@
 - [`template` — what the document follows](#template--what-the-document-follows)
 - [`approve` — what the user signs](#approve--what-the-user-signs)
 - [`status` — where the run is](#status--where-the-run-is)
+- [`resume` — where the draft-review loop is](#resume--where-the-draft-review-loop-is)
 - [What each component runs](#what-each-component-runs)
 - [Stopping, skipping, and the codes](#stopping-skipping-and-the-codes)
 - [Flags](#flags)
@@ -233,6 +234,39 @@ withhold it.
 **The driver decides nothing.** Every stage is a script that was already the authority on its own question,
 invoked with the paths its component fixes. Where a genuine choice exists — the selection cutoff, the preset,
 whether Ruff runs — it is a flag with a default, not a rule hidden in the driver.
+
+## `resume` — where the draft-review loop is
+
+```bash
+python3 scripts/pipeline.py resume
+```
+
+**Read-only, and never blocks `render`, `review` or `publish`.** Like `status` it runs before the build
+directory is created, runs no stage, writes nothing (not `timings.jsonl`), and exits `0` whatever it finds.
+With no scan it prints the same "no scan yet" line. `status` answers where the whole run is; `resume` answers
+how to continue the loop between `render` and `review`, from `drafts/`.
+
+It prints, in order:
+
+1. the latest `rev-NNNN`, its `created_at` and `previous`, and whether the staging tree still hashes to it;
+2. the revision named in `publish-seal.json`, and whether that is the latest;
+3. from the latest `prose-report-KK.json` of the latest revision, the queued, unreviewed and stale blocks;
+4. every `open` finding in the latest `review-KK.jsonl` of the latest revision, by severity, with its
+   `location`, `requested` and the oldest kept revision it appears in (`or earlier` when that is the oldest
+   revision still kept and not `rev-0001`);
+5. a `no progress` line when the last review file of each of the two newest reviewed revisions holds the same
+   non-empty set of open blocking finding ids. Two rounds on one revision never count;
+6. `.docs-build/continuation.md`, if present, under "written by the previous session, not checked", with its
+   modification time, and a warning when it is older than the latest revision;
+7. one `next` command: `render` when there is no revision or staging differs from it, `review` when the
+   latest revision has no review round, routing the findings then `render` when blocking findings or stale
+   blocks remain, `decide --checkpoint P4` when P4 is open, `publish` when the latest revision is sealed with
+   a passed generation report, and `review` otherwise.
+
+A build with no `drafts/` predates revision snapshots: `resume` says to run `render` and still prints the note.
+A revision whose `revision.json` cannot be read is named, and the rest is still reported. The script reports a
+stalled loop; the Coordinator decides whether to stop (see [workflow](workflow.md#budget-and-the-stop-rule)).
+`status` prints one `drafts` line pointing here when revisions exist.
 
 ## What each component runs
 

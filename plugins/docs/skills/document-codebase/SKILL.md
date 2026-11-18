@@ -146,7 +146,9 @@ still owed, listing the evidence this run verified for it; the gate fails while 
 `complete` row whose page is missing from the draft or still the scaffold. The ledger is
 `.docs-build/authored.jsonl`; see [manual](references/manual.md#the-pages-the-run-does-not-answer).
 
-Run `pipeline.py status` when resuming or diagnosing a block; it writes nothing. Follow the missing step it
+After a break in the draft-review loop, run `pipeline.py resume` first: it reports the open findings, a
+stalled loop and the next command, and writes nothing. Run `pipeline.py status` when resuming or diagnosing a
+block; it writes nothing either. Follow the missing step it
 names instead of hand-creating a predecessor's output. Decisions bind to the presented input, not just the
 scan revision. See [pipeline](references/pipeline.md) for hashes, flags, stage order, and timing; use
 `pipeline.py measure --step <name> --state start|stop` around model work when measuring a run.

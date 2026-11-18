@@ -40,7 +40,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   now names that revision without making an approval stale, each review round's rows and prose report are kept
   in `drafts/rev-NNNN.meta/`, and the publish seal (`seal_version` 2) names one revision, so a draft
   re-rendered after review, or a snapshot edited afterwards, cannot be published. An existing version 1 seal is
-  refused: run `review` again. A resume command is not implemented yet.
+  refused: run `review` again.
+- **`document-codebase`** (`docs` 1.6.0) adds `pipeline.py resume`, which reports where the draft-review loop
+  stands without changing anything: the latest revision and whether staging still equals it, the sealed
+  revision, queued, unreviewed and stale blocks, every open finding with the revision where it first
+  appeared, a `no progress` line when the last two reviewed revisions left the same blocking findings open,
+  the previous session's `.docs-build/continuation.md` (shown, never checked), and the next command. It never
+  blocks `render`, `review` or `publish`; the Coordinator decides whether to stop. `status` points to it when
+  draft revisions exist.
 - **`review-code`** hands the rendered interface, accessibility and visual change to `review-ui`.
 - Skills and READMEs in `development` (0.5.2), `reasoning` (0.2.2), `skill-authoring` (0.1.2), `testing`
   (0.3.6) and `verification` (0.3.1) name the `review` plugin where they named it by its old install name.
