@@ -1,5 +1,8 @@
 # Plan 3 — the analysis half
 
+Status: implemented through C8d (`c1867cb`). C9, the run on a real repository, was not done and carries
+over to plan 4's W6.
+
 Nine commits. This is `documentation-analysis-implementation-plan.md` reconciled with what
 the repository actually contains, and it replaces **A8** in `doc/plan-2-layout-and-release.md`.
 `A8b` (run it on a real repository) and `A9` (the release) survive and move to the end.

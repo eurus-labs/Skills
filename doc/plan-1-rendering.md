@@ -1,5 +1,8 @@
 # Plan 1 — rendering: Sphinx, RST and MyST
 
+Status: implemented — A1–A5 shipped: `publish/sphinx_support.py`, the RST and MyST renderers in
+`publish/render_docs.py` (`--format rst|myst`), and toctree wiring in `publish/wire_toctree.py`.
+
 Steps 12–15 of the phase plan. Five commits, one branch, one pull request. This half is
 releasable on its own: it changes how a document is rendered and checked, and touches
 nothing in the diagram pipeline.
