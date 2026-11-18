@@ -1,6 +1,6 @@
 # Plan 14 — product scope, feature-map cross-check and the audit edition (plan 4, W2)
 
-Status: draft
+Status: approved
 Date: 2026-11-18
 Branch: `feat/docs-product-scope`
 Baseline: `origin/main` at `2cf65aa34c15c9452be44540ec40def1ecdab631`, with plans 12 and 13 merged. Any
