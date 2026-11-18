@@ -1,5 +1,12 @@
 # Plan 2 — the layout engine, the quality gate and the release
 
+Status: implemented with changes:
+
+- A6–A7, the builtin layout engine, were superseded: PlantUML owns layout (`9e4350f`, `90080ce`, PR #23).
+- A8 was replaced by plan 3's C3: `publish/quality_docs.py` and `generation-report.json`.
+- A9, the release, shipped in 0.2.0.
+- A8b and B1–B2, a run on a real or large repository, were not done. They carry over to plan 4's W6.
+
 Five commits, the last of which is the release. Depends on plan 1
 (`doc/plan-1-rendering.md`) being merged: the quality gate aggregates every stage
 including the renderers, and the release must not advertise a renderer that is not there.

@@ -1,6 +1,13 @@
 # Plan 4 — source understanding, drafts and content review
 
-Status: ready for implementation; this commit records the plan, not completed runtime changes.
+Status: in progress.
+
+- W1, W3 and W4 are done.
+- W5 is done: plan 12 (revisions) and plan 13 (resume) are merged.
+- W2 is drafted as plan 14 on `feat/docs-product-scope`.
+- W6 is pending.
+
+The progress table under "Implementation work packages" has the evidence.
 Baseline: `feat/config-extractor` at `521dc7d9580904790476e8cdbaabeab0e3071151`.
 Target: the existing `document-codebase` skill in the `docs` plugin.
 
