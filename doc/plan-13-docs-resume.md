@@ -1,6 +1,6 @@
 # Plan 13 — resume a `document-codebase` run (plan 4, W5 part 2)
 
-Status: draft
+Status: approved
 Date: 2026-11-18
 Branch: `feat/docs-resume-command`
 Baseline: `origin/main` at `4b8f2f3e2bd3aa535416eaa0725c23978790876d` (plan 12 merged)
