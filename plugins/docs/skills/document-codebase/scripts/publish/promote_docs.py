@@ -12,7 +12,7 @@ import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from draft_artifact import file_hash, tree_hash  # noqa: E402
+from draft_artifact import file_hash, read_revision, tree_hash, verify_revision  # noqa: E402
 
 
 def main():
@@ -22,6 +22,7 @@ def main():
     parser.add_argument("--doc", required=True)
     parser.add_argument("--report", required=True)
     parser.add_argument("--seal", required=True)
+    parser.add_argument("--drafts", required=True, help="the revisions directory")
     args = parser.parse_args()
     for path, label in ((args.draft, "draft"), (args.doc, "document model"),
                         (args.report, "generation report"), (args.seal, "publish seal")):
@@ -32,10 +33,24 @@ def main():
         report = json.load(fh)
     with open(args.seal, encoding="utf-8") as fh:
         seal = json.load(fh)
+    if seal.get("seal_version") != 2 or not seal.get("revision"):
+        sys.stderr.write("FAIL  the publish seal is version %r and names no draft revision; "
+                         "run review again\n" % seal.get("seal_version"))
+        return 1
+    revision = seal["revision"]
+    problem = verify_revision(args.drafts, revision)
+    if problem:
+        sys.stderr.write("FAIL  %s\n" % problem)
+        return 1
     actual = {"draft_hash": tree_hash(args.draft), "doc_hash": file_hash(args.doc),
               "report_hash": file_hash(args.report)}
     if report.get("status") != "passed" or any(seal.get(k) != v for k, v in actual.items()):
         sys.stderr.write("FAIL  draft, document model, or review report changed after final review\n")
+        return 1
+
+    if read_revision(args.drafts, revision).get("draft_hash") != actual["draft_hash"]:
+        sys.stderr.write("FAIL  the staged draft is not the sealed revision %s; render and "
+                         "review again\n" % revision)
         return 1
 
     target = os.path.abspath(args.target)

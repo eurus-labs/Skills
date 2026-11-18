@@ -54,6 +54,7 @@ scripts/publish/release_hygiene.py         -> skills/document-codebase/scripts/p
 scripts/publish/quality_docs.py            -> skills/document-codebase/scripts/publish/quality_docs.py
 scripts/render/prepare_stage.py            -> skills/document-codebase/scripts/render/prepare_stage.py
 scripts/render/snapshot_draft.py           -> skills/document-codebase/scripts/render/snapshot_draft.py
+scripts/render/snapshot_revision.py        -> skills/document-codebase/scripts/render/snapshot_revision.py
 scripts/review/seal_draft.py               -> skills/document-codebase/scripts/review/seal_draft.py
 scripts/review/validate_draft.py            -> skills/document-codebase/scripts/review/validate_draft.py
 scripts/publish/promote_docs.py             -> skills/document-codebase/scripts/publish/promote_docs.py

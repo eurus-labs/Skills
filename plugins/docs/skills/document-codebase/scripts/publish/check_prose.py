@@ -359,6 +359,9 @@ def main():
     parser.add_argument("--require-review", action="store_true",
                         help="a queued block with no verdict leaves the run "
                              "review_required rather than passed")
+    parser.add_argument("--draft-revision", help="the drafts/rev-NNNN being reviewed; "
+                                                 "written on each queue entry, and not part "
+                                                 "of what makes an approval stale")
     parser.add_argument("--out", help="where to write the report; stdout either way")
     args = parser.parse_args()
 
@@ -434,7 +437,8 @@ def main():
         current = review_inputs(doc, blocks[entry["block"]])
         review_queue.append(dict(
             entry, target_id=entry["block"],
-            draft_revision=doc.get("source_revision") or doc.get("index_hash") or "unknown",
+            draft_revision=args.draft_revision or doc.get("source_revision")
+            or doc.get("index_hash") or "unknown",
             **current))
     report = {
         "schema_version": 1,

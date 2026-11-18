@@ -131,12 +131,18 @@ class CheckpointBindingTests(unittest.TestCase):
         self.assertEqual(self.run_script("snapshot_draft.py", "--draft", staging,
                                          "--doc", self.build / "doc.json", "--out",
                                          self.build / "render-manifest.json").returncode, 0)
+        self.assertEqual(self.run_script("snapshot_revision.py", "--draft", staging,
+                                         "--manifest", self.build / "render-manifest.json",
+                                         "--drafts", self.build / "drafts").returncode, 0)
 
         first = self.pipeline("review")
         self.assertEqual(first.returncode, 1, first.stdout + first.stderr)
         report = json.loads((self.build / "prose-report.json").read_text())
         self.assertEqual(report["status"], "review_required")
         self.assertEqual(report["coverage"]["queued"], 1)
+        revision = json.loads((self.build / "render-manifest.json").read_text())["revision"]
+        self.assertEqual(revision, "rev-0001")
+        self.assertEqual({q["draft_revision"] for q in report["review_queue"]}, {revision})
         self.assertEqual(json.loads((self.build / "checkpoints/P4.json").read_text())
                          ["state"], "pending")
 
@@ -158,6 +164,14 @@ class CheckpointBindingTests(unittest.TestCase):
         self.assertEqual(accepted.returncode, 0, accepted.stderr)
         reviewed = self.pipeline("review", "--review", review)
         self.assertEqual(reviewed.returncode, 0, reviewed.stdout + reviewed.stderr)
+        history = sorted(p.name for p in (self.build / "drafts" / (revision + ".meta")).iterdir()
+                         if p.name != "revision.json")
+        # The held run never started, so two rounds ran: the unreviewed pass and the
+        # reviewed one.
+        self.assertEqual(history, ["prose-report-01.json", "prose-report-02.json",
+                                   "review-02.jsonl"])
+        self.assertEqual(json.loads((self.build / "publish-seal.json").read_text())["revision"],
+                         revision)
         published = self.pipeline("publish", "--docs", self.root / "published")
         self.assertEqual(published.returncode, 0, published.stdout + published.stderr)
 

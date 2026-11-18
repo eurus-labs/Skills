@@ -34,6 +34,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   host offers them, records `independent` or `self_review` truthfully, routes each finding to the role that
   caused it, and states a stop rule that never becomes `confirmed`. Instructions only; no script changed.
   Immutable revision snapshots and resume are not implemented yet.
+- **`document-codebase`** (`docs` 1.5.0) keeps every rendered draft as an immutable revision. `render` copies a
+  changed draft to `.docs-build/drafts/rev-NNNN/` (an unchanged re-render reuses the latest; numbers are never
+  reused; `--keep-revisions N`, default 5, minimum 3, prunes the oldest). The review queue's `draft_revision`
+  now names that revision without making an approval stale, each review round's rows and prose report are kept
+  in `drafts/rev-NNNN.meta/`, and the publish seal (`seal_version` 2) names one revision, so a draft
+  re-rendered after review, or a snapshot edited afterwards, cannot be published. An existing version 1 seal is
+  refused: run `review` again. A resume command is not implemented yet.
 - **`review-code`** hands the rendered interface, accessibility and visual change to `review-ui`.
 - Skills and READMEs in `development` (0.5.2), `reasoning` (0.2.2), `skill-authoring` (0.1.2), `testing`
   (0.3.6) and `verification` (0.3.1) name the `review` plugin where they named it by its old install name.
