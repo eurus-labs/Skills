@@ -1530,9 +1530,13 @@ def main():
         # evidence is checked against the repository and not against these pages.
         scope = scope_record.load(args.scope)
         if scope is None:
-            sys.stderr.write("FAIL  %s is not a valid scope.json\n" % args.scope)
+            sys.stderr.write("FAIL  %s is not a valid scope.json: %s\n"
+                             % (args.scope, scope_record.why(args.scope)))
             return 2
         index = scope_record.product_view(index, scope)
+        product = scope_record.documented_paths(scope)
+    else:
+        product = None
 
     claims, error = load_rows(args.claims, "claims")
     if error:
@@ -1557,6 +1561,10 @@ def main():
                              "%s\n" % (args.analysis, ", ".join(repr(v) for v in unsupported),
                                        sorted(SUPPORTED_ANALYSIS_VERSION)))
             return 2
+        if product is not None:
+            # A reading of a test or a generated file is evidence a person may have kept,
+            # and never a module of the product: it must not become a statement on a page.
+            rows = [row for row in rows if row.get("path") in product]
         analysis = Analysis(rows)
         uncovered = analysis.kinds_present() - set(KIND_TITLES)
         if uncovered:
@@ -1594,6 +1602,11 @@ def main():
             sys.stderr.write("FAIL  %s was written against %s, the index is %s\n"
                              % (option, stated, index.get("index_hash")))
             return 2
+        if product is not None and key == "architecture":
+            loaded = dict(loaded, components=[
+                dict(c, modules=[m for m in c.get("modules", ()) or () if m in product])
+                if isinstance(c, dict) else c
+                for c in loaded.get("components", ()) or ()])
         extra[key] = loaded
 
     if args.preset == "manual" and args.template:

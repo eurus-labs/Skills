@@ -39,9 +39,11 @@ plus how many it imports — and `--top` (default 25) is the size of the **next 
 drive the system last, because an orchestrator imports much and is imported by little; counting both
 directions keeps both. The files outside the batch stay in `scope.json` as `unread`, each with the `batch`
 it falls in. They are not dropped: a run with unread product files reports `incomplete: N product files
-unread` and lists them, and `status` prints the count. Narrow the scope only deliberately: set a row's
-`disposition`, a `reason`, and an `override` note saying who decided and why, and the report records it as a
-scope change. **Read the warnings the selection prints.** A repository whose modules import nothing from each
+unread` and lists them, and `status` prints the count. **The gate will not seal an incomplete run**, so a
+repository with more product files than `--top` needs one of two things at P1: a `--top` of at least the
+product-file count in `scope.json`, or a deliberate narrowing. To narrow, edit the row: set its `disposition`,
+a `reason`, and an `override` note saying who decided and why, then run `survey` again. The rows you changed
+survive the rerun, P1 reopens on the narrower material, and the report records each one as a scope change. **Read the warnings the selection prints.** A repository whose modules import nothing from each
 other — standalone CLIs, scripts a scheduler runs — has no connections to rank, and the order it gets is
 arbitrary rather than considered; say so in the document.
 

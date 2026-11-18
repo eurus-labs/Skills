@@ -297,7 +297,7 @@ def main():
                                    os.path.isfile(args.feature_map) else None, "feature map")
     if error:
         return fail(error)
-    previous =scope_record.load(args.out) if os.path.isfile(args.out) else None
+    previous = scope_record.load(args.out) if os.path.isfile(args.out) else None
 
     scope = build(index, args.root, template, feature_map, previous)
     problem = scope_record.malformed(scope)

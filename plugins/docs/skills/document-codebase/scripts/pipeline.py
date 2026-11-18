@@ -324,7 +324,8 @@ def survey(args):
     # something a check passed instead of something the model went looking for.
     config = os.path.join(args.build, "config-analysis.json")
     stages.append(Stage("survey", "extract_config.py",
-                        ["--index", index, "--root", args.root, "--out", config]))
+                        ["--index", index, "--root", args.root, "--out", config,
+                         "--scope", scope]))
     stages.append(Stage("survey", "validate_config.py",
                         [config, "--index", index, "--root", args.root,
                          "--out", os.path.join(args.build, "config-report.json")]))

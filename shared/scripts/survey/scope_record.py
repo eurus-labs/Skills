@@ -72,6 +72,22 @@ def load(path):
     return scope if isinstance(scope, dict) and malformed(scope) is None else None
 
 
+def why(path):
+    """Why `path` is not a usable scope, for the message a caller prints after `load`.
+
+    The rows are meant to be read and, at P1, edited by a person; "not a valid scope" with
+    no reason sends them hunting through a file for a typo.
+    """
+    try:
+        with open(path, encoding="utf-8") as fh:
+            scope = json.load(fh)
+    except OSError as exc:
+        return "cannot be read (%s)" % exc.strerror
+    except ValueError as exc:
+        return "is not JSON (%s)" % exc
+    return malformed(scope) or "is not a scope"
+
+
 def malformed(scope):
     """Why this scope cannot be read, or None."""
     if not isinstance(scope, dict):

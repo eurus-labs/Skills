@@ -399,7 +399,8 @@ def main():
     if args.scope:
         scope = scope_record.load(args.scope)
         if scope is None:
-            return fail("%s is not a valid scope.json" % args.scope)
+            return fail("%s is not a valid scope.json: %s"
+                        % (args.scope, scope_record.why(args.scope)))
         free = scope_record.symbol_free(scope)
     checker = Checker(index, free)
     verdicts, seen_ids = {}, set()

@@ -283,6 +283,36 @@ class Patterns(unittest.TestCase):
         for text in ("example.com:8080", "at 12:30", "step:4", "http://x.org/path:3x"):
             self.assertIsNone(citations.CITATION.search(text), text)
 
+    def test_operations_evidence_is_a_citation_too(self):
+        for text in (".github/workflows/ci.yml:7", "Makefile:12", "docker/Dockerfile:3",
+                     "pyproject.toml:5"):
+            self.assertEqual(citations.inline_in(text), [text], text)
+
+    def test_a_column_of_mixed_operations_locations_is_dropped_for_the_reader(self):
+        columns, rows, located = citations.split_columns(
+            ["Step", "Read at"],
+            [["install", "pyproject.toml:5"], ["build", "Makefile:12"],
+             ["ci", ".github/workflows/ci.yml:7"], ["none", "-"]])
+        self.assertEqual(columns, ["Step"])
+        self.assertEqual([r for r in rows], [["install"], ["build"], ["ci"], ["none"]])
+        self.assertEqual([c for _label, cites in located for c in cites],
+                         ["pyproject.toml:5", "Makefile:12", ".github/workflows/ci.yml:7"])
+
+    def test_one_location_written_two_ways_is_listed_once(self):
+        block = {"id": "b", "type": "prose",
+                 "text": "Totals.\n\nSource code: src/shop/cart.py:4-4",
+                 "evidence": [{"path": "src/shop/cart.py", "line_start": 4, "line_end": 4}]}
+        self.assertEqual(citations.of_block(block), ["src/shop/cart.py:4"])
+
+    def test_a_writers_parenthetical_is_still_flagged_even_though_it_could_be_lifted(self):
+        doc = {"claims": [], "statements": [], "pages": [{"id": "p", "blocks": [
+            {"id": "b", "type": "prose", "manual_block": True,
+             "text": "Totals are rounded (src/cart.py:88).", "evidence": [CART]}]}]}
+        checker = check_prose.Checker(doc)
+        checker.check(doc)
+        self.assertEqual([f["code"] for f in checker.findings if f["code"] == "P009"],
+                         ["P009"])
+
     def test_evidence_formats(self):
         self.assertEqual(citations.format_item(CART), "src/shop/cart.py:4-9")
         self.assertEqual(citations.format_item(MONEY), "src/shop/money.py:2")

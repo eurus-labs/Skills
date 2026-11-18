@@ -36,7 +36,10 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))))
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 import build_dir  # noqa: E402
+import scope_record  # noqa: E402
 
 CONFIG_VERSION = 1
 
@@ -171,10 +174,14 @@ def merge(rows):
     return sorted(merged.values(), key=lambda r: (r["kind"], r["name"]))
 
 
-def extract(index, root):
+def extract(index, root, product=None):
+    """Settings read by the product's Python. `product` is the scope's documented paths;
+    without it the scanner's `is_test` is the only filter, as it was."""
     rows = []
     for record in index.get("files", ()):
-        if record.get("lang") != "python" or record.get("is_test"):
+        if record.get("lang") != "python":
+            continue
+        if (record["path"] not in product) if product is not None else record.get("is_test"):
             continue
         rows.extend(settings_in(root, record["path"]))
     return merge(rows)
@@ -185,6 +192,8 @@ def main():
     parser.add_argument("--index", required=True, help="path to structure.json")
     parser.add_argument("--root", default=".", help="repository root")
     parser.add_argument("--out", required=True, help="where to write config-analysis.json")
+    parser.add_argument("--scope", help="scope.json: read settings from the documented "
+                                        "product only")
     args = parser.parse_args()
 
     try:
@@ -198,7 +207,15 @@ def main():
                          % index.get("schema_version"))
         return 2
 
-    settings = extract(index, args.root)
+    product = None
+    if args.scope:
+        scope = scope_record.load(args.scope)
+        if scope is None:
+            sys.stderr.write("FAIL  %s is not a valid scope.json: %s\n"
+                             % (args.scope, scope_record.why(args.scope)))
+            return 2
+        product = scope_record.documented_paths(scope)
+    settings = extract(index, args.root, product)
     out = {"config_version": CONFIG_VERSION, "index_hash": index.get("index_hash"),
            "settings": settings}
     build_dir.ensure_parent(args.out)

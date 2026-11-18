@@ -244,7 +244,13 @@ class Checker(object):
         # What the renderer cannot take out of the sentence is what a reader would see.
         # Generated parentheticals and a composed section's `Source code:` paragraph are
         # moved into the audit edition; anything else written into the prose stays put.
-        leaked = citations.inline_in(citations.strip_inline(block.get("text", ""))[0])
+        # A composed section is the Writer's, and its citations belong in `evidence` however
+        # neatly they could be lifted out; only the `Source code:` paragraph is the
+        # generator's. A generated block is judged by what the renderer leaves behind.
+        cleaned = (citations.strip_source_paragraph(block.get("text", ""))
+                   if block.get("manual_block")
+                   else citations.strip_inline(block.get("text", ""))[0])
+        leaked = citations.inline_in(cleaned)
         if leaked:
             self.finding("P009", "cites %s inside its text; put citations in `evidence`, "
                          "which the audit edition shows and the reader edition does not"

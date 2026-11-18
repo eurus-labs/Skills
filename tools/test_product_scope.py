@@ -394,6 +394,88 @@ class OneProductView(Repo):
         self.assertEqual(checker.check_row(row, set()), {"t1": "valid"})
 
 
+class ReadingsThatNameATest(OneProductView):
+    """A reading or a component naming a test must not turn the test into a page."""
+
+    def test_a_statement_and_a_component_naming_a_test_never_reach_the_document(self):
+        index = load(self.detail)
+        records = {r["path"]: r for r in index["files"]}
+
+        def row(path, text):
+            return {"analysis_version": 1, "path": path,
+                    "source_hash": records[path]["source_hash"],
+                    "index_hash": index["index_hash"], "role": "r",
+                    "statements": [{"id": "x:" + path, "kind": "responsibility",
+                                    "status": "observed", "text": text,
+                                    "evidence": [{"path": path, "line_start": 1,
+                                                  "line_end": 1}]}]}
+
+        analysis = os.path.join(self.build, "readings.jsonl")
+        with open(analysis, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(row("src/shop/cart.py", "Cart sums lines.")) + "\n")
+            fh.write(json.dumps(row("tests/test_cart.py", "test_total checks Cart.")) + "\n")
+        architecture = os.path.join(self.build, "arch.json")
+        with open(architecture, "w", encoding="utf-8") as fh:
+            json.dump({"index_hash": index["index_hash"], "components": [
+                {"id": "core", "name": "Core", "purpose": "The shop core.",
+                 "modules": ["src/shop/cart.py", "tests/test_cart.py"]}],
+                "relationships": []}, fh)
+        claims = os.path.join(self.build, "claims-b.jsonl")
+        fragments = os.path.join(self.build, "fragments-b.jsonl")
+        for path in (claims, fragments):
+            open(path, "w", encoding="utf-8").close()
+        out = os.path.join(self.build, "doc-readings.json")
+        done = run(self.root, script("build_document_model.py"), "--index", self.detail,
+                   "--claims", claims, "--fragments", fragments, "--analysis", analysis,
+                   "--architecture", architecture, "--preset", "architecture",
+                   "--scope", self.detail_scope, "--out", out)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        body = read(out)
+        self.assertIn("Cart sums lines.", body)
+        self.assertNotIn("tests/test_cart.py", body)
+        self.assertNotIn("test_total checks Cart.", body)
+
+
+class ScopeProblems(Repo):
+    def test_an_unreadable_scope_says_why(self):
+        bad = os.path.join(self.build, "bad-scope.json")
+        broken = json.loads(json.dumps(self.scope))
+        broken["files"][0]["disposition"] = "tests"
+        with open(bad, "w", encoding="utf-8") as fh:
+            json.dump(broken, fh)
+        self.assertIn("disposition", scope_record.why(bad))
+        done = run(self.root, script("select_units.py"), "--index",
+                   os.path.join(self.build, "structure.json"), "--scope", bad,
+                   "--out", os.path.join(self.build, "never.txt"))
+        self.assertEqual(done.returncode, 2)
+        self.assertIn("is not a valid scope.json: ", done.stderr)
+        self.assertIn("disposition", done.stderr)
+        with open(bad, "w", encoding="utf-8") as fh:
+            fh.write("{not json")
+        self.assertIn("is not JSON", scope_record.why(bad))
+
+    def test_settings_are_read_from_the_product_only(self):
+        import extract_config
+        with tempfile.TemporaryDirectory() as tmp:
+            for rel, text in (("src/app.py", "import os\nX = os.environ.get('SHOP_MODE')\n"),
+                              ("tests/test_app.py",
+                               "import os\nY = os.environ.get('ONLY_IN_TESTS')\n"),
+                              ("src/pb_pb2.py", "import os\nZ = os.environ.get('GENERATED')\n")):
+                full = os.path.join(tmp, *rel.split("/"))
+                os.makedirs(os.path.dirname(full), exist_ok=True)
+                with open(full, "w", encoding="utf-8") as fh:
+                    fh.write(text)
+            index = {"files": [{"path": "src/app.py", "lang": "python"},
+                               {"path": "tests/test_app.py", "lang": "python",
+                                "is_test": True},
+                               {"path": "src/pb_pb2.py", "lang": "python"}]}
+            names = lambda rows: sorted(r["name"] for r in rows)
+            self.assertEqual(names(extract_config.extract(index, tmp)),
+                             ["GENERATED", "SHOP_MODE"])
+            self.assertEqual(names(extract_config.extract(index, tmp, {"src/app.py"})),
+                             ["SHOP_MODE"])
+
+
 class FeatureMap(Repo):
     feature_map = True
 

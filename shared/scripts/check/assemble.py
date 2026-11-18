@@ -309,7 +309,8 @@ def main():
         import scope_record
         scope = scope_record.load(args.scope)
         if scope is None:
-            print("FAIL  %s is not a valid scope.json" % args.scope)
+            print("FAIL  %s is not a valid scope.json: %s"
+                  % (args.scope, scope_record.why(args.scope)))
             return 1
         relaxed = scope_record.symbol_free(scope)
 

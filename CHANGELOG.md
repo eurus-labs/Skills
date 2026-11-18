@@ -53,7 +53,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   rule behind each exclusion, for the user to read at P1. `--top` sizes the next reading batch and no longer
   bounds the scope, so a low fan-in feature or an entry module that defines no symbol stays in it (such a
   file owes one statement, not four). The class graph, document model and quality gate share one product
-  view, and the gate reports `incomplete: N product files unread`; `status` prints the count. When the
+  view, and the gate reports `incomplete: N product files unread`, so a run that reads only its first batch is
+  `partial` and `review` will not seal it until every product file is read or the user narrows the scope at P1;
+  `status` prints the count. When the
   repository has a `verify-*` feature map it is read as a checklist, never as evidence: each area becomes a
   `feature:<area>` topic, its owned files one reading task, and an area no section cites is listed. With no
   map the Coordinator offers `setup-verification` at P1, asks before running it, and goes on without one on a

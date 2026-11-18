@@ -31,14 +31,17 @@ Standard library only. No I/O.
 import re
 
 # A source path, a colon and a line or line range. A path with a directory in it is a path
-# whatever its extension; a bare file name needs a source-like extension, so a host and
+# whatever its name, so `.github/workflows/ci.yml:7` and `docker/Dockerfile:3` count; a bare
+# file name needs a source-like extension or a well-known build-file name, so a host and
 # port (`example.com:8080`) and a clock time are not mistaken for one.
-_NAME = r"[\w@+~-][\w.@+~-]*"
+_NAME = r"[\w@+~.-][\w.@+~-]*"
+_BARE = (r"(?:Makefile|Dockerfile|Containerfile|Rakefile|Gemfile|Procfile|Jenkinsfile|"
+         r"Vagrantfile|Brewfile|Justfile|Pipfile)")
 _EXT = (r"(?:py|pyi|js|jsx|mjs|cjs|ts|tsx|go|rs|java|kt|rb|c|h|cc|cpp|hpp|cs|php|sh|bash|"
         r"sql|md|rst|txt|json|jsonl|ya?ml|toml|ini|cfg|conf|html|css|scss|xml|lock|mk|"
         r"gradle|swift|scala|lua|pl|ex|exs)")
-CITATION_SOURCE = (r"(?<![\w./@+~-])(?:(?:%s/)+%s\.\w+|%s\.%s):\d+(?:-\d+)?(?![\w:])"
-                   % (_NAME, _NAME, _NAME, _EXT))
+CITATION_SOURCE = (r"(?<![\w./@+~-])(?:(?:%s/)+%s|%s\.%s|%s):\d+(?:-\d+)?(?![\w:])"
+                   % (_NAME, _NAME, _NAME, _EXT, _BARE))
 CITATION = re.compile(CITATION_SOURCE)
 
 # `(observed src/a.py:3, src/b.py:9)`, `(Inferred from ...)`, `(src/a.py:3)`: the
@@ -47,6 +50,14 @@ _PARENTHETICAL = re.compile(
     r"\s*\((?:[A-Za-z][A-Za-z ]*? )?%s(?:,\s*%s)*\)" % (CITATION_SOURCE, CITATION_SOURCE))
 # The paragraph a composed manual section ends with when it lists its sources.
 _SOURCE_PARAGRAPH = re.compile(r"(?:\n\n|^)Source code: [^\n]*(?:\n(?!\n)[^\n]*)*")
+
+
+def canonical(citation):
+    """`path:4-4` is `path:4`: one location written two ways must not be listed twice."""
+    match = re.match(r"^(.*):(\d+)-(\d+)$", citation)
+    if match and match.group(2) == match.group(3):
+        return "%s:%s" % (match.group(1), match.group(2))
+    return citation
 
 
 def format_item(item):
@@ -72,7 +83,12 @@ def block_text(block):
 
 def inline_in(text):
     """The citations written into a string, in order of appearance."""
-    return [m.group(0) for m in CITATION.finditer(str(text or ""))]
+    return [canonical(m.group(0)) for m in CITATION.finditer(str(text or ""))]
+
+
+def strip_source_paragraph(text):
+    """`text` without the `Source code:` paragraph a composed section ends with."""
+    return _SOURCE_PARAGRAPH.sub("", str(text or "")).rstrip()
 
 
 def strip_inline(text):
@@ -117,8 +133,7 @@ def of_block(block, claims=None, statements=None):
 
 def is_location(cell):
     """Whether a table cell is nothing but one citation, or an empty marker beside one."""
-    text = str(cell).strip()
-    return bool(CITATION.fullmatch(text))
+    return bool(CITATION.fullmatch(str(cell).strip()))
 
 
 def location_columns(columns, rows):
@@ -150,7 +165,7 @@ def split_columns(columns, rows):
     kept_rows = [[row[i] for i in keep if i < len(row)] for row in rows]
     locations = []
     for row, kept in zip(rows, kept_rows):
-        cites = [str(row[i]).strip() for i in drop
+        cites = [canonical(str(row[i]).strip()) for i in drop
                  if i < len(row) and is_location(row[i])]
         if cites:
             locations.append((" / ".join(str(c) for c in kept), cites))

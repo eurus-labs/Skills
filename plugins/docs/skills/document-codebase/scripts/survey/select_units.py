@@ -37,9 +37,11 @@ nothing can anchor a derived claim to it. The units are ranked as before, `--top
 size of the *next reading batch*, and `units.txt` holds that batch. Each unread product file
 is also stamped with the `batch` it falls in (`1` is `units.txt`), so the rest of the scope
 stays listed, with a place in the order, rather than being dropped. Rerunning the selection
-after some files are analysed yields the next batch. Files an area of a feature map owns are
-read together: reaching one pulls in the unread rest of its `task`, so a batch can run past
-`--top` by the size of that group.
+after some files are analysed yields the next batch's units. Nothing carries a run across
+batches yet: `units.txt` is the whole reading list to `assemble` and to the checkpoints, so
+that is a selection to hand to a new run, not a resumption. Files an area of a feature map
+owns are read together: reaching one pulls in the unread rest of its `task`, so a batch can
+run past `--top` by the size of that group.
 
 Standard library only. Exit codes: 0 ok, 2 input error, 3 internal error.
 """
@@ -265,7 +267,8 @@ def main():
             return fail("no such scope: %s" % args.scope)
         scope = scope_record.load(args.scope)
         if scope is None:
-            return fail("%s is not a valid scope.json" % args.scope)
+            return fail("%s is not a valid scope.json: %s"
+                        % (args.scope, scope_record.why(args.scope)))
         if scope.get("index_hash") != index.get("index_hash"):
             return fail("%s was built from a different scan than %s; run build_scope.py "
                         "again" % (args.scope, args.index))

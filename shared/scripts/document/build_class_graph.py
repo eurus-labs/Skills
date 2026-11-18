@@ -385,7 +385,8 @@ def main():
     if args.scope:
         scope = scope_record.load(args.scope)
         if scope is None:
-            sys.stderr.write("FAIL  %s is not a valid scope.json\n" % args.scope)
+            sys.stderr.write("FAIL  %s is not a valid scope.json: %s\n"
+                             % (args.scope, scope_record.why(args.scope)))
             return 2
         index = scope_record.product_view(index, scope)
 
