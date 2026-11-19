@@ -203,6 +203,23 @@ class EditionCheck(unittest.TestCase):
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
         self.assertIn("editions: passed", done.stdout)
 
+    @unittest.skipUnless(SPHINX, "sphinx-build is not installed")
+    def test_the_render_check_fails_a_prose_citation_with_no_evidence(self):
+        doc = copy.deepcopy(DOC)
+        doc["pages"][0]["blocks"].append(
+            {"id": "block:bare", "type": "prose",
+             "text": "The api module starts at src/api.py:12 and nothing backs that."})
+        doc_path = os.path.join(self.tmp.name, "bare-citation.json")
+        Path(doc_path).write_text(json.dumps(doc))
+        done = subprocess.run(
+            [sys.executable, script("render_docs.py"), "--doc", doc_path, "--out",
+             self.out + "-bare", "--format", "rst", "--write-conf", "--check"],
+            capture_output=True, text=True)
+        output = done.stdout + done.stderr
+        self.assertNotEqual(done.returncode, 0, output)
+        self.assertIn("editions: failed", output)
+        self.assertIn("src/api.py:12", output)
+
 
 class PublishWritesNoSecondTree(unittest.TestCase):
     def test_promotion_carries_the_audit_blocks_in_the_one_tree(self):
