@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   validate:
+    timeout-minutes: 30
     # Pinned: on ubuntu-26.04, the PlantUML 1.2020 package cannot parse Graphviz
     # 14's version string, so `plantuml -version` exits 254 before any check runs.
     runs-on: ubuntu-24.04
@@ -29,10 +30,23 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      # apt mirrors occasionally stall, and a stalled `apt-get update` otherwise
+      # waits until the job is cancelled. Bound each attempt, retry, then fail.
       - name: PlantUML, so Diagram as Code rendering is exercised
+        timeout-minutes: 10
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq plantuml
+          apt_opts="-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30"
+          updated=false
+          for attempt in 1 2 3; do
+            if sudo timeout 180 apt-get $apt_opts update -qq; then
+              updated=true
+              break
+            fi
+            echo "apt-get update failed (attempt $attempt of 3)"
+            sleep 5
+          done
+          "$updated"
+          sudo apt-get $apt_opts install -y -qq plantuml
           plantuml -version
 
       - name: Sphinx and MyST, so the build harness is actually exercised
