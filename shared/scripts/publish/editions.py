@@ -101,6 +101,18 @@ def check(out_dir, doc, extension, extensions=(), context=None, build=True):
         for leaked in sorted(set(citations.inline_in(reader)))[:5]:
             problems.append("%s: the reader edition cites %s outside an audit block"
                             % (name, leaked))
+        # A diagram is shown in both editions, so its source is reader source: a
+        # `path:line` in an arrow label or a comment is a leak the page text cannot show.
+        for block in page.get("blocks", ()):
+            if block.get("type") != "plantuml":
+                continue
+            source = os.path.join(out_dir, "_diagrams", os.path.basename(block["src"]))
+            if not os.path.isfile(source):
+                continue
+            with open(source, encoding="utf-8", errors="replace") as fh:
+                for leaked in sorted(set(citations.inline_in(fh.read())))[:5]:
+                    problems.append("%s: the diagram %s cites %s; the reader edition "
+                                    "shows a diagram as drawn" % (name, block["src"], leaked))
         blocks, wanted = expected_for(page, context)
         cited_blocks += blocks
         wanted_by_file[name] = wanted

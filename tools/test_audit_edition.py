@@ -221,6 +221,114 @@ class EditionCheck(unittest.TestCase):
         self.assertIn("src/api.py:12", output)
 
 
+STEP_ENTRY = {"path": "src/pipeline/entry.py", "line_start": 7}
+STEP_STORE = {"path": "src/pipeline/transform.py", "line_start": 9}
+PLANTUML = shutil.which("plantuml") is not None
+
+
+class FlowDiagramEditions(unittest.TestCase):
+    """A flow diagram is shown in both editions, so its citations live in the table beside
+    it and never in the drawing."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        root = cls.tmp.name
+        main, middle, last = ("symbol:src/pipeline/entry.py:main",
+                              "symbol:src/pipeline/transform.py:normalise",
+                              "symbol:src/pipeline/store.py:save")
+        flows = {"flow_version": 1, "index_hash": "sha256:x", "flows": [{
+            "id": "flow:normalise", "name": "Normalising an argument", "status": "observed",
+            "trigger": {"text": "The console script calls main.", "status": "declared"},
+            "steps": [
+                {"id": "step:1", "from": main, "to": middle, "text": "main calls normalise.",
+                 "status": "observed", "evidence": [STEP_ENTRY]},
+                {"id": "step:2", "from": middle, "to": last, "text": "normalise saves.",
+                 "status": "observed", "evidence": [STEP_STORE]}],
+            "outcome": {"text": "The length is returned.", "status": "observed"}}]}
+        flows_path = os.path.join(root, "flows.json")
+        Path(flows_path).write_text(json.dumps(flows))
+        cls.diagrams = os.path.join(root, "diagrams")
+        built = subprocess.run(
+            [sys.executable, script("build_flow_diagrams.py"), "--flows", flows_path,
+             "--out", cls.diagrams], capture_output=True, text=True)
+        assert built.returncode == 0, built.stdout + built.stderr
+        cls.puml = Path(cls.diagrams, "flow-normalise.puml").read_text()
+        cls.doc = {
+            "format_version": 2, "preset": "onboarding", "index_hash": "sha256:x",
+            "claims": [], "statements": [],
+            "pages": [{"id": "flows", "title": "Flows", "order": 1, "blocks": [
+                {"id": "block:steps", "type": "table",
+                 "columns": ["From", "Calls", "Read at"],
+                 "rows": [["entry.main", "transform.normalise", "src/pipeline/entry.py:7"],
+                          ["transform.normalise", "store.save",
+                           "src/pipeline/transform.py:9"]]},
+                {"id": "block:diagram", "type": "plantuml",
+                 "src": "_diagrams/flow-normalise.puml", "alt": "Normalising"}]}]}
+        cls.doc_path = os.path.join(root, "doc.json")
+        Path(cls.doc_path).write_text(json.dumps(cls.doc))
+        cls.out = os.path.join(root, "out")
+        cls.done = subprocess.run(
+            [sys.executable, script("render_docs.py"), "--doc", cls.doc_path, "--out",
+             cls.out, "--format", "rst", "--diagrams", cls.diagrams, "--assume-parser"],
+            capture_output=True, text=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_the_drawing_has_no_path_and_line_in_a_label_or_a_comment(self):
+        self.assertEqual(citations.inline_in(self.puml), [], self.puml)
+        self.assertIn(" : step:1\n", self.puml)
+        self.assertIn(" : step:2\n", self.puml)
+
+    def test_the_step_citations_appear_only_under_the_audit_block(self):
+        self.assertEqual(self.done.returncode, 0, self.done.stderr)
+        reader, audit = editions.split_editions(read(os.path.join(self.out, "flows.rst")),
+                                                ".rst")
+        self.assertEqual(citations.inline_in(reader), [])
+        joined = "\n".join(audit)
+        self.assertIn("src/pipeline/entry.py:7", joined)
+        self.assertIn("src/pipeline/transform.py:9", joined)
+
+    def test_the_editions_check_passes_on_the_generated_drawing(self):
+        verdict = editions.check(self.out, self.doc, ".rst", build=False)
+        self.assertEqual(verdict["problems"], [], verdict)
+
+    def test_a_label_with_a_hand_inserted_path_and_line_fails_the_editions_check(self):
+        copy = os.path.join(self.tmp.name, "tampered")
+        shutil.copytree(self.out, copy)
+        puml = Path(copy, "_diagrams", "flow-normalise.puml")
+        puml.write_text(puml.read_text().replace(" : step:1\n", " : src/x.py:3\n"))
+        verdict = editions.check(copy, self.doc, ".rst", build=False)
+        self.assertEqual(verdict["status"], "failed", verdict)
+        self.assertTrue(any("src/x.py:3" in p and "diagram" in p
+                            for p in verdict["problems"]), verdict)
+
+    def test_a_citation_in_a_comment_fails_it_too(self):
+        copy = os.path.join(self.tmp.name, "tampered-comment")
+        shutil.copytree(self.out, copy)
+        puml = Path(copy, "_diagrams", "flow-normalise.puml")
+        puml.write_text(puml.read_text().replace("@enduml", "' read at src/x.py:3\n@enduml"))
+        verdict = editions.check(copy, self.doc, ".rst", build=False)
+        self.assertEqual(verdict["status"], "failed", verdict)
+
+    @unittest.skipUnless(SPHINX and PLANTUML, "sphinx-build or plantuml is not installed")
+    def test_the_reader_build_shows_no_path_and_line_from_the_diagram(self):
+        import sphinx_support
+        done = subprocess.run(
+            [sys.executable, script("render_docs.py"), "--doc", self.doc_path, "--out",
+             self.out + "-built", "--format", "rst", "--diagrams", self.diagrams,
+             "--write-conf", "--check"], capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("editions: passed", done.stdout)
+        reader = sphinx_support.build_text(self.out + "-built", ("sphinxcontrib.plantuml",))
+        audit = sphinx_support.build_text(self.out + "-built", ("sphinxcontrib.plantuml",),
+                                          ("audit",))
+        self.assertEqual(citations.inline_in(reader["flows.txt"]), [])
+        self.assertIn("src/pipeline/entry.py:7", audit["flows.txt"])
+
+
 class PublishWritesNoSecondTree(unittest.TestCase):
     def test_promotion_carries_the_audit_blocks_in_the_one_tree(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -64,6 +64,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   block's `path:line`. Both come from one rendered source, the audit edition is built on demand and never
   stored, `render --check` confirms the two stay honest, and `check_prose.py` flags a citation left in a
   sentence (`P009`). Running the app through the verify CLI is not part of this change.
+  Flow diagrams label each arrow with its step id instead of `path:line`, so the reader edition shows no
+  citation inside a diagram; the lines stay in the step table's audit block, and `render --check` fails a
+  diagram that cites one. Flow diagram content hashes change, so a review of one made before this must be redone.
 - **`review-code`** hands the rendered interface, accessibility and visual change to `review-ui`.
 - Skills and READMEs in `development` (0.5.2), `reasoning` (0.2.2), `skill-authoring` (0.1.2), `testing`
   (0.3.6) and `verification` (0.3.1) name the `review` plugin where they named it by its old install name.

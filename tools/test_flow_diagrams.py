@@ -20,7 +20,10 @@ import subprocess
 import sys
 import tempfile
 
-from component_scripts import script
+from component_scripts import component_paths, script
+
+sys.path[:0] = component_paths()
+import citations  # noqa: E402
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FIXTURE = os.path.join(REPO, "tests", "contracts", "flow-repo")
@@ -141,9 +144,12 @@ def main():
               'title "Normalising an argument"' in source
               and "sequenceParticipantBackgroundColor #FFFFFF" in source
               and "Verified arrows: source call sites" in source, source)
-        check("every arrow is labelled with the line the call was read at",
-              "%s:7" % entry in source and "%s:7" % transform in source,
+        arrows = [l for l in source.splitlines() if " -> " in l and not l.startswith("'")]
+        check("every arrow is labelled with its step id", len(arrows) == 2
+              and arrows[0].endswith(" : step:1") and arrows[1].endswith(" : step:2"),
               source)
+        check("no path:line is in the .puml, in a label, a note or a comment",
+              citations.inline_in(source) == [], repr(citations.inline_in(source)))
 
         def validate(directory=diagrams, flows=flows_path):
             code, out, err = run("validate_flow_diagrams.py", directory, "--flows", flows)
@@ -185,7 +191,7 @@ def main():
               repr(codes(report)))
 
         copy, path = clone("relabelled")
-        rewrite(path, "%s:7" % entry, "src/pipeline/entry.py:99")
+        rewrite(path, " : step:1\n", " : src/pipeline/entry.py:99\n")
         code, report = validate(copy)
         check("an arrow relabelled to cite another line is caught",
               "G005" in codes(report), repr(codes(report)))

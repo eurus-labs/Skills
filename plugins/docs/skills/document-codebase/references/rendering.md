@@ -34,6 +34,11 @@ builds. `review` repeats the source check on the draft it seals. Only the genera
 authored-page scaffold is a brief for a person and keeps its evidence table. A `path:line` the renderer cannot
 move out of a sentence is reported, never silently reworded, and `check_prose.py` raises `P009` for it.
 
+A diagram is shown in both editions, so its source is reader source. Flow diagrams label each arrow with its step
+id and carry no `path:line` in a label or a comment; the line each step was read at is in the step table beside
+the diagram, whose `Read at` column moves into the audit block. `render --check` also reads every diagram's
+`.puml` and fails when a `path:line` is left in one.
+
 ## Release hygiene — what is wrong with a tree whose pages are all right
 
 `release_hygiene.py` runs in `review`, between the prose check and the gate, and reports `H0xx` findings about

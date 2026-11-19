@@ -482,8 +482,9 @@ status is `unknown` needs nothing to cite: most of a deployment is prose.
 ## Sequence diagrams — flow diagram manifest_version 1
 
 `build_flow_diagrams.py` writes one `.puml` per flow plus `flow-diagram-manifest.json`. Participants are the
-entities the steps touch, in the order the flow reaches them; every arrow is a step, labelled with the file
-and line the call was read at. The trigger is a note before the first arrow, the outcome and anything
+entities the steps touch, in the order the flow reaches them; every arrow is a step, labelled with its step
+id and never with a `path:line` (the line each step was read at is in the step table's `Read at` column, which
+the reader edition does not show). The trigger is a note before the first arrow, the outcome and anything
 unresolved are notes after the last.
 
 `--report` takes `validate_flows.py`'s output and skips a flow it refused. Without one the manifest records
