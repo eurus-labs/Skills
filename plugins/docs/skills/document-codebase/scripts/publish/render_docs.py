@@ -525,7 +525,15 @@ def main():
         if not already_there:
             if os.path.isdir(destination):
                 shutil.rmtree(destination)
-            shutil.copytree(args.diagrams, destination)
+            if os.path.isdir(args.diagrams):
+                shutil.copytree(args.diagrams, destination)
+            else:
+                # No figure is wanted (the check above fails otherwise), so a missing
+                # directory is not an error. The review stage still points the quality
+                # gate at `_diagrams`, so leave an empty one there.
+                os.makedirs(destination)
+                print("no diagram directory found at %s and none was needed"
+                      % args.diagrams)
     # An index.rst that is already there is the author's table of contents, listing
     # pages this run knows nothing about. Replacing it silently is how a documentation
     # run deletes the navigation of the tree it was pointed at.
