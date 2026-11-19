@@ -57,10 +57,9 @@ more expensively.
 
 ## Scope budget
 
-Model calls scale with the number of scopes dispatched, not with repository size. The default is the top ~25
-modules by connections (fan-in plus fan-out) plus every entry point; everything else gets one line in a grouped list. Raising that is a
-deliberate choice with a cost, and the cutoff used belongs in the document so a reader knows what was and was
-not examined closely.
+Model calls scale with the number of scopes dispatched, not with repository size. The default reads every product file in `scope.json`;
+a `--top N` cap, when the user asks for one, keeps the top N modules by connections (fan-in plus fan-out) plus every entry point, and the rest stay unread
+and block sealing. The cap used belongs in the document so a reader knows what was and was not examined closely.
 
 ## Reading a packet
 

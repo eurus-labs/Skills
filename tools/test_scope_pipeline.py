@@ -74,6 +74,10 @@ class Run(object):
                               cwd=self.root, capture_output=True, text=True)
         return done
 
+    def survey(self):
+        """`survey` with the `--top` this run was given; `None` is the default, no flag."""
+        return self.pl("survey", *(["--top", self.top] if self.top is not None else []))
+
     def decide(self, checkpoint, note):
         done = self.pl("decide", "--checkpoint", checkpoint, "--note", note)
         assert done.returncode == 0, done.stdout + done.stderr
@@ -109,7 +113,7 @@ class Run(object):
 
     def through_review(self, after_survey=None):
         steps = []
-        steps.append(self.pl("survey", "--top", self.top))
+        steps.append(self.survey())
         if after_survey:
             after_survey(self)
         self.decide("P1", "the scope and its classification look right to the user")
@@ -130,7 +134,7 @@ class Run(object):
 class WholeProduct(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.run_ = Run("20")
+        cls.run_ = Run(None)
         cls.steps = cls.run_.through_review()
         cls.report = json.loads(read(os.path.join(cls.run_.build, "generation-report.json")))
 
@@ -144,6 +148,15 @@ class WholeProduct(unittest.TestCase):
         self.assertIn("src/shop/runner.py", self.run_.units)
         self.assertIn("src/shop/__init__.py", self.run_.units)
         self.assertEqual(len(self.run_.units), 8)
+
+    def test_a_default_run_reads_every_product_file_in_one_batch(self):
+        scope = json.loads(read(os.path.join(self.run_.build, "scope.json")))
+        product = sorted(r["path"] for r in scope["files"] if r["disposition"] == "product")
+        self.assertEqual(sorted(self.run_.units), product)
+        self.assertEqual({r.get("batch") for r in scope["files"]
+                          if r["disposition"] == "product"}, {1})
+        options = json.loads(read(os.path.join(self.run_.build, "selection-options.json")))
+        self.assertIsNone(options["top"])
 
     def test_the_gate_passes_and_the_scope_is_complete(self):
         self.assertEqual(self.report["status"], "passed", self.report["reasons"])
@@ -218,7 +231,7 @@ class NarrowedAtP1(unittest.TestCase):
             json.dump(scope, fh)
         # Editing the scope changes what P1 asks about, so the survey is run again; the
         # rows a person changed are kept, and P1 reopens on the narrower material.
-        again = run.pl("survey", "--top", run.top)
+        again = run.survey()
         assert again.returncode == 0, again.stdout + again.stderr
 
     def test_a_deliberately_narrower_draft_passes_and_records_the_change(self):

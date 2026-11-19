@@ -109,7 +109,7 @@ permit exit `1` while their component continues; see [pipeline](references/pipel
 
 | Step | Command | Model work and reference to load at that step |
 | --- | --- | --- |
-| Survey | `survey --root . --top 25` | Writes `scope.json` (what the run promises to document) and the first reading batch; `--top` sizes that batch and never bounds the scope. Read [survey](references/survey.md). P1 follows — present the scope classification and the template choice with it. |
+| Survey | `survey --root .` | Writes `scope.json` (what the run promises to document) and `units.txt` with every product file; `--top N`, only when the user asks, caps that batch and never bounds the scope. Read [survey](references/survey.md). P1 follows — present the scope classification and the template choice with it. |
 | Template | `template`, then `template --use …` | Recommend, ask, record the user's pick; see above. |
 | Analyze | `analyze` | Read source and write `module-analysis.jsonl`, `fragments.jsonl`, and call claims; read [analyze](references/analyze.md), [analyst](references/analyst.md), [context policy](references/context-policy.md), and the [schemas](references/schemas.md) sections its contents point to. P2 follows. |
 | Check | `check` | Repair named findings; read [check](references/check.md). For an unfamiliar finding code, read `scripts/findings.py` as a catalog; do not run it. Write architecture, flow, and operations analyses using [three analyses](references/three-analyses.md); P3 follows. |
@@ -127,7 +127,7 @@ reader-facing review. Repairs after render return to render and final review bef
 
 | Pause | Opens at | Ask the user about |
 | --- | --- | --- |
-| P1 | Survey | The scope classification (`scope.json`), the first reading batch and what stays unread — and the template, if not yet chosen. |
+| P1 | Survey | The scope classification (`scope.json`), the reading list and anything a `--top` cap leaves unread — and the template, if not yet chosen. |
 | P2 | Analyze | Module roles. |
 | P3 | Check, once analyses are written | Architecture boundaries, flow, and operations. |
 | P4 | Review, when prose is queued | The exact readings and their evidence. |

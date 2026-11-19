@@ -98,6 +98,31 @@ class CutoffOrdersTheReading(Repo):
         self.assertTrue(self.rows["src/shop/runner.py"]["entry_point"])
         self.assertIn("src/shop/runner.py", scope_record.symbol_free(self.scope))
 
+    def selection(self, tmp, *extra):
+        """`select_units.py --scope` on a copy of this build, so the shared one is not restamped."""
+        for name in ("structure.json", "scope.json"):
+            with open(os.path.join(tmp, name), "w", encoding="utf-8") as fh:
+                fh.write(read(os.path.join(self.build, name)))
+        out = os.path.join(tmp, "units.txt")
+        return out, run(tmp, script("select_units.py"), "--index",
+                        os.path.join(tmp, "structure.json"), "--scope",
+                        os.path.join(tmp, "scope.json"), "--out", out, *extra)
+
+    def test_a_negative_top_is_refused_by_the_pipeline_and_the_selection(self):
+        pipe = run(self.root, PIPELINE, "survey", "--root", self.root, "--top", "-1")
+        self.assertNotEqual(pipe.returncode, 0)
+        self.assertIn("--top must not be negative", pipe.stdout + pipe.stderr)
+        with tempfile.TemporaryDirectory() as tmp:
+            _out, sel = self.selection(tmp, "--top", "-1")
+        self.assertNotEqual(sel.returncode, 0)
+
+    def test_without_top_every_product_file_is_in_units(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out, sel = self.selection(tmp)
+            self.assertEqual(sel.returncode, 0, sel.stdout + sel.stderr)
+            product = sorted(p for p, r in self.rows.items() if r["disposition"] == "product")
+            self.assertEqual(sorted(read(out).split()), product)
+
     def test_top_two_gives_the_first_batch_only(self):
         connected = [u for u in self.units if u != "src/shop/runner.py"]
         self.assertEqual(len(connected), 2, self.units)

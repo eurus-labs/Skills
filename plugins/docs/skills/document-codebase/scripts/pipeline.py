@@ -304,7 +304,7 @@ def survey(args):
         stages.append(Stage("survey", "annotate_import_usage.py",
                             [index, "--root", args.root, "--policy", args.policy]))
     # The scope comes before the selection, not after it: the selection reads it. Every
-    # product file is a unit, and `--top` only sizes the first batch of them. A feature map
+    # product file is a unit, and `--top` only caps the batch when asked; by default there is no cap. A feature map
     # is read first because it adds the `feature:<area>` topics and the reading tasks the
     # scope records; without one the stage says so and the scope is built without it.
     scope = os.path.join(args.build, "scope.json")
@@ -316,8 +316,9 @@ def survey(args):
                          "--template", os.path.join(args.build, TEMPLATE_FILE),
                          "--feature-map", feature_map]))
     stages.append(Stage("survey", "select_units.py",
-                        ["--index", index, "--top", args.top, "--scope", scope,
-                         "--out", os.path.join(args.build, "units.txt")]))
+                        ["--index", index, "--scope", scope,
+                         "--out", os.path.join(args.build, "units.txt")]
+                        + (["--top", args.top] if args.top is not None else [])))
     # Settings are cross-cutting: the answer to "what does this project take" is spread
     # across every file that reads one, which is the shape a per-module packet cannot
     # deliver. Extracting them here, once, is what lets a configuration answer cite
@@ -2012,7 +2013,9 @@ def main():
     parser.add_argument("--docs", default="docs", help="where the document is written")
     parser.add_argument("--staging", help="rendered draft directory; defaults to "
                                           ".docs-build/rendered-docs")
-    parser.add_argument("--top", type=int, default=25, help="survey: fan-in cutoff")
+    parser.add_argument("--top", type=int, default=None,
+                        help="survey: cap the reading batch at N units by connections; "
+                             "default is no cap, so units.txt holds every product file")
     parser.add_argument("--policy", default="optional",
                         choices=("disabled", "optional", "required"),
                         help="survey: whether Ruff annotates import usage")
@@ -2046,7 +2049,7 @@ def main():
             value = getattr(args, name)
             if value and not os.path.isabs(value):
                 setattr(args, name, os.path.join(args.root, value))
-    if args.top < 0:
+    if args.top is not None and args.top < 0:
         return fail("--top must not be negative")
     if args.keep_revisions < 3:
         return fail("--keep-revisions must be at least 3, so two review rounds' findings "
@@ -2246,8 +2249,8 @@ def main():
         if kept:
             print("-- review history kept for %s" % kept)
     if args.component == "survey" and code == 0 and not args.dry_run:
-        # The cutoff and import-annotation policy are part of the scope question,
-        # even when two cutoffs happen to select the same modules.
+        # The cutoff (null: no cap) and import-annotation policy are part of the scope
+        # question, even when two cutoffs happen to select the same modules.
         with open(os.path.join(args.build, "selection-options.json"), "w",
                   encoding="utf-8") as fh:
             json.dump({"top": args.top, "policy": args.policy}, fh, sort_keys=True)

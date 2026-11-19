@@ -6,7 +6,7 @@ runs, which may fail without stopping it, and every flag are in [`pipeline.md`](
 **Checkpoint P1 closes this component**, and `analyze` will not run until it is decided.
 
 ```bash
-python3 scripts/pipeline.py survey --root . --top 25
+python3 scripts/pipeline.py survey --root .
 ```
 
 - **Read** the scanner's digest, every finding from the index validator, and the selected units with their
@@ -34,14 +34,15 @@ never accept an exclusion you cannot explain. Every `product` file is a unit, in
 side-effect module that defines no symbol (it owes one statement saying what it does, not four).
 
 Reading is expensive, so `select_units.py` ranks the units by connections — how many modules import each one
-plus how many it imports — and `--top` (default 25) is the size of the **next reading batch**, written to
-`units.txt` together with every entry point. Fan-in alone ranks the shared helpers first and the modules that
+plus how many it imports — and `--top N` caps the **reading batch** at N units. By default there is no cap: `units.txt` holds every
+`product` file, so a normal run can complete and publish. Pass `--top` only when the user asks for a smaller
+batch; the batch is written to `units.txt` together with every entry point. Fan-in alone ranks the shared helpers first and the modules that
 drive the system last, because an orchestrator imports much and is imported by little; counting both
-directions keeps both. The files outside the batch stay in `scope.json` as `unread`, each with the `batch`
+directions keeps both. With a `--top` cap, the files outside the batch stay in `scope.json` as `unread`, each with the `batch`
 it falls in. They are not dropped: a run with unread product files reports `incomplete: N product files
 unread` and lists them, and `status` prints the count. **The gate will not seal an incomplete run**, so a
-repository with more product files than `--top` needs one of two things at P1: a `--top` of at least the
-product-file count in `scope.json`, or a deliberate narrowing. To narrow, edit the row: set its `disposition`,
+run capped by `--top` below the product-file count needs one of two things at P1: a survey without the cap
+(the default), or a deliberate narrowing. To narrow, edit the row: set its `disposition`,
 a `reason`, and an `override` note saying who decided and why, then run `survey` again. The rows you changed
 survive the rerun, P1 reopens on the narrower material, and the report records each one as a scope change. **Read the warnings the selection prints.** A repository whose modules import nothing from each
 other — standalone CLIs, scripts a scheduler runs — has no connections to rank, and the order it gets is

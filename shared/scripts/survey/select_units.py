@@ -2,12 +2,12 @@
 """Choose the modules this run describes in full, by how connected each one is.
 
     python3 scripts/select_units.py --index .docs-build/structure.json \\
-        --out .docs-build/units.txt --top 25 [--scope .docs-build/scope.json]
+        --out .docs-build/units.txt [--top N] [--scope .docs-build/scope.json]
 
 Every module named here costs a model call, and the ones worth that call are the ones the
 rest of the system is wired through. Rank by connections -- how many other modules import
-this one (fan-in) plus how many it imports (fan-out) -- keep the top N, and add every entry
-point: a way into the system earns a paragraph whether or not anything imports it.
+this one (fan-in) plus how many it imports (fan-out) -- keep the top N when `--top N` is
+given (by default there is no cap: every module qualifies), and add every entry point: a way into the system earns a paragraph whether or not anything imports it.
 
 **Why not fan-in alone.** Fan-in finds the foundations -- compatibility shims, shared
 types, helpers -- and ranks the modules that drive the system last, because an
@@ -23,15 +23,20 @@ against them and counts everything else apart. Edit the selection here, not afte
 **Fan-in is a heuristic, and this prints when it is a bad one.** A repository of standalone
 programs -- CLIs invoked by a shell, scripts run by a scheduler -- imports nothing from
 itself, so every fan-in is 0 and the ranking is arbitrary. The warning says so rather than
-letting an arbitrary top 25 read like a considered one.
+letting an arbitrary cutoff read like a considered one.
 
 Ties break by path, so the same index always selects the same modules.
+
+**`--top` defaults to no limit, and `--top 0` is not "no limit".** Left out, every candidate
+is selected; `--top 0` keeps only the entry points (a deliberate, tested meaning), which is
+why the default is `None` and not `0`.
 
 **With `--scope`, the cutoff orders the reading and does not decide what is in the manual.**
 `scope.json` names every product file, so every one of them is a unit -- including an entry
 or side-effect module that defines no symbol, which the selection above must skip because
-nothing can anchor a derived claim to it. The units are ranked as before, `--top` is the
-size of the *next reading batch*, and `units.txt` holds that batch. Each unread product file
+nothing can anchor a derived claim to it. The units are ranked as before and, by default, `units.txt` holds all of
+them in one batch. When the user asks for `--top N`, N is the size of the *next reading
+batch* and `units.txt` holds that batch. Each unread product file
 is also stamped with the `batch` it falls in (`1` is `units.txt`), so the rest of the scope
 stays listed, with a place in the order, rather than being dropped. Rerunning the selection
 after some files are analysed yields the next batch's units. Nothing carries a run across
@@ -239,14 +244,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--index", required=True, help="path to structure.json")
     parser.add_argument("--out", default=".docs-build/units.txt")
-    parser.add_argument("--top", type=int, default=25,
-                        help="how many modules to keep by connections (default 25); "
-                             "with --scope, the size of the next reading batch")
+    parser.add_argument("--top", type=int, default=None,
+                        help="cap the selection at N modules by connections (default: no "
+                             "cap); with --scope, the size of the next reading batch")
     parser.add_argument("--scope", help="scope.json: every product file is a unit, and "
                                         "--top sizes the batch instead of bounding the scope")
     args = parser.parse_args()
 
-    if args.top < 0:
+    if args.top is not None and args.top < 0:
         return fail("--top must not be negative")
     if not os.path.isfile(args.index):
         return fail("no such index: %s" % args.index)
@@ -297,16 +302,17 @@ def main():
     for path in sorted(paths, key=order):
         print("%-4d %-4d %-22s %s" % (fan_in.get(path, 0), fan_out.get(path, 0),
                                       "+".join(reasons[path]), path))
+    top_label = "all" if args.top is None else "top %d" % args.top
     if scope is not None:
         product = len(scope_record.documented_paths(scope))
         print("wrote %d unit(s) to %s -- the first batch of %d unread product file(s) "
-              "(of %d in scope), top %d by connections plus every entry point; the other "
+              "(of %d in scope), %s by connections plus every entry point; the other "
               "%d stay in %s, numbered by batch"
-              % (len(paths), args.out, len(batches), product, args.top,
+              % (len(paths), args.out, len(batches), product, top_label,
                  len(batches) - len(paths), args.scope))
     else:
-        print("wrote %d unit(s) to %s -- top %d by connections (fan-in + fan-out) plus "
-              "every entry point" % (len(paths), args.out, args.top))
+        print("wrote %d unit(s) to %s -- %s by connections (fan-in + fan-out) plus "
+              "every entry point" % (len(paths), args.out, top_label))
     for note in warnings_for(index, ranked, paths):
         print("WARN  %s" % note)
     overrun = budget_note(paths, args.top)

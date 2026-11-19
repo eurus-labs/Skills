@@ -316,7 +316,7 @@ the prose check and the gate. A run without them is a visibly thinner document, 
 | `--build` | all | `.docs-build` | where intermediates go; relative paths here and in `--docs`, `--staging` and `--review` resolve against `--root` |
 | `--docs` | `render`, `publish` | `docs` | existing/target documentation tree; render reads it, publish replaces it |
 | `--staging` | `render`, `review`, `publish` | `.docs-build/rendered-docs` | isolated rendered draft |
-| `--top` | `survey` | `25` | the size of the next reading batch in `units.txt`, by connections (fan-in plus fan-out); every product file stays in `scope.json` |
+| `--top` | `survey` | none (no cap) | caps the reading batch in `units.txt` at N units by connections (fan-in plus fan-out); by default `units.txt` holds every product file, and every product file stays in `scope.json` either way. Negative values are refused; `0` keeps only entry points |
 | `--policy` | `survey` | `optional` | `disabled` drops the Ruff stage entirely |
 | `--force` | `analyze` | off | re-derive `claims.jsonl` over hand-written claims |
 | `--preset` | `document` | `auto` | `auto` builds the recorded choice, or records the survey's recommendation as provisional; a name builds that preset and records it when nothing is recorded |
