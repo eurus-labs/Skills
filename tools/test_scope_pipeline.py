@@ -215,6 +215,49 @@ class FirstBatchOnly(unittest.TestCase):
         self.assertIn("src/latest/feed.py", done.stdout)
 
 
+class SurveyAgainAfterAnalysis(unittest.TestCase):
+    """`units.txt` is the whole run's unit list, whatever has been read since."""
+
+    def run_through_check(self, top):
+        run = Run(top)
+        self.addCleanup(run.tmp.cleanup)
+        run.survey()
+        run.decide("P1", "the scope and its classification look right to the user")
+        run.pl("template", "--use", "onboarding", "--note", "the user chose onboarding")
+        run.pl("analyze")
+        before = read(os.path.join(run.build, "units.txt"))
+        run.write_analysis(before.split())
+        run.decide("P2", "the roles match the repository as the user sees it")
+        first = run.pl("check")
+        self.assertEqual(first.returncode, 0, first.stdout[-1500:] + first.stderr[-500:])
+        return run, before
+
+    def test_a_default_run_keeps_the_same_units_and_the_next_check_accepts_them(self):
+        run, before = self.run_through_check(None)
+        again = run.survey()
+        self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
+        self.assertEqual(read(os.path.join(run.build, "units.txt")), before)
+        run.decide("P1", "the scope is unchanged after the second survey")
+        run.pl("analyze")
+        self.assertEqual(read(os.path.join(run.build, "units.txt")), before)
+        second = run.pl("check")
+        self.assertEqual(second.returncode, 0, second.stdout[-1500:] + second.stderr[-500:])
+
+    def test_a_first_batch_stays_in_the_list_when_the_next_one_is_added(self):
+        run, before = self.run_through_check("2")
+        again = run.survey()
+        self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
+        after = read(os.path.join(run.build, "units.txt")).split()
+        self.assertTrue(set(before.split()) <= set(after), (before, after))
+        self.assertGreater(len(after), len(before.split()))
+        run.decide("P1", "the scope is unchanged after the second survey")
+        run.pl("analyze")
+        second = run.pl("check")
+        # The new batch has no rows yet, so the check may still fail -- but never because
+        # an already analysed fragment was called outside the list.
+        self.assertNotIn("outside --unit-list", second.stdout + second.stderr)
+
+
 class NarrowedAtP1(unittest.TestCase):
     """The one way a run that reads less than the whole product may still be sealed."""
 

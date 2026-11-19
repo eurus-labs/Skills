@@ -167,7 +167,7 @@ class CutoffOrdersTheReading(Repo):
         self.assertGreaterEqual(self.rows["src/latest/feed.py"]["batch"], 2)
 
     def test_the_next_batch_reaches_the_low_fan_in_feature(self):
-        """After the first batch is analysed, selecting again yields the rest."""
+        """After the first batch is analysed, selecting again adds the next batch to it."""
         with tempfile.TemporaryDirectory() as tmp:
             build = os.path.join(tmp, ".docs-build")
             os.makedirs(build)
@@ -184,8 +184,9 @@ class CutoffOrdersTheReading(Repo):
                        os.path.join(build, "units.txt"))
             self.assertEqual(done.returncode, 0, done.stderr)
             second = read(os.path.join(build, "units.txt")).split()
-            self.assertFalse(set(second) & set(self.units))
-            self.assertEqual(len(second), 2)
+            # The list keeps what was analysed and adds the next batch to it.
+            self.assertTrue(set(self.units) <= set(second), second)
+            self.assertEqual(len(set(second) - set(self.units)), 2)
 
     def test_without_scope_the_selection_is_what_it_was(self):
         out = os.path.join(self.build, "legacy-units.txt")

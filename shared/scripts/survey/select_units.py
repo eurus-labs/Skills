@@ -36,12 +36,12 @@ why the default is `None` and not `0`.
 or side-effect module that defines no symbol, which the selection above must skip because
 nothing can anchor a derived claim to it. The units are ranked as before and, by default, `units.txt` holds all of
 them in one batch. When the user asks for `--top N`, N is the size of the *next reading
-batch* and `units.txt` holds that batch. Each unread product file
+batch* and `units.txt` holds that batch plus what is already analysed. Each unread product file
 is also stamped with the `batch` it falls in (`1` is `units.txt`), so the rest of the scope
-stays listed, with a place in the order, rather than being dropped. Rerunning the selection
-after some files are analysed yields the next batch's units. Nothing carries a run across
-batches yet: `units.txt` is the whole reading list to `assemble` and to the checkpoints, so
-that is a selection to hand to a new run, not a resumption. Files an area of a feature map
+stays listed, with a place in the order, rather than being dropped. `units.txt` is the
+whole run's list, so a file already analysed stays in it: rerunning the selection after
+some files are analysed never shrinks the list, and adds the next batch of unread files
+to it when `--top` is given. Without `--top` the list is the same every time. Files an area of a feature map
 owns are read together: reaching one pulls in the unread rest of its `task`, so a batch can
 run past `--top` by the size of that group.
 
@@ -152,10 +152,11 @@ def select(index, top):
 
 
 def select_scoped(index, scope, top):
-    """`(paths, reasons, ranked, batches)` for the unread product files of `scope`.
+    """`(paths, reasons, ranked, batches)` for the product files of `scope`.
 
-    `batches` maps every unread product path to its batch number, `1` being the paths
-    returned. The order within and across batches is the connection ranking above, so
+    `paths` is the run's unit list: the files already analysed plus the next batch of the
+    unread ones. `batches` maps every unread product path to its batch number, `1` being
+    the unread paths returned. The order within and across batches is the connection ranking above, so
     the first batch is the same modules a bare `--top` would pick from the same files --
     plus the ones the old filter had to drop.
     """
@@ -181,11 +182,20 @@ def select_scoped(index, scope, top):
         task = rows[path].get("task")
         if task in tasks and path not in reasons:
             reasons.setdefault(path, []).append(task)
+    # The units are the run's whole list, not only what is still to be read. A file
+    # already analysed stays in it: `derive_claims` and `assemble` judge the fragments
+    # and rows of the run against this list, and dropping a file once it was read made
+    # the next `check` reject its own fragment as outside the list. Only the pending
+    # queue (`batches`, scope.json) is about what is unread.
+    for path, row in rows.items():
+        if row.get("reading") == "analyzed":
+            reasons.setdefault(path, []).append("analyzed")
     paths = sorted(reasons)
 
     batches, later = {}, [p for p in unread if p not in reasons]
     for path in paths:
-        batches[path] = 1
+        if rows[path].get("reading") == "unread":
+            batches[path] = 1
     for position, path in enumerate(later):
         batches[path] = 2 + (position // top if top else 0)
     return paths, reasons, ranked, batches
@@ -305,11 +315,12 @@ def main():
     top_label = "all" if args.top is None else "top %d" % args.top
     if scope is not None:
         product = len(scope_record.documented_paths(scope))
-        print("wrote %d unit(s) to %s -- the first batch of %d unread product file(s) "
-              "(of %d in scope), %s by connections plus every entry point; the other "
-              "%d stay in %s, numbered by batch"
-              % (len(paths), args.out, len(batches), product, top_label,
-                 len(batches) - len(paths), args.scope))
+        first = len([n for n in batches.values() if n == 1])
+        print("wrote %d unit(s) to %s -- %d already analysed and the first batch of %d of "
+              "the %d unread product file(s) (of %d in scope), %s by connections plus "
+              "every entry point; the other %d stay in %s, numbered by batch"
+              % (len(paths), args.out, len(paths) - first, first, len(batches), product,
+                 top_label, len(batches) - first, args.scope))
     else:
         print("wrote %d unit(s) to %s -- %s by connections (fan-in + fan-out) plus "
               "every entry point" % (len(paths), args.out, top_label))
