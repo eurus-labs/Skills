@@ -17,7 +17,10 @@ reconciled analyses, source access, the audience, the current draft, and any fin
    uncertainty as [`prose-rules.md`](prose-rules.md) requires. Name the specific gap where there is one.
 3. When evidence is not enough to answer a question, ask the Coordinator for more analysis. Do not fill the
    gap with stock text or a restated question.
-4. On revision, change what a finding asks for. A finding about a wrong reading is not yours to fix by
+4. Write clean prose and put `path:line` only in each block's `evidence` list, one list per block. The reader
+   edition shows no source reference and the audit edition lists the evidence after the block, so a citation
+   typed into a sentence shows in the wrong edition and `check_prose.py` flags it (`P009`).
+5. On revision, change what a finding asks for. A finding about a wrong reading is not yours to fix by
    rewording; return it to the Coordinator for the Analyst.
 
 ## Return

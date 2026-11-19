@@ -64,6 +64,18 @@ class CheckpointBindingTests(unittest.TestCase):
         self.assertEqual((self.build / "units.txt").read_text(), units)
         self.assertIsNone(pipeline.decision_for(self.build, "P1", digest))
 
+    def test_default_cap_and_explicit_cap_are_different_p1_inputs(self):
+        (self.root / "a.py").write_text("def a(): return 1\n")
+        self.assertEqual(self.pipeline("survey").returncode, 0)
+        units = (self.build / "units.txt").read_text()
+        digest = pipeline.index_hash_of(self.build)
+        self.assertEqual(self.pipeline("decide", "--checkpoint", "P1", "--note",
+                                       "Approved reading the whole product").returncode, 0)
+        self.assertIsNotNone(pipeline.decision_for(self.build, "P1", digest))
+        self.assertEqual(self.pipeline("survey", "--top", "3").returncode, 0)
+        self.assertEqual((self.build / "units.txt").read_text(), units)
+        self.assertIsNone(pipeline.decision_for(self.build, "P1", digest))
+
     def test_reading_progress_does_not_change_scope_approval(self):
         self.write("structure.json", {"index_hash": "sha256:abc"})
         self.write("units.txt", "a.py\n")

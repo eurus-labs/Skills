@@ -11,8 +11,13 @@ A sequence diagram is the most persuasive thing this pipeline produces. Boxes an
 read as a fact about the running system in a way a paragraph never does, and a reader
 will believe an arrow they would have questioned as a sentence. So every arrow here comes
 from a step that `validate_flows.py` accepted -- which means a call `verify_doc.py` read
-at its call site -- and every arrow is labelled with the file and line it was read at.
-Nothing is drawn that the flow does not hold, and nothing the flow holds is left out.
+at its call site. Nothing is drawn that the flow does not hold, and nothing the flow holds
+is left out.
+
+An arrow is labelled with its step id and never with the file and line it was read at: a
+diagram is shown in the reader edition, which carries no `path:line`. The line each step
+was read at is in the step table beside the diagram, in its `Read at` column, which the
+renderer moves into an audit-only block.
 
 `--report` is how that is enforced across the two files: given a report from
 `validate_flows.py`, a flow it refused is skipped rather than drawn. Without one, every
@@ -90,13 +95,6 @@ def label_of(entity):
     return "%s.%s" % (stem, name) if stem else name
 
 
-def cite(evidence):
-    for item in evidence or ():
-        if isinstance(item, dict) and item.get("path") and item.get("line_start"):
-            return "%s:%s" % (item["path"], item["line_start"])
-    return ""
-
-
 def participants_of(flow):
     """Entities in the order the flow first reaches them -- the lifeline order."""
     order = []
@@ -163,12 +161,12 @@ def render(flow, index_hash):
 
     emit_notes(before)
     for step in steps:
-        where = cite(step.get("evidence"))
+        label = one_line(step.get("id", ""))
         lines.append("%s -> %s : %s" % (alias(step.get("from")), alias(step.get("to")),
-                                        one_line(where or step.get("id", ""))))
+                                        label))
         lines.append("' @message %s" % json.dumps(
             {"id": step.get("id"), "from": step.get("from"), "to": step.get("to"),
-             "label": one_line(where or step.get("id", ""))},
+             "label": label},
             sort_keys=True, separators=(",", ":")))
     emit_notes(after)
     lines.extend(["legend right", "  Verified arrows: source call sites",

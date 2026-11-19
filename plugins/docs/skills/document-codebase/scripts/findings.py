@@ -227,6 +227,9 @@ CODES = {
     "P006": "a verdict was supplied for a block that is not queued for review",
     "P007": "the block's review verdict is not one the schema defines",
     "P008": "a review is stale because what it was written against has changed",
+    "P009": "the block's text carries a path:line citation the renderer cannot move out of "
+            "it. Advisory: citations belong in `evidence`, which the audit edition lists "
+            "and the reader edition leaves out",
 
     # -- V: one claim against the source ---------------------------------------------
     "V001": "the claim carries no evidence",

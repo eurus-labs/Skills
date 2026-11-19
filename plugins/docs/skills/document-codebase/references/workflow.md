@@ -60,6 +60,14 @@ review JSONL files, `manual-analysis.json` and the three analyses. This is the a
 [`analyze.md`](analyze.md) and [`context-policy.md`](context-policy.md): each parallel task returns its
 results to you, because two writers on one JSONL file interleave into corrupt lines.
 
+`scope.json` is the denominator for every task: it lists each product file and whether it is `unread`, and
+by default `units.txt` holds all of it in one batch. Give an Analyst a reading task that follows a user journey (a
+feature area's owned files go together when a feature map exists). A run the user capped with `--top` below the number of
+product files reads only that batch: its report says `incomplete: N product files unread`, and `review` will
+not seal it. Either survey without the cap (the default), or have the user narrow
+the scope at P1 (see [survey](survey.md)). Carrying one run across several batches is not specified yet:
+`assemble` and the checkpoints treat `units.txt` as the whole list.
+
 A worker may instead write isolated artifacts under `.docs-build/tasks/<task-id>/`. You merge them into the
 shared files and resolve conflicting readings of the same source yourself, by reading it.
 

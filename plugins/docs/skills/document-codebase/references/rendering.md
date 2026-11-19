@@ -11,6 +11,34 @@ fail. Repair the model or manual analysis and rerun `document` and `render` inst
 renderer owns headings, tables, references, escaping and the toctree. Hand-written
 directives are how a build starts failing on markup nobody remembers adding.
 
+## Two editions from one source
+
+Citations are not part of the reader's prose. Every block that rests on source lines is followed in the
+rendered source by a Sphinx `only` block naming them — `.. only:: audit` in RST, `{only} audit` in MyST — and
+a table's location column moves into it. A normal build is the **reader edition**: it shows no `path:line` and
+no source line at all. The **audit edition** shows each cited block's list. Both come from the same reviewed
+revision, so they cannot disagree and need one review.
+
+The audit edition is **built on demand and never stored**: no `docs-audit/` directory, no second site, no
+`publish` step for it. The citations travel inside the published `docs/` source. To build it from the published
+tree, with `docs/` holding your project's `conf.py`:
+
+```bash
+sphinx-build -t audit docs docs/_build/audit     # audit edition
+sphinx-build docs docs/_build/html               # reader edition
+```
+
+`render --check` confirms the two stay honest: the reader source holds no `path:line` outside an audit block,
+and every block with evidence has its audit block; with `sphinx-build` installed it repeats both on real
+builds. `review` repeats the source check on the draft it seals. Only the generated pages are held to it — an
+authored-page scaffold is a brief for a person and keeps its evidence table. A `path:line` the renderer cannot
+move out of a sentence is reported, never silently reworded, and `check_prose.py` raises `P009` for it.
+
+A diagram is shown in both editions, so its source is reader source. Flow diagrams label each arrow with its step
+id and carry no `path:line` in a label or a comment; the line each step was read at is in the step table beside
+the diagram, whose `Read at` column moves into the audit block. `render --check` also reads every diagram's
+`.puml` and fails when a `path:line` is left in one.
+
 ## Release hygiene — what is wrong with a tree whose pages are all right
 
 `release_hygiene.py` runs in `review`, between the prose check and the gate, and reports `H0xx` findings about

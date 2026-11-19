@@ -48,6 +48,25 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the previous session's `.docs-build/continuation.md` (shown, never checked), and the next command. It never
   blocks `render`, `review` or `publish`; the Coordinator decides whether to stop. `status` points to it when
   draft revisions exist.
+- **`document-codebase`** (`docs` 1.7.0) documents the whole product instead of the best-connected modules.
+  `survey` now writes `scope.json`: every file is `product`, `test`, `generated`, `vendor` or `asset`, with the
+  rule behind each exclusion, for the user to read at P1. `--top` is off by default (`units.txt` holds every product file) and, when given, only caps the reading batch
+  without bounding the scope, so a low fan-in feature or an entry module that defines no symbol stays in it (such a
+  file owes one statement, not four). The class graph, document model and quality gate share one product
+  view, and the gate reports `incomplete: N product files unread`, so a run capped to a first batch is
+  `partial` and `review` will not seal it until every product file is read or the user narrows the scope at P1;
+  `status` prints the count. When the
+  repository has a `verify-*` feature map it is read as a checklist, never as evidence: each area becomes a
+  `feature:<area>` topic, its owned files one reading task, and an area no section cites is listed. With no
+  map the Coordinator offers `setup-verification` at P1, asks before running it, and goes on without one on a
+  no. Citations now live in each block's `evidence` and render inside a Sphinx `only` block: a normal build is
+  a reader edition with no source reference, `sphinx-build -t audit` is an audit edition listing every cited
+  block's `path:line`. Both come from one rendered source, the audit edition is built on demand and never
+  stored, `render --check` confirms the two stay honest, and `check_prose.py` flags a citation left in a
+  sentence (`P009`). Running the app through the verify CLI is not part of this change.
+  Flow diagrams label each arrow with its step id instead of `path:line`, so the reader edition shows no
+  citation inside a diagram; the lines stay in the step table's audit block, and `render --check` fails a
+  diagram that cites one. Flow diagram content hashes change, so a review of one made before this must be redone.
 - **`review-code`** hands the rendered interface, accessibility and visual change to `review-ui`.
 - Skills and READMEs in `development` (0.5.2), `reasoning` (0.2.2), `skill-authoring` (0.1.2), `testing`
   (0.3.6) and `verification` (0.3.1) name the `review` plugin where they named it by its old install name.

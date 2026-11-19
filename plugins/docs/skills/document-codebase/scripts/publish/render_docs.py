@@ -21,6 +21,14 @@ into a toctree yet.
 This script never creates or edits a Sphinx `conf.py`. Wiring the output into a project's
 own documentation build is a separate, explicitly authorized step.
 
+**Citations are not part of the reader's prose.** A block that rests on source lines is
+followed by a Sphinx `only` block naming them (`.. only:: audit` in RST, `{only} audit` in
+MyST). A normal build is the reader edition and shows no source reference at all; a build
+with `-t audit` is the audit edition and shows each block's `path:line` list. One source
+renders both, so they cannot disagree. The audit edition is built on demand and never
+stored: this script writes no second tree. `--check` also confirms the two editions are
+honest -- the reader source holds no `path:line`, and every cited block has its audit block.
+
 Exit codes: 0 rendered (and checked, if asked), 1 the check failed, 2 input error,
 3 internal error.
 
@@ -35,6 +43,8 @@ import re
 import shutil
 import sys
 
+import citations
+import editions
 import sphinx_support
 import wire_toctree
 
@@ -120,6 +130,15 @@ class Rst(object):
     def ref(self, title, target):
         return "Next: :doc:`%s <%s>`\n" % (self.escape(title), absolute(target))
 
+    def literal(self, text):
+        return "``%s``" % str(text).replace("`", "'")
+
+    def audit(self, items):
+        """The citations of the block above, shown only in a build tagged `audit`."""
+        lines = [".. only:: audit", "", "   Evidence:", ""]
+        lines.extend("   - %s" % item for item in items)
+        return "\n".join(lines) + "\n"
+
     def toctree(self, entries, caption="Contents"):
         return (".. toctree::\n   :maxdepth: 2\n   :caption: %s\n\n" % caption
                 + "\n".join("   %s" % entry for entry in entries) + "\n")
@@ -186,6 +205,16 @@ class Myst(object):
     def ref(self, title, target):
         return "Next: {doc}`%s <%s>`\n" % (self.escape(title), absolute(target))
 
+    def literal(self, text):
+        return "`%s`" % str(text).replace("`", "'")
+
+    def audit(self, items):
+        """The citations of the block above, shown only in a build tagged `audit`."""
+        lines = ["```{only} audit", "Evidence:", ""]
+        lines.extend("- %s" % item for item in items)
+        lines.append("```")
+        return "\n".join(lines) + "\n"
+
     def toctree(self, entries, caption="Contents"):
         return ("```{toctree}\n:maxdepth: 2\n:caption: %s\n\n" % caption
                 + "\n".join(entries) + "\n```\n")
@@ -194,16 +223,44 @@ class Myst(object):
 EMITTERS = {"rst": Rst, "myst": Myst}
 
 
-def render_block(block, titles, emitter):
+def audit_items(emitter, found, located=()):
+    """The lines of one audit block: each row's own locations, then the rest of the list."""
+    items, shown = [], set()
+    for label, cites in located:
+        items.append("%s: %s" % (emitter.escape(label), ", ".join(
+            emitter.literal(c) for c in cites)))
+        shown.update(cites)
+    items.extend(emitter.literal(c) for c in found if c not in shown)
+    return items
+
+
+def render_block(block, titles, emitter, context=None):
     """One block, in whichever markup. Which blocks and in what order is not decided
-    here -- that is the document model's business, and it is the same either way."""
+    here -- that is the document model's business, and it is the same either way.
+
+    `context` carries the document's claims and statements by id, so a block that cites
+    through a reference has its citations listed too. A block with none renders exactly as
+    it always did.
+    """
     kind = block["type"]
+    context = context or {}
     if kind == "prose":
-        return emitter.prose(block["text"])
+        clean, _removed = citations.strip_inline(block["text"])
+        found = citations.of_block(block, context.get("claims"), context.get("statements"))
+        body = emitter.prose(clean) if clean.strip() else ""
+        if found:
+            body = (body + "\n" if body else "") + emitter.audit(audit_items(emitter, found))
+        return body
     if kind == "subheading":
         return emitter.subheading(block["text"])
     if kind == "table":
-        return emitter.table(block["columns"], block["rows"])
+        columns, rows, located = citations.split_columns(block["columns"], block["rows"])
+        rest = dict(block, columns=columns, rows=rows)
+        found = citations.of_block(rest, context.get("claims"), context.get("statements"))
+        body = emitter.table(columns, rows)
+        if found or located:
+            body += "\n" + emitter.audit(audit_items(emitter, found, located))
+        return body
     if kind == "image":
         return emitter.image(block["src"], block.get("alt", ""))
     if kind == "plantuml":
@@ -220,10 +277,12 @@ def render_block(block, titles, emitter):
     raise ValueError("unknown block type %r in %r" % (kind, block["id"]))
 
 
-def render_page(page, titles, emitter):
+def render_page(page, titles, emitter, context=None):
     parts = [emitter.heading(page["title"])]
     for block in page["blocks"]:
-        parts.append(render_block(block, titles, emitter))
+        rendered = render_block(block, titles, emitter, context)
+        if rendered:
+            parts.append(rendered)
     return "\n".join(parts).rstrip() + "\n"
 
 
@@ -429,9 +488,12 @@ def main():
 
     # Resolve before writing: a half-written docs/ directory is worse than none.
     rendered = {}
+    context = {"claims": {c.get("id"): c for c in doc.get("claims", ())},
+               "statements": {s.get("id"): s for s in doc.get("statements", ())}}
     try:
         for page in pages:
-            rendered[page["id"] + emitter.extension] = render_page(page, titles, emitter)
+            rendered[page["id"] + emitter.extension] = render_page(page, titles, emitter,
+                                                                   context)
     except ValueError as exc:
         sys.stderr.write("FAIL  %s\n" % exc)
         return 2
@@ -643,6 +705,14 @@ def main():
         return 0
     result = sphinx_support.check(args.out, extensions=required_extensions)
     print("build check: %s -- %s" % (result.status, result.detail))
+    # Whether the two editions tell the same story: the reader's source cites nothing, and
+    # every cited block has its audit block. The pages checked are the generated ones; an
+    # authored-page scaffold is a brief for a person and carries its evidence in a table.
+    verdict = editions.check(args.out, doc, emitter.extension, required_extensions, context)
+    print("editions: %s -- %s" % (verdict["status"], verdict["detail"]))
+    for problem in verdict["problems"][:10]:
+        sys.stderr.write("FAIL  %s\n" % problem)
+    editions_failed = bool(verdict["problems"])
     # Said separately from the status, because a build that passes says nothing about
     # whether a picture exists. `accepted` means the source parsed and was not drawn.
     if result.diagrams == sphinx_support.ACCEPTED:
@@ -654,7 +724,7 @@ def main():
               "review question, not a build one.")
     # `unwired` and `skipped` are outcomes, not failures: one means an integration step
     # has not run, the other that no builder was installed. Both are reported.
-    return 1 if result.failed else 0
+    return 1 if (result.failed or editions_failed) else 0
 
 
 if __name__ == "__main__":

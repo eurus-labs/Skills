@@ -68,7 +68,9 @@ invocation. Each component answers one kind of question and hands the next a fil
 | `survey` | `scan_repo.py` | Extracts the index: symbols, imports, classes, edges, a hash per file, the revision scanned |
 | | `validate_index.py` | Re-derives what can be re-derived and reports findings; catches an index gone stale |
 | | `annotate_import_usage.py` | Optional Ruff F401 pass, report-only, marking bindings nothing reads |
-| | `select_units.py` | Picks the modules worth a model call, and says when the ranking is a bad way to pick them |
+| | `read_feature_map.py` | Reads a `verify-*` feature map when the repository has one, as a checklist and never as evidence |
+| | `build_scope.py` | Writes `scope.json`: every file as product, test, generated, vendor or asset, with the rule behind each exclusion |
+| | `select_units.py` | Orders the product files by how connected they are and sizes the next reading batch; says when the ranking is a bad way to order them |
 | `analyze` | `derive_claims.py` | Writes the structural claims the index already holds, so no model budget is spent copying a table |
 | | `query_graph.py` | Builds one bounded context packet per scope, partitioning rather than truncating |
 | `check` | `validate_analysis.py` | Cannot ask whether a reading is right, so asks whether one was made: evidence, anchoring, repetition |
@@ -91,6 +93,11 @@ invocation. Each component answers one kind of question and hands the next a fil
 `render_docs.py --format myst` refuses to write into a `conf.py` that does not enable it rather than leaving a
 build failing over pages that are not at fault. A fresh directory with no `conf.py` has nothing to
 misconfigure and is written to normally.
+
+**Two editions from one source.** Each block's `path:line` citations are kept in its `evidence` and rendered
+inside a Sphinx `only` block. A normal `sphinx-build` is the reader edition and shows no source reference;
+`sphinx-build -t audit` is the audit edition and lists every cited block's citations. The audit edition is built
+when someone needs it and never stored, so there is one reviewed source and nothing to drift.
 
 ## Notes
 

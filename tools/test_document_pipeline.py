@@ -245,6 +245,9 @@ def main():
         check("the backtick is escaped", "\\`backticks\\`" in table_text, table_text)
 
         # Escaping asserted against a real build rather than against the source text.
+        # The slash, dot and colon are kept but not as `path:line`: a real citation here
+        # would trip the editions check (plan 14), which test_audit_edition.py tests on
+        # purpose.
         # Each of these came from a page that rendered, read correctly, and failed
         # `sphinx-build -W`: `|x|` is a substitution reference, `ref_` is a reference,
         # `[1]_` is a footnote, and an undefined one of any of them is a build error.
@@ -256,7 +259,7 @@ def main():
                 "footnote": "[1]_ numbered and [#]_ auto and [x] plain",
                 "emphasis": "2*3*4 and **bold",
                 "role": "`x` and ``y``",
-                "all at once": "src/api.py:12 -> `Foo`_ |x| *y* [1]_ \\z",
+                "all at once": "a/b.c:d -> `Foo`_ |x| *y* [1]_ \\z",
             }
             for label, text in hostile.items():
                 doc = {"format_version": 1, "generator_version": "t",
