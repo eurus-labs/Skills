@@ -719,6 +719,8 @@ def main():
     coverage = (len(analysed_in_budget) / float(len(in_budget))) if in_budget else 0.0
     full_ratio = (depth["full"] / float(len(in_budget))) if in_budget else 0.0
     mode = mode_of(coverage, full_ratio, statements["total"])
+    # Once, not per file: it walks the whole scope on every call.
+    documented = scope_record.documented_paths(scope) if scope is not None else set()
 
     report = {
         "schema_version": REPORT_VERSION,
@@ -737,7 +739,7 @@ def main():
             # Outside the budget by design: covered in a line, never read in full. They
             # are not failures and must not move the coverage above.
             "out_of_budget": len([record["path"] for record in index.get("files", ())
-                                  if (record["path"] in scope_record.documented_paths(scope)
+                                  if (record["path"] in documented
                                       if scope is not None else not record.get("is_test"))
                                   and record["path"] not in in_budget]),
             "unanalysed": sorted(in_budget - analysed_in_budget)[:20],
