@@ -1,6 +1,6 @@
 # Plan 18 — `setup-verification`: choose a skills directory the repository really has
 
-Status: approved
+Status: implemented
 Date: 2026-11-20
 Branch: `fix/verification-skills-dir-choice`
 Baseline: `origin/main` at `48371e031b17e39a9c27c2a7177ebea09f76c101`
