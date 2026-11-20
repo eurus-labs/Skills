@@ -1,11 +1,19 @@
 # Plan 4 — source understanding, drafts and content review
 
-Status: in progress.
+Status: implemented. The user closed it on 2026-11-20, with the end-to-end evaluation partly met.
 
 - W1, W3 and W4 are done.
 - W5 is done: plan 12 (revisions) and plan 13 (resume) are merged.
-- W2 is done by plan 14.
-- W6 is pending.
+- W2 is done by plan 14 (and plan 15, empty files).
+- W6 is done by plan 16 (migration) and plan 17 (end-to-end runs).
+- **Evaluation** (`doc/e2e-evaluation.md`, "Grading"):
+  - The small-repository run meets the reader criterion below.
+  - The multi-component run meets it only in part: its low-fan-in modules are analysed but not explained on
+    any page.
+  - Publishing after a real P4 answer, independent review by subagents, and a Sphinx build were not
+    exercised.
+- **Follow-ups** are separate plans, not part of this one. The candidates are ranked at the end of
+  `doc/e2e-evaluation.md`.
 
 The progress table under "Implementation work packages" has the evidence.
 Baseline: `feat/config-extractor` at `521dc7d9580904790476e8cdbaabeab0e3071151`.
