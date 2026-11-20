@@ -73,7 +73,8 @@ Needs Claude Code 2.1.269 or later and a credential that a child process can use
    commands for it.
 
 4. **Find the result.** It is written to `plugins/<plugin>/evals/results/<timestamp>/` as
-   `aggregate-result.json` and `report.html`. That folder is git-ignored.
+   `aggregate-result.json` and `report.html`. That folder is git-ignored, so record a run worth keeping in
+   [`eval-results.md`](eval-results.md).
 
 ### Choosing the model (Claude Code)
 
@@ -237,7 +238,7 @@ One local page with two tabs, for people who develop the skills:
   cases** bar and its cases grouped by direction. Click a case to show it in the panel on the right: its prompt,
   its graders tagged `tool`, `llm` or `regex`, its runs, and a **Run this case** form (host, arms, model,
   reasoning effort for Copilot, cost ceiling for Claude).
-- **Install**: one button per platform, with a status dot and "x of 7 installed" or "not found on PATH". The
+- **Skills**: one button per platform, with a status dot and "x of 7 installed" or "not found on PATH". The
   chosen platform shows where its marketplace is registered from (or that it is not, with the Register
   buttons), and a table of plugins: the version here, the version in that host (green when current, amber
   *older*, grey *disabled*, dashed *not installed*), and the actions in fixed slots, Install or Update first and
@@ -291,6 +292,9 @@ English and Vietnamese. Add result files from elsewhere with `--results [plugin=
 | `no usable bash found` (Copilot script, Windows) | Install Git for Windows. |
 | `copilot exited 1` right away, or the check prompt fails | Copilot refused to start. Read the lines printed under it. Usually the model is not on your plan (use a name from `/model`), the model has no such `--reasoning-effort` (leave it out), or you are signed out (`copilot login`). |
 | `the scaffold of <case> failed` | The message names the bash used. Run that `bash` on `plugins/.../scaffold.sh` by hand in an empty directory to see the error. |
+| `Sandbox required but unavailable: … bubblewrap (bwrap) not installed, socat not installed` on every behavior run | A case that grants Bash needs the OS sandbox. On Linux, install `bubblewrap` and `socat` (for example `apt-get install -y bubblewrap socat`). |
+| A behavior run says the workspace or `$TMPDIR` is a `Read-only file system` | Seen once, running as root in a Linux container: the run's temp directory was under `/tmp`, which the sandbox denied writing to. Run with `TMPDIR` set to a directory outside `/tmp`, for example `TMPDIR="$HOME/evaltmp" claude plugin eval …`. |
+| A `testing` behavior case fails with the plugin because `pip install pytest` was blocked | The sandbox has no network, so a run cannot install the test runner, and the skill will not write tests it cannot run. Install the fixture's runner (`python3 -m pip install pytest`) for the Python the runs use, then rerun. |
 | Board shows `untrusted` | The run was partial, errored, or had a skipped grader. Rerun, or grade the skipped graders. |
 
 ## After you change a skill or a fixture
