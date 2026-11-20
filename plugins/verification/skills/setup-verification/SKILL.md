@@ -99,8 +99,13 @@ criterion.
 
 ### Files written in the user's repository
 
-Use the skills directory the repository already has (`.github/skills/`, `.claude/skills/`, or
-`.agents/skills/`); if none exists, use `.github/skills/` and say so.
+Use the first of `.github/skills/`, `.claude/skills/`, `.agents/skills/` that the repository really has: one
+where `git ls-files -- <dir>`, run from the repository root, prints a path. A directory can exist in a session
+(a sandbox creates `.claude/` with write-refusing placeholders) without being part of the repository. Without
+git, it counts only as a real directory, not a symlink leaving the repository, holding a regular `SKILL.md`.
+If none counts, use `.github/skills/` and say so. If writes to the chosen directory are refused, report which
+directory, why, and that `.github/skills/` is the alternative; continue only on the user's answer, and if they
+will not answer, record it as the first open question and stop without writing.
 
 ```text
 .github/skills/verify-<app>/
