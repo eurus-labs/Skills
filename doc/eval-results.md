@@ -45,7 +45,7 @@ again after `pytest` was installed; the table shows that run.
 
 | Plugin | Case | With plugin | Without | Δ |
 | --- | --- | --- | --- | --- |
-| `docs` 1.7.0 | `architecture-overview-of-layered-repo` | 0 / 3 (0.33) | 0 / 3 (0.50) | −0.17 |
+| `docs` 1.7.0 | `architecture-overview-of-layered-repo` (old design; see below) | 0 / 3 (0.33) | 0 / 3 (0.50) | −0.17 |
 | `presentation` 0.1.1 | `workflow-slide-from-wordy-slide` | 3 / 3 (1.00) | 0 / 3 (0.50) | +0.50 |
 | `testing` 0.3.6 | `debug-failing-test-blames-the-test` | 3 / 3 (1.00) | 3 / 3 (1.00) | 0 |
 | | `review-tests-finds-weak-suite` | 3 / 3 (1.00) | 3 / 3 (1.00) | 0 |
@@ -77,6 +77,7 @@ The suites cost $0.43 (`docs`), $0.92 (`presentation`), $1.75 (`testing`) and $4
     rule 6). Pages reach `docs/` only at `publish`, after P4. So a one-message run with nobody to answer can
     never satisfy `wrote-docs` (`docs/**`). The case predates that rule and needs redesigning, not only
     rewording.
+  - **Redesigned as an unattended run** (2026-11-20). The redesign is described in the next section.
 - **`setup-verification`: the skill chose a directory it could not write.** In the three failing runs with the
   plugin, it found `.claude/skills/` in the workspace, although the repository has no such folder.
   - **Where the folder comes from:** Claude Code's sandbox creates it. Inside a sandboxed shell, `.claude/`
@@ -99,6 +100,47 @@ The suites cost $0.43 (`docs`), $0.92 (`presentation`), $1.75 (`testing`) and $4
   dotfile placeholder from the sandbox, and the skill ran the checks directly instead.
 - **`testing`: no measurable gain on this model.** Sonnet without the plugin also passes all three cases, so
   the suite cannot show what the skills add. A harder case or a smaller model would.
+
+### The `docs` behavior case, redesigned
+
+The case now tests an unattended run, the one way a one-message eval can exercise the whole pipeline.
+
+- **Prompt:** it asks for architecture documentation under `docs/`, and adds "I won't be around to answer
+  questions; make the choices you can make yourself, note them, and leave anything that needs my own answer
+  for when I'm back."
+- **Scored graders:**
+  - `draft-flows` and `draft-architecture`: the judge reads the drafted `flows.rst` and `architecture.rst` in
+    `.docs-build/rendered-docs/`, which the architecture preset always renders;
+  - `not-published`: nothing may appear in `docs/`, because P4 waits for the user;
+  - `handoff`: the reply names the choices the run made and what is left for the user.
+- **Indicators:** `used-skill`, `architecture-preset`, `not-manual-preset` and `rendered-draft` are
+  `with-only`. A `with-only` grader is reported but not scored.
+
+| Run | With plugin | Without | Δ |
+| --- | --- | --- | --- |
+| Final graders, recomputed from the run below | 3 / 3 (1.00) | 0 / 3 (0.25) | +0.75 |
+| As run, with an `overview` grader on the reply | 1 / 3 (0.87) | 0 / 3 (0.27) | +0.60 |
+
+The run cost $1.78. Every run with the plugin used the `architecture` preset, rendered a draft and left
+`docs/` empty. Without the plugin, Sonnet wrote pages straight to `docs/`. Its replies still passed `handoff`
+in 3 of 3 runs, so that grader is lenient. The run's other point, `not-published`, is the one that catches
+the difference.
+
+**Lessons from the redesign**
+
+- **`focus: files` hands the judge only the list of paths written, not their contents.** An earlier
+  version judged the overview that way, so it was judging file names. The page graders name one file each
+  with `focus: { source: file, path: … }`.
+- **The Haiku judge failed a flows page that met the criteria.** It passed once the criteria said that
+  references sit in `.. only:: audit` blocks and that functions appear as `cli.main`.
+- **The `overview` grader on the reply was dropped.** It failed two runs whose drafted pages passed. Those
+  replies were hand-off reports, and one grouped the code into four components rather than the three
+  directories. The page graders already check the content.
+
+**A product bug the redesigned case found:** the skill reported the quality gate as `partial`, with "4 of
+10 modules unread". The reason is that `survey` puts every empty `__init__.py` in scope as an unread
+`product` file. An empty file has no line to cite, so it can never be read, and any Python package stays
+`partial` unless the user narrows the scope at P1.
 
 ### Environment problems found on the way
 

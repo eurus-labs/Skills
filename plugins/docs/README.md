@@ -152,9 +152,13 @@ you have. Only pages marked with a diagram require one. Unknown answers keep the
 
 - **`trigger/`:** 6 cases. Three documentation requests must fire `document-codebase`; three must not: a
   question about the code asked in chat, a single docstring, and an API reference.
-- **`behavior/`:** 1 case. An architecture overview of `tests/contracts/layered-repo` must take the
-  architecture preset, never the manual one, and cover the real entry points, calls and layers. It is tagged
-  `expensive`, since the whole pipeline runs.
+- **`behavior/`:** 1 case. An unattended request for architecture docs of `tests/contracts/layered-repo` must:
+  - take the architecture preset, never the manual one;
+  - leave a rendered draft that covers the real entry points, calls and layers;
+  - publish nothing to `docs/`, because the final review (P4) waits for the user's own answer;
+  - say which choices it made and what is left for the user.
+
+  It is tagged `expensive`, since the whole pipeline runs up to P4.
 
 ```bash
 claude plugin eval plugins/docs --no-publish --max-cost-usd 10 \
