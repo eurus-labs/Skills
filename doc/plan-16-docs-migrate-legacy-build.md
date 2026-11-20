@@ -61,8 +61,11 @@ compatibility"). The end-to-end evaluation is plan 17.
      | `unknown` | `unknown` | `unanswered` |
      | `not_applicable` | `not_applicable` | `unanswered` |
 
-   - **Carried unchanged:** `text`, `evidence` and `verified_ids`. Every answer gets `content_review: "pending"`,
-     and no other field is added or dropped.
+   - **Carried unchanged:** `text`, `evidence` and `verified_ids`. Every answer gets `content_review: "pending"`.
+     Every answer migrated to `partial` also gets `facets_missing: ["not recorded in manual_version 1: the facets this answer covers were never listed"]`,
+     because `read_answer()` refuses a `partial` that names no missing facet (`manual.py:397`), and v1 never
+     listed facets. No other field is added or dropped; v1 `next_check` and `reviewer` are carried. (Amended
+     after hand-off by the user's choice, 2026-11-20.)
    - **Why `observed`:** a v1 `confirmed` answer had to name a verified id (`manual.py` before `a6b0733`, line
      376), which is the bar v2 sets for `observed`.
    - **Why never `complete`:** v1 never recorded which facets an answer covered, so a migrated answer is
@@ -173,8 +176,8 @@ All criteria are tests in `tools/test_migrate_build.py`, unless noted.
       v1 seal prints one line for each. Every file under the build has the same bytes and modification time
       before and after, and `timings.jsonl` is not appended.
 - [ ] **Answer mapping.** After `--apply`, each v1 status maps as Decision 3 says. Every `text`, `evidence` and
-      `verified_ids` is byte-identical, `pages` is unchanged, no answer is `complete`, and every answer is
-      `content_review: pending`. `manual.read_answer()` accepts each answer that had a valid verified id.
+      `verified_ids` is byte-identical, `pages` is unchanged, no answer is `complete`, every answer is
+      `content_review: pending`, and every `partial` answer carries the `facets_missing` marker of Decision 3. `manual.read_answer()` accepts each answer that had a valid verified id.
 - [ ] **Failure case: an answer that no longer validates.** A `confirmed` answer whose verified id is unknown
       to the run is kept with its text and evidence, and the report names it with `read_answer()`'s message.
       Nothing is dropped and no basis is weakened.
