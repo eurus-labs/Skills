@@ -6,4 +6,4 @@ timeout_seconds: 3600
 allowed_tools: [Read, Glob, Grep, Skill, Write, Edit, Bash]
 ---
 
-Write an architecture overview of this codebase: components, dependencies, entry points and the order flow.
+Write architecture documentation for this codebase, as pages under docs/: components, dependencies, entry points and the order flow.

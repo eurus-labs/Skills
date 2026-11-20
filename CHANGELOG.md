@@ -21,7 +21,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   measured contrast ratio, never an eyeballed one), consistency with the existing interface, clarity of
   wording and states, and unintended visual change, and ranks each finding by severity with the screen, the
   element, the criterion and who is affected. It reports and edits nothing. Trigger cases for it (two that
-  must fire, one that must stay quiet). Not run yet.
+  must fire, one that must stay quiet), all passing on Claude Code.
 
 ### Changed
 
@@ -33,7 +33,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   task contract for each and a Coordinator-only rule for shared files. The skill uses subagents only when the
   host offers them, records `independent` or `self_review` truthfully, routes each finding to the role that
   caused it, and states a stop rule that never becomes `confirmed`. Instructions only; no script changed.
-  Immutable revision snapshots and resume are not implemented yet.
+  Revision snapshots and resume follow in 1.5.0 and 1.6.0.
 - **`document-codebase`** (`docs` 1.5.0) keeps every rendered draft as an immutable revision. `render` copies a
   changed draft to `.docs-build/drafts/rev-NNNN/` (an unchanged re-render reuses the latest; numbers are never
   reused; `--keep-revisions N`, default 5, minimum 3, prunes the oldest). The review queue's `draft_revision`
@@ -73,6 +73,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Skill manager** (contributor tool): the Install tab is now called Skills. A disabled plugin gets Enable
   in place of Update, there is an Uninstall all button, and a plugin installed from this marketplace that the
   checkout no longer has (such as the old `code-review`) gets a row with Uninstall.
+- **Eval results** (for contributors): `doc/eval-results.md` records every trigger and behavior suite run on
+  Claude Code with Sonnet 5.5, with the cost, the gain over no plugin, and what the failing traces show. All
+  50 trigger cases pass. Behavior cases are weakest in `docs`, where the skill did not fire on an
+  "architecture overview" request, and in `setup-verification`. `doc/running-evals.md` adds the fixes for a
+  missing sandbox, a read-only temp directory and a missing `pytest`.
 
 ## [0.3.0] — 2026-11-17
 
