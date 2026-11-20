@@ -79,6 +79,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   "architecture overview" request, and in `setup-verification`. `doc/running-evals.md` adds the fixes for a
   missing sandbox, a read-only temp directory and a missing `pytest`.
 
+### Fixed
+
+- **`document-codebase`: an empty source file no longer leaves a run `partial`** (`docs` 1.7.1). The survey
+  gives a source file that holds zero bytes or only whitespace, such as an empty `__init__.py`, its own
+  disposition, `empty`, with the reason `empty file: nothing to read or cite`. It owes no reading, appears on
+  no page or diagram, and never counts as an unread product file. A file with a comment, a docstring or an
+  import is still `product`, a test, vendored or example file keeps its existing disposition, and a person's
+  override at P1 is kept. `scope_version` stays 1. The scope hash covers dispositions, so a repository with
+  empty files gets a new scope hash once and reviews bound to the old one go stale and are redone.
+
 ## [0.3.0] — 2026-11-17
 
 Adds the **`reasoning`** plugin for planning on a high-tier model and handing approved plans to a coder
