@@ -1682,10 +1682,19 @@ def migrate(args, build):
     found = migrate_build.plan(build, getattr(args, "review", None), args.root)
     items, apply = found["items"], getattr(args, "apply", False)
     if found["conflicts"]:
+        # A report in a dry run, a refusal under `--apply`: the dry run exists to say what
+        # would stop the migration, and exits 0 like every other report.
         for path in found["conflicts"]:
-            sys.stderr.write("FAIL  %s already exists with different content; nothing was "
-                             "changed. Move it aside and run `migrate` again\n" % path)
-        return 1
+            message = ("%s already exists with different content; `--apply` would refuse "
+                       "and change nothing. Move it aside first" % path)
+            if apply:
+                sys.stderr.write("FAIL  %s already exists with different content; nothing "
+                                 "was changed. Move it aside and run `migrate` again\n"
+                                 % path)
+            else:
+                print("conflict  " + message)
+        if apply:
+            return 1
     if not items:
         print("nothing to migrate")
     for item in items:
@@ -1732,8 +1741,10 @@ def migrate(args, build):
             if os.path.exists(path):
                 backup = path + ".migrating-backup"
                 os.replace(path, backup)
-            os.replace(temporary, path)
+            # Recorded before the second replace: if it fails, the original is already
+            # in the backup and the rollback must be able to put it back.
             done.append((path, backup))
+            os.replace(temporary, path)
         for item in items:
             for source, _ in item.get("moves", ()):
                 os.remove(source)

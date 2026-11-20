@@ -29,6 +29,7 @@ from component_scripts import component_paths, script
 sys.path[:0] = component_paths()
 import manual
 import migrate_build
+import pipeline
 import review_records
 
 FAILURES = []
@@ -274,6 +275,14 @@ def seal_tests(tmp):
     check("a v1 seal is renamed and nothing is written in its place",
           not os.path.exists(os.path.join(build, "publish-seal.json"))
           and json.loads(read(os.path.join(build, "publish-seal.v1.json")))["seal_version"] == 1)
+    # `publish` on the migrated build: the seal is gone, so it refuses and names `review`.
+    os.makedirs(os.path.join(build, "rendered-docs"))
+    proc = subprocess.run([sys.executable, script("pipeline.py"), "publish", "--root", root,
+                           "--build", build], capture_output=True, text=True)
+    output = proc.stdout + proc.stderr
+    check("publish refuses a migrated build and names `review` as the way to a seal",
+          proc.returncode == 2 and "publish needs" in output and "publish-seal.json" in output
+          and " review --root" in output, output)
     # `publish`'s own gate still refuses a v1 seal with its existing message.
     seal = os.path.join(root, "seal.json")
     write(seal, json.dumps({"seal_version": 1, "revision": "rev-0001"}))
@@ -317,6 +326,39 @@ def originals_tests(tmp):
     check("a conflicting .v1 file exits non-zero and names the file",
           code != 0 and "prose-review.v1.jsonl" in err, out + err)
     check("a conflicting .v1 file changes nothing", snapshot(build) == before)
+
+    # A conflict is a report in a dry run and a refusal under --apply.
+    code, out, err = migrate(root, build)
+    check("the dry run reports the conflict and exits 0",
+          code == 0 and "conflict" in out and "prose-review.v1.jsonl" in out, out + err)
+
+    # A failure after an original was moved aside puts it back.
+    root, build = legacy_build(tmp, "late-failure")
+    before = snapshot(build)
+    real = os.replace
+
+    def failing(source, destination, *args, **kwargs):
+        if str(source).endswith(".migrating") and \
+                str(destination).endswith("manual-analysis.json"):
+            raise OSError("simulated failure after the original was moved aside")
+        return real(source, destination, *args, **kwargs)
+
+    os.replace = failing
+    try:
+        namespace = pipeline.argparse.Namespace(root=root, build=build, review=None,
+                                                apply=True)
+        with open(os.devnull, "w") as quiet:
+            old_out, old_err, sys.stdout, sys.stderr = sys.stdout, sys.stderr, quiet, quiet
+            try:
+                code = pipeline.migrate(namespace, build)
+            finally:
+                sys.stdout, sys.stderr = old_out, old_err
+    finally:
+        os.replace = real
+    check("a failure after the original was moved aside restores it",
+          code == 3 and snapshot(build).keys() == before.keys()
+          and all(snapshot(build)[k][0] == before[k][0] for k in before),
+          str(sorted(set(snapshot(build)) ^ set(before))))
 
     # A failure part-way through putting files in place leaves the build as it was.
     root, build = legacy_build(tmp, "rollback")
