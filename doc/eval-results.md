@@ -87,6 +87,17 @@ The suites cost $0.43 (`docs`), $0.92 (`presentation`), $1.75 (`testing`) and $4
   - **What the skill did:** it took that folder as "the skills directory the repository already has"
     (`SKILL.md`, line 102). Writes there were denied, and it stopped without writing anything.
   - **The passing runs** wrote to `.github/skills/`, which is where the graders look.
+  - **Rerun after plan 18** (2026-11-20, `verification` 0.3.2, Claude Code 2.1.329,
+    `--model claude-sonnet-5-5 --judge-model haiku`, $2.15). The skill now counts a skills directory only when
+    `git ls-files -- <dir>` prints a path.
+
+    | Case | With plugin | Without | Δ |
+    | --- | --- | --- | --- |
+    | `setup-verification-reports-codified-bug` | 3 / 3 (1.00) | 0 / 3 (0.63) | +0.38 |
+    | `setup-verification-runs-every-ci-check` | 3 / 3 (1.00) | 0 / 3 (0.67) | +0.33 |
+
+    No run with the plugin chose `.claude/skills/`; all six wrote the skill under `.github/skills/`
+    (`wrote-skill` passed). Before the change, 3 of 6 chose the placeholder.
 - **`verify-change-proves-pre-existing-failure`:** the failing run asked for permission to check `main` in a
   worktree, although the prompt allows one. Its verdict was therefore `failed` instead of proving the failure
   pre-existing.

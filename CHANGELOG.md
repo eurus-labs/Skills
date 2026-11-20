@@ -88,6 +88,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   import is still `product`, a test, vendored or example file keeps its existing disposition, and a person's
   override at P1 is kept. `scope_version` stays 1. The scope hash covers dispositions, so a repository with
   empty files gets a new scope hash once and reviews bound to the old one go stale and are redone.
+- **`setup-verification` no longer picks a skills directory the repository does not have** (`verification`
+  0.3.2). A sandboxed Claude Code session creates `.claude/skills` as a write-refusing placeholder, and the
+  skill took it for the repository's own, then wrote nothing (3 of 6 behavior runs). A directory now counts
+  only when git tracks a file under it (`git ls-files -- <dir>`); otherwise the skill uses `.github/skills/`
+  and says so. A chosen directory that refuses writes is reported with `.github/skills/` offered, never
+  silently replaced.
 
 ## [0.3.0] — 2026-11-17
 
