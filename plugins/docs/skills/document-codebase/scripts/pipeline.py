@@ -814,7 +814,7 @@ NEEDS_STAGING = ("review", "publish")
 CHECKPOINTS = (
     {"id": "P1", "opened_by": "survey", "blocks": "analyze",
      "show": "the scope classification (how many files are product, test, generated, "
-             "vendor, asset, and the rule behind each exclusion), the first batch of units "
+             "vendor, asset, empty, and the rule behind each exclusion), the first batch of units "
              "with their fan-in and the cutoff, the product files still unread, and every "
              "warning the selection printed; and, when no feature map was found, offer to "
              "create one (see SKILL.md)",

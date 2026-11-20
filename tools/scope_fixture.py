@@ -8,7 +8,8 @@ What it holds, and why each file is there:
 
     src/shop/money.py, cart.py, invoice.py   the well-connected modules a `--top 2` keeps
     src/shop/runner.py                       entry point, no symbol: only a `__main__` guard
-    src/shop/__init__.py                     empty, so symbol-free and not an entry point
+    src/shop/__init__.py, src/latest/__init__.py
+                                             zero bytes: `empty` in the scope, never read or cited
     src/latest/feed.py                       low fan-in feature outside the first batch;
                                              `latest` must not be taken for a test
     src/shop/contest.py                      `contest` must not be taken for a test either

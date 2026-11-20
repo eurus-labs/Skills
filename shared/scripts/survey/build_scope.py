@@ -5,7 +5,7 @@
         --out .docs-build/scope.json
 
 Every file the scanner found gets a disposition (`product`, `test`, `generated`, `vendor`,
-`asset`) and, for anything that is not product, the rule that put it there. The
+`asset`, `empty`) and, for anything that is not product, the rule that put it there. The
 classification is mechanical so that it is the same on every run; the person who reads it at
 checkpoint P1 is there to disagree with a rule, not to redo the sorting.
 
@@ -21,6 +21,8 @@ What the rules look at, in the order they apply:
                 marker in the first lines of the file (`@generated`, `DO NOT EDIT` ...)
     asset       example or documentation-tooling source, and every non-source file the
                 scanner inventoried (README, CI, packaging, configuration)
+    empty       checked last, and only for a file that would otherwise be product: zero
+                bytes or only whitespace. A comment, a docstring or an import is not empty
     product     everything else
 
 Reading state starts `unread` for product and `excluded` for the rest. A file already in an
@@ -79,6 +81,7 @@ GENERATED_MARKERS = (
     (re.compile(r"^\W*do not edit\b.{0,40}\bgenerated\b", re.I | re.M),
      "says it is generated and not to be edited"),
 )
+EMPTY_REASON = "empty file: nothing to read or cite"
 HEADER_LINES = 8
 HEADER_BYTES = 2048
 
@@ -103,6 +106,24 @@ def read_header(root_real, rel_path):
     except OSError:
         return ""
     return "\n".join(data.decode("utf-8", errors="replace").splitlines()[:HEADER_LINES])
+
+
+def is_empty(root_real, rel_path):
+    """True when the file is zero bytes or only whitespace.
+
+    Contained in the root like `read_header`. Reads at most HEADER_BYTES + 1 bytes, so a
+    file longer than that is never empty. A file that cannot be read is not empty: it
+    stays product, as it did before this rule existed.
+    """
+    full = os.path.realpath(os.path.join(root_real, rel_path))
+    if full != root_real and not full.startswith(root_real + os.sep):
+        return False
+    try:
+        with open(full, "rb") as fh:
+            data = fh.read(HEADER_BYTES + 1)
+    except OSError:
+        return False
+    return len(data) <= HEADER_BYTES and not data.strip()
 
 
 def classify(record, root_real):
@@ -134,6 +155,8 @@ def classify(record, root_real):
             return "asset", "example source under %s/" % directory
     if lowered and lowered[0] in DOC_TOOL_DIRS:
         return "asset", "documentation tooling under %s/" % directories[0]
+    if is_empty(root_real, path):
+        return "empty", EMPTY_REASON
     return "product", ""
 
 

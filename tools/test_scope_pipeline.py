@@ -2,13 +2,14 @@
 """Plan 14 end to end: the scope fixture taken through survey, check, document, render,
 review and publish with the pipeline driver.
 
-What the unit tests cannot show is that the pieces join: a symbol-free entry module and an
-empty package marker are units now, so every stage between the survey and the seal has to
-accept them, and a run whose batch is smaller than the product has to say so and refuse to
+What the unit tests cannot show is that the pieces join: a symbol-free entry module is a
+unit now (an empty package marker is `empty` and is not), so every stage between the survey and the seal
+has to accept it, and a run whose batch is smaller than the product has to say so and refuse to
 seal rather than publish a manual that does not cover the product.
 """
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -47,13 +48,10 @@ TEXT = {
         "state": "feed holds no state, newest works on the list it receives only.",
         "interface": "newest takes items and count and returns a list slice.",
         "failure": "newest raises TypeError when the items cannot be compared with each other."},
-    # No symbol in these three: one statement each, saying what the file does.
+    # No symbol in this one: a single statement saying what the file does. The empty package
+    # markers are `empty` in the scope and owe nothing, so they have no entry here.
     "src/shop/runner.py": {
         "responsibility": "Entry point: runs the invoice printer from the command line."},
-    "src/latest/__init__.py": {
-        "responsibility": "Package marker for the latest feed package, empty by design."},
-    "src/shop/__init__.py": {
-        "responsibility": "Package marker that makes shop importable and defines nothing itself."},
 }
 
 
@@ -131,6 +129,28 @@ class Run(object):
         return steps
 
 
+class ContractRepoEndToEnd(unittest.TestCase):
+    """Survey on a copy of tests/contracts/layered-repo: its empty __init__.py files are `empty`."""
+
+    def test_four_empty_markers_leave_six_product_units(self):
+        source = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "tests",
+                              "contracts", "layered-repo")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = os.path.join(tmp, "layered-repo")
+            shutil.copytree(source, root)
+            done = subprocess.run([sys.executable, PIPELINE, "survey", "--root", root],
+                                  cwd=root, capture_output=True, text=True)
+            self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+            build = os.path.join(root, ".docs-build")
+            scope = json.loads(read(os.path.join(build, "scope.json")))
+            empty = sorted(r["path"] for r in scope["files"] if r["disposition"] == "empty")
+            product = sorted(r["path"] for r in scope["files"] if r["disposition"] == "product")
+            self.assertEqual(len(empty), 4, empty)
+            self.assertTrue(all(p.endswith("/__init__.py") for p in empty), empty)
+            self.assertEqual(len(product), 6, product)
+            self.assertEqual(sorted(read(os.path.join(build, "units.txt")).split()), product)
+
+
 class WholeProduct(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -146,8 +166,9 @@ class WholeProduct(unittest.TestCase):
         for step in self.steps:
             self.assertEqual(step.returncode, 0, step.stdout[-1500:] + step.stderr[-1500:])
         self.assertIn("src/shop/runner.py", self.run_.units)
-        self.assertIn("src/shop/__init__.py", self.run_.units)
-        self.assertEqual(len(self.run_.units), 8)
+        self.assertNotIn("src/shop/__init__.py", self.run_.units)
+        self.assertNotIn("src/latest/__init__.py", self.run_.units)
+        self.assertEqual(len(self.run_.units), 6)
 
     def test_a_default_run_reads_every_product_file_in_one_batch(self):
         scope = json.loads(read(os.path.join(self.run_.build, "scope.json")))
@@ -200,7 +221,7 @@ class FirstBatchOnly(unittest.TestCase):
         self.assertEqual(self.report["status"], "partial")
         self.assertFalse(self.report["scope"]["complete"])
         self.assertIn("src/latest/feed.py", self.report["scope"]["unread"])
-        self.assertTrue(any(r.startswith("incomplete: 5 product file(s) unread")
+        self.assertTrue(any(r.startswith("incomplete: 3 product file(s) unread")
                             for r in self.report["reasons"]), self.report["reasons"])
 
     def test_a_draft_that_leaves_the_product_unread_is_not_sealed(self):
@@ -211,7 +232,7 @@ class FirstBatchOnly(unittest.TestCase):
 
     def test_status_names_the_unread_files(self):
         done = self.run_.pl("status")
-        self.assertIn("incomplete: 5 product file(s) unread", done.stdout)
+        self.assertIn("incomplete: 3 product file(s) unread", done.stdout)
         self.assertIn("src/latest/feed.py", done.stdout)
 
 
@@ -285,7 +306,7 @@ class NarrowedAtP1(unittest.TestCase):
         report = json.loads(read(os.path.join(run.build, "generation-report.json")))
         self.assertEqual(report["status"], "passed", report["reasons"])
         self.assertTrue(report["scope"]["complete"])
-        self.assertEqual(len(report["scope"]["narrowed"]), 5)
+        self.assertEqual(len(report["scope"]["narrowed"]), 3)
         self.assertTrue(any("scope narrowed by a person" in r for r in report["reasons"]))
         status = run.pl("status").stdout
         self.assertIn("narrowed src/latest/feed.py -> asset", status)
