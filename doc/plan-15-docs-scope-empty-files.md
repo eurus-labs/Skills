@@ -1,6 +1,6 @@
 # Plan 15 — `document-codebase`: an empty source file is not an unread product file
 
-Status: approved
+Status: implemented
 Date: 2026-11-20
 Branch: `fix/docs-scope-empty-files`
 Baseline: `origin/main` at `48371e031b17e39a9c27c2a7177ebea09f76c101` (eurus-labs/Skills#85 merged)
