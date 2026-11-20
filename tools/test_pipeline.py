@@ -1014,6 +1014,29 @@ def resume_tests(tmp):
           and "--docs" not in pipeline.invocation_args(args, "review"))
 
 
+def legacy_pointer_tests(tmp):
+    """`status` and `resume` point at `migrate` when the build holds older-format files."""
+    def build_with(name, seal_version):
+        root = os.path.join(tmp, name)
+        build = os.path.join(root, ".docs-build")
+        os.makedirs(build)
+        write(os.path.join(build, "structure.json"), json.dumps({"index_hash": "sha256:s"}))
+        write(os.path.join(build, "publish-seal.json"),
+              json.dumps({"seal_version": seal_version, "revision": "rev-0001"}))
+        return root, build
+
+    for component in ("status", "resume"):
+        root, build = build_with("legacy-" + component, 1)
+        code, out = run("pipeline.py", component, "--root", root, "--build", build)
+        check("%s prints the legacy line for a v1 artifact" % component,
+              code == 0 and "legacy     1 file(s) from an older version -- run `migrate` "
+              "to see what changes" in out, out)
+        root, build = build_with("current-" + component, 2)
+        code, out = run("pipeline.py", component, "--root", root, "--build", build)
+        check("%s prints no legacy line for a current build" % component,
+              code == 0 and "legacy" not in out, out)
+
+
 def main():
     tmp = tempfile.mkdtemp(prefix="pipeline-test-")
     try:
@@ -1022,6 +1045,7 @@ def main():
         diagram_directory_test(tmp)
         revision_tests(tmp)
         resume_tests(tmp)
+        legacy_pointer_tests(tmp)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

@@ -361,6 +361,7 @@ class ManualTests(unittest.TestCase):
         with self.assertRaises(ValueError) as caught:
             self.build()
         self.assertIn('manual_version 1', str(caught.exception))
+        self.assertIn('pipeline.py migrate', str(caught.exception))
 
     def test_a_writer_cannot_set_its_own_review_verdict(self):
         """The verdict lives in the review channel, bound to the revision it judged."""
