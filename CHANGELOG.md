@@ -22,6 +22,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   wording and states, and unintended visual change, and ranks each finding by severity with the screen, the
   element, the criterion and who is affected. It reports and edits nothing. Trigger cases for it (two that
   must fire, one that must stay quiet), all passing on Claude Code.
+- **`document-codebase`** (`docs` 1.8.0) adds `pipeline.py migrate`, which carries an older `.docs-build/`
+  forward without carrying any approval across. By default it only reports what a `manual_version` 1 answer
+  file, v1 review rows and a `seal_version` 1 seal would become; `--apply` rewrites them in the current format
+  and keeps each original beside the new file with `.v1` before the extension. Every answer keeps its text,
+  citations and verified ids, and every one is review-pending; a v1 `confirmed` becomes `observed` and
+  `partial`, never `complete`, and an answer that no longer passes `read_answer()` is kept and reported, never
+  dropped. v1 review rows move to `prose-review.v1.jsonl` and no v2 row replaces them, so the blocks they
+  named read as unreviewed; a v1 seal is renamed and `review` runs again. `status` and `resume` print one
+  `legacy` line when a build holds any of them.
 
 ### Changed
 

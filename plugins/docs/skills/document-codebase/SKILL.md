@@ -118,6 +118,9 @@ permit exit `1` while their component continues; see [pipeline](references/pipel
 | Final review | `review`, then `review --review` | Write `prose-review.jsonl` under [prose rules](references/prose-rules.md) and [reviewer](references/reviewer.md); show queued readings and evidence for P4 before the reviewed pass. |
 | Publish | `approve` if signatures are required, then `publish --docs docs` | Promote only the sealed draft, once the template is chosen and any required signatures verify; read [publish](references/publish.md). |
 
+A build from an older version (`status` prints a `legacy` line): run `migrate` first, read what it reports,
+then `migrate --apply`. A migrated answer is pending review, never approved.
+
 After `check`, write the three analyses before completing the P3 decision; do not treat a green check as
 architecture approval. For a question template, answer and compose rather than copying the questionnaire or
 shipping placeholder scaffolds. Diagram semantics need source support; presentation choices need a

@@ -771,6 +771,10 @@ The same rule applies to `manual_version: 1` answers, whose single `status: conf
 result rather than a judgement: the prose and its citations are preserved, and `content_review` becomes
 `pending`.
 
+`pipeline.py migrate` does this (see [pipeline](pipeline.md#migrate--carry-an-older-build-forward)). It moves
+v1 rows to `prose-review.v1.jsonl` and writes no v2 row for them; it keeps `manual-analysis.v1.json` and
+`publish-seal.v1.json` beside the files it rewrites or renames.
+
 ## `authored.jsonl` — authored_version 1
 
 One row per page the chosen question template marks `authored` — in the built-in manual,
