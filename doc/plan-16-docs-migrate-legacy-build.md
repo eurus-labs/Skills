@@ -1,6 +1,6 @@
 # Plan 16 — `pipeline.py migrate`: carry an older build forward without inheriting approval (plan 4, W6 part 1)
 
-Status: approved
+Status: implemented
 Date: 2026-11-20
 Branch: `feat/docs-migrate-legacy-build`
 Baseline: `origin/main` at `48371e031b17e39a9c27c2a7177ebea09f76c101`
