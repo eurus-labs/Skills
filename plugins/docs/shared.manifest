@@ -16,6 +16,7 @@ scripts/build_dir.py                       -> skills/document-codebase/scripts/b
 # it can look the code up beside the scripts that raised it.
 scripts/findings.py                        -> skills/document-codebase/scripts/findings.py
 scripts/draft_artifact.py                  -> skills/document-codebase/scripts/draft_artifact.py
+scripts/migrate_build.py                  -> skills/document-codebase/scripts/migrate_build.py
 
 scripts/survey/scan_repo.py                -> skills/document-codebase/scripts/survey/scan_repo.py
 scripts/survey/validate_index.py           -> skills/document-codebase/scripts/survey/validate_index.py

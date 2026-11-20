@@ -59,6 +59,7 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, "survey"))
 
 import build_dir  # noqa: E402
+import migrate_build  # noqa: E402
 import scope_record  # noqa: E402
 from draft_artifact import read_revision, tree_hash  # noqa: E402
 
@@ -1381,6 +1382,10 @@ def status(args, build):
           % (source.get("revision") or "untracked",
              " (uncommitted changes when scanned)" if source.get("dirty") else ""))
 
+    legacy = legacy_line(args, build)
+    if legacy:
+        print(legacy)
+
     record = chosen_template(build)
     if record:
         pages = record.get("pages") or ()
@@ -1652,6 +1657,121 @@ def resume_step(args, build, digest, latest, matches, sealed):
     return command("review")
 
 
+def legacy_line(args, build):
+    """The one line that points a build holding older-format files at `migrate`, or None."""
+    count = migrate_build.legacy_count(build, getattr(args, "review", None))
+    if not count:
+        return None
+    return ("legacy     %d file(s) from an older version -- run `migrate` to see what "
+            "changes" % count)
+
+
+def migrate(args, build):
+    """Report what an older build holds, and with `--apply` rewrite it in the current format.
+
+    Handled ahead of `build_dir.ensure`, like `status`: it runs no stage, appends nothing to
+    `timings.jsonl`, and creates nothing when there is no build. Without `--apply` it writes
+    nothing at all. Every file it rewrites keeps its original beside it with `.v1` before
+    the extension, and every new file is written under a temporary name first, so a failure
+    partway leaves the build as it was.
+    """
+    if not index_hash_of(build) and not os.path.isdir(build):
+        print("no scan yet in %s. Start with: python3 %s survey --root %s"
+              % (build, os.path.basename(__file__), args.root))
+        return 0
+    found = migrate_build.plan(build, getattr(args, "review", None), args.root)
+    items, apply = found["items"], getattr(args, "apply", False)
+    if apply and getattr(args, "dry_run", False):
+        # The global `--dry-run` means run nothing, and it outranks `--apply`.
+        apply = False
+        print("--dry-run overrides --apply: nothing will be written")
+    if found["conflicts"]:
+        # A report in a dry run, a refusal under `--apply`: the dry run exists to say what
+        # would stop the migration, and exits 0 like every other report.
+        for path in found["conflicts"]:
+            message = ("%s already exists with different content; `--apply` would refuse "
+                       "and change nothing. Move it aside first" % path)
+            if apply:
+                sys.stderr.write("FAIL  %s already exists with different content; nothing "
+                                 "was changed. Move it aside and run `migrate` again\n"
+                                 % path)
+            else:
+                print("conflict  " + message)
+        if apply:
+            return 1
+    if not items:
+        print("nothing to migrate")
+    for item in items:
+        print("%-9s %s (version %s): %s"
+              % ("migrating" if apply else "would", item["path"], item["version"],
+                 item["summary"]))
+    for path, version in found["unknown"]:
+        print("unknown   %s (version %s): unknown version: not migrated" % (path, version))
+    if items:
+        if not found["validated"]:
+            print("          answers were not checked: manual.py could not be imported")
+        print("          %d answer(s) migrated; each is `content_review: pending`, so the "
+              "Reviewer judges its text like any other" % found["answers"])
+        for problem in found["problems"]:
+            print("          would not pass read_answer: %s" % problem)
+        for qid in found.get("left", ()):
+            print("          %s: not a v1 answer this migration knows; left as found" % qid)
+        print("          P1-P4 decisions bound to inputs migrated here will read as stale, "
+              "which is intended")
+    for note in found["notes"]:
+        print("not done  %s" % note)
+    if not items or not apply:
+        if items:
+            print("\nnothing was written. Run again with --apply to write these files")
+        return 0
+
+    # Temporary names first. Only when every one is on disk are they put in place, and a
+    # failure in that last step puts back what had been moved.
+    staged, done = [], []
+    try:
+        for item in items:
+            for path, data in item["writes"].items():
+                temporary = path + ".migrating"
+                with open(temporary, "wb") as handle:
+                    handle.write(data)
+                staged.append((temporary, path))
+        for item in items:
+            for source, destination in item.get("moves", ()):
+                temporary = destination + ".migrating"
+                shutil.copyfile(source, temporary)
+                staged.append((temporary, destination))
+        for temporary, path in staged:
+            backup = None
+            if os.path.exists(path):
+                backup = path + ".migrating-backup"
+                os.replace(path, backup)
+            # Recorded before the second replace: if it fails, the original is already
+            # in the backup and the rollback must be able to put it back.
+            done.append((path, backup))
+            os.replace(temporary, path)
+        for item in items:
+            for source, _ in item.get("moves", ()):
+                os.remove(source)
+    except OSError as exc:
+        for path, backup in reversed(done):
+            try:
+                if backup:
+                    os.replace(backup, path)
+                else:
+                    os.remove(path)
+            except OSError:
+                pass
+        for temporary, _ in staged:
+            if os.path.exists(temporary):
+                os.remove(temporary)
+        sys.stderr.write("FAIL  migration stopped and the build was put back: %s\n" % exc)
+        return 3
+    for _, backup in done:
+        if backup and os.path.exists(backup):
+            os.remove(backup)
+    return 0
+
+
 def resume(args, build):
     """Where the draft-review loop stands, read-only.
 
@@ -1671,6 +1791,9 @@ def resume(args, build):
     created = (record or {}).get("created_at")
     matches = staged_equals(args, record) if latest else None
 
+    legacy = legacy_line(args, build)
+    if legacy:
+        print(legacy + "\n")
     print("revision")
     if not os.path.isdir(drafts):
         print("  no revisions: this build predates revision snapshots; run render")
@@ -1980,10 +2103,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("component",
                         choices=ORDER + ["decide", "measure", "status", "resume",
-                                         "template", "approve"],
+                                         "migrate", "template", "approve"],
                         metavar="COMPONENT",
-                        help="one of: %s, decide, measure, status, resume, template, "
-                             "or approve"
+                        help="one of: %s, decide, measure, status, resume, migrate, "
+                             "template, or approve"
                              % ", ".join(ORDER))
     parser.add_argument("--use", help="template: record the chosen preset, `manual`, or a "
                                       "template file")
@@ -2031,6 +2154,8 @@ def main():
     parser.add_argument("--write-conf", action="store_true",
                         help="render: generate a Sphinx conf.py in staging if none exists")
     parser.add_argument("--project", help="render: project name for --write-conf")
+    parser.add_argument("--apply", action="store_true",
+                        help="migrate: write the migrated files; without it, report only")
     parser.add_argument("--dry-run", action="store_true",
                         help="print the commands this component would run, and run nothing")
     args = parser.parse_args()
@@ -2063,6 +2188,10 @@ def main():
     # Read-only for the same reason: it reports the draft-review loop and starts nothing.
     if args.component == "resume":
         return resume(args, args.build)
+
+    # Dry run by default, and ahead of `build_dir.ensure` for the same reason as `status`.
+    if args.component == "migrate":
+        return migrate(args, args.build)
 
     if args.component == "template":
         # Listing the choices or checking a document must not create a build directory;

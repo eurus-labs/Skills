@@ -7,6 +7,7 @@
 - [`approve` — what the user signs](#approve--what-the-user-signs)
 - [`status` — where the run is](#status--where-the-run-is)
 - [`resume` — where the draft-review loop is](#resume--where-the-draft-review-loop-is)
+- [`migrate` — carry an older build forward](#migrate--carry-an-older-build-forward)
 - [What each component runs](#what-each-component-runs)
 - [Stopping, skipping, and the codes](#stopping-skipping-and-the-codes)
 - [Flags](#flags)
@@ -267,6 +268,37 @@ A build with no `drafts/` predates revision snapshots: `resume` says to run `ren
 A revision whose `revision.json` cannot be read is named, and the rest is still reported. The script reports a
 stalled loop; the Coordinator decides whether to stop (see [workflow](workflow.md#budget-and-the-stop-rule)).
 `status` prints one `drafts` line pointing here when revisions exist.
+
+## `migrate` — carry an older build forward
+
+```bash
+python3 scripts/pipeline.py migrate [--build B] [--review R]           # report only
+python3 scripts/pipeline.py migrate --apply [--build B] [--review R]   # write the migrated files
+```
+
+Three artifacts of an older `.docs-build/` are refused by the current scripts. `migrate` rewrites them in the
+current format without carrying any approval across. Like `status` and `resume` it runs before the build
+directory is created, runs no stage, and appends nothing to `timings.jsonl`. With no build it prints the
+"no scan yet" line and exits `0`. **Without `--apply` it writes nothing**: it prints one line per legacy
+artifact (path, version, what `--apply` would write), the answers that would not pass `read_answer()` with its
+message, and exits `0`.
+
+| Artifact | `--apply` does |
+| --- | --- |
+| `manual-analysis.json`, `manual_version` 1 | Writes version 2. `confirmed` becomes `observed`/`partial`, `inferred` becomes `inferred`/`partial`, `unknown` and `not_applicable` keep their basis with `completeness: unanswered`. `text`, `evidence`, `verified_ids`, `next_check`, `reviewer` and `pages` are carried unchanged; every answer is `content_review: pending`; every `partial` gets one `facets_missing` marker saying v1 never listed facets. No answer becomes `complete`. An answer that would not pass `read_answer()` (a verified id this run no longer knows, evidence past the end of a changed file) is kept as it is and reported, never dropped or weakened |
+| `prose-review.jsonl` (or `--review R`), rows with no `review_version` or `1` | Moves those rows, unchanged, to `prose-review.v1.jsonl` beside it. Version 2 rows stay in order. No v2 row is written for a v1 row, so every block it named is unreviewed. `drafts/rev-NNNN.meta/review-KK.jsonl` is history and is never rewritten |
+| `publish-seal.json`, `seal_version` 1 | Renamed to `publish-seal.v1.json`. Nothing replaces it: run `review` again |
+
+The original of a rewritten file is kept beside it with `.v1` before the extension. A `.v1` file that already
+exists with different content makes `--apply` refuse the whole migration and name the file. New files are
+written under temporary names and put in place only after every one was written, so a failure leaves the
+build as it was. A second `migrate` prints `nothing to migrate`. A file that names a version `migrate` does
+not know is listed as `unknown version: not migrated` and left untouched.
+
+`migrate` names, and does not edit, what a rerun regenerates: a scan with no `scope.json` (run `survey`), a
+render with no `drafts/` or with an older `render-manifest.json` (run `render`). P1–P4 decisions bound to
+inputs the migration changed read as stale, which is intended. `status` and `resume` print one `legacy` line
+pointing here when the build holds any of the three artifacts above.
 
 ## What each component runs
 

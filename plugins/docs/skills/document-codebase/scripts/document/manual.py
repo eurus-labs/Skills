@@ -765,7 +765,7 @@ def build(index, content, diagrams, root, claims=(), analysis=None, extra=None):
         raise ValueError(
             "manual-analysis.json is manual_version 1. Version 2 separates basis, "
             "completeness and review, and a v1 `confirmed` cannot be carried across as "
-            "approval nobody gave. Migrate it rather than relabelling it")
+            "approval nobody gave. Run `pipeline.py migrate` rather than relabelling it")
     if not isinstance(content, dict) or content.get("manual_version") != MANUAL_VERSION:
         raise ValueError("manual requires --manual-analysis with manual_version %d"
                          % MANUAL_VERSION)
