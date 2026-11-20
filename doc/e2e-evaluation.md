@@ -222,3 +222,154 @@ The drafts are in `/root/e2e-runs/layered-repo/.docs-build/rendered-docs/` (read
 `.. only:: audit`), the kept revisions are under `.docs-build/drafts/`, and the answers are in
 `.docs-build/manual-analysis.json`. The scope check from the plan, run in the build directory:
 `python3 -c 'import json,collections;s=json.load(open("scope.json"));print(collections.Counter(r["disposition"] for r in s["files"]))'`.
+
+## Run 2 — `shared/scripts`
+
+- **Working copy:** `/root/e2e-runs/shared-scripts` at commit `642c1db`. Build directory:
+  `/root/e2e-runs/shared-scripts/.docs-build`. `docs` version 1.7.1, `main` commit `49e213d` (the checkout the
+  run started on; `main` has moved since, see the note at the end).
+- **Prior knowledge, stated as the plan asks:** the coder had seen this codebase before. It is this
+  repository's own `shared/scripts`, which the plugin's skill and the plan describe by name. The analysis rows
+  were written from the packets, outlines and the source the coder read in this run (next section), not from
+  memory, but some of the wording of roles (for example the component grouping) follows what the coder already
+  knew.
+- **Template and review mode:** the same 7-section `manual` selection as run 1; `self_review` throughout.
+- **Where it ended:** at P4, open, with the draft at `rev-0003`. No `publish`, no P4 answer, no `docs/` in the
+  copy. The run did not stop for budget reasons, so `continuation.md` was not written for this run (the
+  deliberate stop was tested in run 1).
+
+### How much source was read (the report's most important caveat)
+
+`scope.json` ends with 0 unread product files, because a module with a row in `module-analysis.jsonl` counts
+as `analyzed`. That count does not say how much of each file was read. The coder's own ledger
+(`.docs-build/depth.tsv`) says:
+
+| Depth | Files | What it means |
+| --- | --- | --- |
+| `full` | 10 | The body was read: `survey/scope_record.py`, `survey/build_scope.py` (from line 125), `analyze/derive_claims.py`, `build_dir.py`, `render/prepare_stage.py`, `render/snapshot_draft.py`, `review/validate_draft.py`, `review/seal_draft.py`, `publish/promote_docs.py`, `publish/editions.py` |
+| `targeted` | 4 | One or two functions read: `survey/select_units.py`, `publish/quality_docs.py` (`detector_b`), `detect_stack.py` (`detect`, `main`), `pipeline.py` (`run`, the flag list, `resume_step`) |
+| `outline` | 34 | Module docstring, imports, constants, function names with their line ranges and first docstring lines, and argparse and `raise` lines. The bodies were not read |
+
+For the 34 `outline` files the coder lowered every statement the body would have to support (responsibility,
+interface, interaction, failure) from `observed` to `inferred`; only constants stay `observed`. The result is
+256 statements (87 observed, 51 declared, 114 inferred, 4 unknown). The gate reflects it as far as it can:
+`analysis_mode: partial`, 25 of 48 modules answer all four kinds. The gate does not see reading depth, and it
+would have passed the same files had the coder written them from docstrings alone. The 4 low-fan-in
+checks: `detect_stack.py` (line 7 of `units.txt`, `analyzed`, `targeted`) and `publish/editions.py` (line 26,
+`analyzed`, `full`) are both in `units.txt` and `analyzed` in `scope.json`.
+
+### Commands, in order
+
+| # | Command | Exit | The line that matters |
+| --- | --- | --- | --- |
+| 1 | `survey --root .` | 0 | `scope: 48 product, 1 asset`; `files 48 loc 21919`; `unresolved imports: 236`; `WARN the entry-point heuristic matched 33 of 48`; 107 settings (all argparse options) |
+| 2 | `decide --checkpoint P1` | 0 | P1 decided |
+| 3 | `template --use manual --sections ...` (piped to `head -2`) | 0 then `INTERNAL BrokenPipeError` | template was recorded; the traceback came from the coder's pipe |
+| 4 | `measure ... start`, `analyze` | 0 | 48 packets, none partitioned; P2 open |
+| 5 | `measure ... stop`, `decide --checkpoint P2` | 0 | `source_reading` 291.9 s of tool time |
+| 6 | `check` | 0 | `claims: 603 verified`; 32 `A014` and 2 `A016` advisories; P3 open |
+| 7 | `check`, `decide --checkpoint P3`, `document` | 0, 0, 1 | after the three analyses were written; first `document` run writes 57 unanswered slots, 855 facts |
+| 8 | `document` (answers and pages written) | 1 | first attempt `FAIL 2.1.1: cites component:claims ... which nothing in this run verified`; second `FAIL 2.3.1: a basis of 'observed' must name a verified_id`; third `wrote doc.json: 7 page(s), 67 block(s)`, tolerated exit 1 from `build_flow_diagrams` (no flow traced) |
+| 9 | `render --docs docs` | 0 | `rev-0001`; build check skipped, `editions: passed` |
+| 10 | `readability.py ... --for-review` | 0 | four passages of 27 to 38 words; split |
+| 11 | `review` | 1 | gate `failed`; 27 queued; 3 `P003` errors; P4 opened |
+| 12 | `document`, `render`, `review` (repairs) | 0/1/1 | `rev-0002`, then `rev-0003`; 0 prose errors |
+| 13 | `review --review prose-review.jsonl` | 1 | `held at checkpoint P4` |
+| 14 | `resume`, `status` | 0 | `next ... decide --checkpoint P4 ...`; 48 read, 0 unread |
+
+No other command was run, `publish` was not run, and P4 was not decided.
+
+### Checkpoint notes recorded
+
+- **P1:** "Unattended run: all 48 product files accepted as scope with no cap; one configuration asset
+  excluded; no feature map found and setup-verification unavailable so continuing without one".
+- **Template:** "Unattended choice by the coder: same manual subset as run one covering purpose, key operation,
+  configuration and failure".
+- **P2:** "Unattended: accepted 48 module roles; most rows rest on docstrings and outlines, flagged inferred;
+  unknowns are listed in the report".
+- **P3:** "Unattended: nine components grouped by purpose not directory; no flow traced because stages run by
+  subprocess; operations quoted from the driver docstring". (Decided once; the analyses were written before
+  `check` was rerun, so the P3 binding problem of run 1 did not recur.)
+
+### Counts
+
+- **`scope.json`:** `Counter({'product': 48, 'asset': 1})`; by reading, 48 `analyzed` and 1 `excluded`.
+  Unread at the end: 0 (see the caveat above).
+- **Analysis:** 48 module rows, 256 statements, 603 verified claims (none hand-written), 9 components covering
+  all 48 modules, 0 flows (`absent`, with the reason that stages run as subprocesses), 3 procedures and 1
+  requirement from the driver's docstring.
+- **Manual:** 51 of 57 answered (`partial`), 27 sections composed, 1,122 prose words. The 6 `unknown` answers
+  are the same ids as in run 1.
+
+### Gate outcome (`generation-report.json`, at the state of the last plain `review`)
+
+- `analysis_mode`: `partial`. `status`: `review_required` once reviewed rows exist (it was `failed` before).
+- Reasons:
+  1. "analysis mode is partial: 48 of 48 module(s) were read, but only 25 answer all four of responsibility,
+     state, interface, failure";
+  2. "manual leaves 6 of 57 question(s) unanswered: 1.1.7, 2.1.7, 2.2.5, 2.3.7, 3.1.8" (five ids named for six);
+  3. "manual is missing required diagram(s): architecture/data_flow", because no flow was traced;
+  4. "detector B: components and directories agree on 90% of module pairs";
+  5. "27 block(s) have no fresh confirmed model review" (held behind P4).
+- Before the repair: three `P003` errors ("calls" and "imports" over a statement that does not support them).
+
+### Revisions, rounds and open findings (P4)
+
+- Revisions `rev-0001` to `rev-0003`. `rev-0002` and `rev-0003` were minted by the readability and `P003` repairs.
+- `prose-review.jsonl` holds 27 `self_review` rows: 21 `confirmed` and 6 `unresolved`
+  (`architecture/overview:1`, `architecture/data_flow:3` and `architecture/module_reference:1` to `4`), because
+  those sections rest on outline-depth reading or on the coder's own grouping. The rows were not consumed,
+  because the reviewed pass is held at P4. `resume`: "27 block(s) queued, 27 unreviewed, 0 stale", no
+  open findings, no seal.
+
+### Stop and resume
+
+No stop was needed in this run. The test of `continuation.md` and `resume` was done in run 1 (above). Its
+result there (wrong suggestion before any draft exists, right suggestion at P4) was confirmed here: `resume` at
+P4 named `decide --checkpoint P4` correctly.
+
+### Problems found
+
+1. **Reading depth is invisible to the gate** (above). 34 of 48 modules rest on outlines, and `scope.json` and
+   `status` report "48 read, 0 unread". The only trace is the number of modules answering all four kinds
+   (25 of 48), which depends on how many statements the author wrote, not on how much was read.
+2. **A component's `inferred` status makes its id unusable as evidence.** `FAIL 2.1.1: cites component:claims
+   ... which nothing in this run verified`. Only `declared` or `observed` components count. The message does
+   not say that status is the reason. Worked around by removing the ids.
+3. **`observed` needs at least one verified id, and the message says so** (`FAIL 2.3.1`), but a section that
+   rests only on `inferred` modules has nothing to cite. Worked around by citing driver statements.
+4. **`P003` is triggered by ordinary verbs.** "calls", "imports" and "uses" were refused for sections whose
+   cited statement used no ranked verb; the repair was to reword (for example "serve"). The same happened in
+   run 1.
+5. **No flow, so the data-flow page fails its mandatory diagram.** The stages are subprocess calls, which the
+   verifier cannot trace; `flow-analysis.json` is `absent` and the gate says "missing required diagram:
+   architecture/data_flow". The prose on the page still traces the stage order, from the driver's `run`.
+6. **Detector B at 90%** with components grouped by purpose across directories. Nine components, 3 of them
+   spanning more than one folder, still agree with the directory partition on 90% of module pairs, because
+   the repository is itself organised by purpose. Counted as a failing reason.
+7. **Piping `template --use` into `head` produced `INTERNAL BrokenPipeError`**, exit 3 after the choice was
+   written. A closed stdout is the coder's doing, but the driver prints an internal error where a quiet
+   exit would do.
+8. **`detect_stack.py` documents exit 2 for a usage error, and returns 1** for a missing directory or target
+   (`detect_stack.py:25-26` against `968-973`). Found while reading the file, not by the pipeline.
+9. **Line numbers differ between `shared/scripts/pipeline.py` and the plugin's copy** (`resume_step` is at
+   1627 in the copy of `shared/scripts` and at 1630 in the plugin folder), so a citation to either needs its
+   path. The coder cited the plugin's lines in run 1 and the `shared` lines here.
+10. **The same minor problems as run 1 recurred:** the "unanswered" reason lists five ids for a count of six; the
+    gap blocks read "does not yet establish N detail(s)"; the build check was skipped without Sphinx.
+11. **`manual-grounding.json` was not written** and **rows were written from scripts** (problems 11 and 12 of run 1
+    apply here too).
+12. **Answer 2.3.1 first said "publish (13)"** and the folder has 12 scripts; the coder caught it on a recount
+    and fixed the answer, which did not change the rendered page. An example of why a count in prose needs
+    its source cited.
+
+### Time and turns
+
+About 55 tool calls after run 1. `source_reading` was measured at 291.9 s; the rest is an estimate.
+
+### For the grader
+
+The drafts are in `/root/e2e-runs/shared-scripts/.docs-build/rendered-docs/`; kept revisions under
+`.docs-build/drafts/`; answers in `.docs-build/manual-analysis.json`; the reading ledger in
+`.docs-build/depth.tsv`. Weak spots to grade first: the 34 outline-depth modules, the nine-component grouping,
+and any claim about a function's inner behavior outside the ten fully read files.
