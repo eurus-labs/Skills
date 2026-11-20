@@ -1684,6 +1684,10 @@ def migrate(args, build):
         return 0
     found = migrate_build.plan(build, getattr(args, "review", None), args.root)
     items, apply = found["items"], getattr(args, "apply", False)
+    if apply and getattr(args, "dry_run", False):
+        # The global `--dry-run` means run nothing, and it outranks `--apply`.
+        apply = False
+        print("--dry-run overrides --apply: nothing will be written")
     if found["conflicts"]:
         # A report in a dry run, a refusal under `--apply`: the dry run exists to say what
         # would stop the migration, and exits 0 like every other report.

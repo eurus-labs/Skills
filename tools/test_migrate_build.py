@@ -176,6 +176,19 @@ def dry_run_tests(tmp):
           and "1.1.6: evidence line range exceeds file" in out, out)
 
 
+def dry_run_flag_tests(tmp):
+    root, build = legacy_build(tmp, "dry-flag")
+    before = snapshot(build)
+    code, out, err = migrate(root, build, "--apply", "--dry-run")
+    check("--dry-run wins over --apply: exit 0, every file and mtime unchanged",
+          code == 0 and snapshot(build) == before, out + err)
+    check("--dry-run says it overrides --apply", "--dry-run overrides --apply" in out, out)
+    check("--dry-run --apply creates no .v1 file",
+          not [n for n in os.listdir(build) if ".v1" in n or ".migrating" in n])
+    check("the v1 manual is still version 1",
+          json.loads(read(os.path.join(build, "manual-analysis.json")))["manual_version"] == 1)
+
+
 def mapping_tests(tmp):
     root, build = legacy_build(tmp, "mapping")
     code, out, err = migrate(root, build, "--apply")
@@ -434,6 +447,7 @@ def main():
         v1_fixture_matches_v1_reader()
         pure_tests()
         dry_run_tests(tmp)
+        dry_run_flag_tests(tmp)
         mapping_tests(tmp)
         review_tests(tmp)
         seal_tests(tmp)
