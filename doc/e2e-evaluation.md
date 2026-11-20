@@ -376,3 +376,72 @@ The drafts are in `/root/e2e-runs/shared-scripts/.docs-build/rendered-docs/`; ke
 `.docs-build/drafts/`; answers in `.docs-build/manual-analysis.json`; the reading ledger in
 `.docs-build/depth.tsv`. Weak spots to grade first: the 34 outline-depth modules, the nine-component grouping,
 and any claim about a function's inner behavior outside the ten fully read files.
+
+## Grading (the planner's)
+
+The planner wrote the reader questions after the coder's report, read only the reader edition (text outside
+`.. only:: audit`) of each draft at P4, and checked each answer against the source. Prior knowledge: the
+planner knows both codebases.
+
+### Run 1 — `layered-repo` (`rev-0004`)
+
+| Question | Answered by the draft? | Checked against |
+| --- | --- | --- |
+| What is orderlog for, and what does it do today? | Yes: records SKUs from the CLI or `Handler.post` into an in-memory store; the README's "reports on" and "prints back" are named as absent | `README.md`; `store.py:11-13` (only `put`) |
+| What happens on `orderlog A100 B200`? | Yes: `main` builds an `OrderService`, `record` makes one `Order` per SKU and calls `Store.put`, exit 0 | `cli.py:8-11`, `service.py:11-14`, `store.py:11-13` |
+| What can be configured? | Yes: `ORDERLOG_PATH`, default `orders.json`, read by `config.load` when `Store` is built and never used | `config.py:6-7`, `store.py:7-8` |
+| What happens when an HTTP body has no `sku`? | Yes: `ValueError('sku is required')`, before anything is stored | `http.py:10-13` |
+| Which way do the layers depend? | Yes: `api` → `core` → `infra`, with `OrderService` creating its own `Store` | imports in `cli.py:5`, `http.py:3`, `service.py:3-4`, `store.py:3` |
+
+Every claim checked was correct, including a subtle one: an iterable with no length raises `TypeError` at
+`len(skus)` only after every order was appended (`service.py:12-14`). **Verdict: meets plan 4's criterion for
+the small repository.** A reader can explain the purpose, trace the key operation, configure it and understand
+a failure from the draft alone.
+
+Weak points: six of seven pages end with "The available repository evidence does not yet establish 1
+detail(s) covered by this page", which names no detail and is pipeline language in the reader edition; the
+CLI sequence diagram is built but not placed on `data_flow`.
+
+### Run 2 — `shared/scripts` (`rev-0003`)
+
+| Question | Answered by the draft? | Checked against |
+| --- | --- | --- |
+| What are these scripts for? | Yes: a stdlib documentation pipeline, one component per `pipeline.py` call, pausing at four checkpoints | `pipeline.py` docstring |
+| What does `survey` run, in order? | **Partly.** The component order survey → … → publish is right, but the stages inside `survey` are not listed | `pipeline.py:758-761`, the `survey` function |
+| How is a run configured? | Yes: command-line options with their defaults (`--top` none, `--keep-revisions 5`, …); no environment variables are read | grep of `os.environ`/`getenv`: only `extract_config.py`, which detects them in the target, never reads them |
+| What happens when a component runs while a checkpoint is open? | Yes: `blocking_checkpoint` refuses it; decide with a note of at least five words and rerun | `pipeline.py` `blocking_checkpoint` |
+| What do the low-fan-in modules `publish/editions.py` and `detect_stack.py` do? | **No.** `editions.py` is named only as a helper of `quality_docs`; its job (keeping the reader and audit editions honest) is not described. `detect_stack.py` is "a standalone stack detector used by no other script", with no word on what it detects or returns | `editions.py` docstring; `detect_stack.py:1-27` |
+
+Spot checks of other claims were all correct: stages run by `subprocess.call` and stop at the first failure
+unless tolerated (`pipeline.py:160-175`); `derive_claims` keeps the first of repeated claim ids
+(`derive_claims.py:85-90`); `promote_docs` backs up and restores the docs tree (`promote_docs.py:57-69`).
+
+**Verdict: partial.** Purpose, configuration, failure handling and the overall flow are usable and accurate.
+Plan 4's multi-component criterion asks that a low-fan-in feature be documented, and it is not: both
+low-fan-in modules are `analyzed` in `scope.json` yet absent from the reader's pages in substance. Together
+with 34 of 48 modules read only in outline, this is the main gap the run exposed.
+
+### The coder's problem list, reassessed
+
+- **Run 2 problem 8 is not clearly a bug.** `detect_stack.py` returns 1 for a missing directory or target
+  while printing `"confidence": "none"` (`detect_stack.py:966-973`), which matches "1 when none". Exit 2 is
+  used for argument errors (`detect_stack.py:955-963`). The docstring's "2 on a usage error" is at most
+  ambiguous.
+- **New from grading:** an `analyzed` product file can be absent from every page. Nothing checks that each
+  documented path reaches the prose, so "0 unread" does not mean "covered".
+- Every other problem in both lists was reproduced from the build directories or the cited lines, and stands.
+
+### Candidates for follow-up plans
+
+Ranked by how much they mislead a reader or the agent:
+
+1. A documented path with no prose coverage passes the gate (new, above).
+2. Reading depth is invisible to the gate (run 2, problem 1).
+3. Gap blocks name no gap and use pipeline language in the reader edition (run 1, problem 8).
+4. `resume` suggests `render` before any draft exists (run 1, problem 1; `pipeline.py` `resume_step`).
+5. P3 reopens when the three analyses are written after `check`, as the docs order them (run 1, problem 2).
+6. `loc` counts one line more than the file has, so the validators disagree (run 1, problem 5).
+7. Detector B fails an honest layered architecture (run 1, problem 6; run 2, problem 6).
+8. Smaller: unique flow step ids undocumented; the unanswered list names five of six; one of two sequence
+   diagrams placed; `P003` on ordinary verbs; `BrokenPipeError` reported as internal; `manual-grounding.json`
+   never checked.
