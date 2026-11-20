@@ -27,7 +27,7 @@ may cite, and the absence of one is itself an answer: a repository with no ADR g
 exists", not a rationale you worked out.
 
 **The scope is the product; the cutoff only orders the reading.** `build_scope.py` writes `scope.json`, which
-gives every scanned file a disposition (`product`, `test`, `generated`, `vendor`, `asset`) and, for anything
+gives every scanned file a disposition (`product`, `test`, `generated`, `vendor`, `asset`, `empty`) and, for anything
 that is not product, the rule that put it there — a `tests/` directory, a `third_party/` tree, a `Code
 generated ... DO NOT EDIT` header. Read that classification at P1 and disagree with a rule you think is wrong;
 never accept an exclusion you cannot explain. Every `product` file is a unit, including an entry or

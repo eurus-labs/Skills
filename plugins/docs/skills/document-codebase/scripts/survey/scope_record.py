@@ -20,6 +20,7 @@ can disagree with it.
     generated   written by a tool, documented as output rather than as source
     vendor      third-party code vendored in
     asset       README, packaging, CI, configuration, examples
+    empty       a source file of zero bytes or only whitespace: nothing to read or cite
 
 Reading state is tracked apart from classification, because they answer different
 questions -- "is this ours?" and "did anyone look at it?" -- and a run that conflates
@@ -35,7 +36,7 @@ import json
 
 SCOPE_VERSION = 1
 
-DISPOSITIONS = ("product", "test", "generated", "vendor", "asset")
+DISPOSITIONS = ("product", "test", "generated", "vendor", "asset", "empty")
 DOCUMENTED = ("product",)
 READING_STATES = ("unread", "read", "analyzed", "excluded")
 

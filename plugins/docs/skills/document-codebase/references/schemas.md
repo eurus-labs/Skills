@@ -674,7 +674,10 @@ the scope is built) and `feature:<area>` for each area of a feature map. `produc
 that hold the product files. The classification rules, in order: the scanner's `is_test`; a vendored
 directory (`vendor/`, `third_party/`, `node_modules/` …); a generated-file name (`*_pb2.py`, `*.pb.go` …) or
 a marker in the first lines (`@generated`, `DO NOT EDIT`); example and documentation-tooling source; every
-non-source file the scanner inventoried is an `asset`. Everything else is `product`.
+non-source file the scanner inventoried is an `asset`. A file that would otherwise be `product` but holds zero
+bytes or only whitespace is `empty` (reason `empty file: nothing to read or cite`): it owes no reading and
+appears on no page or diagram, while a comment, docstring or import keeps a file `product`. Everything else is
+`product`.
 
 `reading` is derived: `pipeline.py analyze` and `check` set a product file `analyzed` when
 `module-analysis.jsonl` holds a row for it, and `status` and `quality_docs.py` compute the same from the
@@ -698,7 +701,7 @@ With none, nothing is written and the survey prints `no feature map found`.
 area no section cites a file of. A sentence never cites the map, and where its expected behavior disagrees with
 the code the disagreement is an open question for the user.
 
-`disposition` is `product`, `test`, `generated`, `vendor` or `asset`. `reading` is `unread`, `read`,
+`disposition` is `product`, `test`, `generated`, `vendor`, `asset` or `empty`. `reading` is `unread`, `read`,
 `analyzed` or `excluded`, and is tracked **apart from** disposition: they answer "is this ours?" and "did
 anyone look at it?", and a run that conflates them cannot report an unread product file at all.
 

@@ -117,10 +117,125 @@ class GeneratedHeaderBelowTheFirstLine(unittest.TestCase):
         self.assertEqual(disposition, "product")
 
 
+class EmptyFiles(unittest.TestCase):
+    """Plan 15: an empty source file is `empty`, not an unread product file."""
+
+    def classify(self, path, text, is_test=False):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = os.path.realpath(tmp)
+            full = os.path.join(root, path)
+            os.makedirs(os.path.dirname(full), exist_ok=True)
+            with open(full, "w", encoding="utf-8") as fh:
+                fh.write(text)
+            return build_scope.classify(
+                {"path": path, "symbols": [], "is_test": is_test}, root)
+
+    def test_zero_byte_and_whitespace_only_files_are_empty(self):
+        for text in ("", "   \t\n\n  \n", "\n"):
+            self.assertEqual(self.classify("pkg/__init__.py", text),
+                             ("empty", "empty file: nothing to read or cite"), repr(text))
+
+    def test_a_comment_or_a_docstring_is_not_empty(self):
+        for text in ("# marker\n", '"""Package docs."""\n', "import os\n"):
+            self.assertEqual(self.classify("pkg/__init__.py", text), ("product", ""), text)
+
+    def test_a_file_longer_than_the_bytes_read_is_not_empty(self):
+        text = " " * (build_scope.HEADER_BYTES + 1)
+        self.assertEqual(self.classify("pkg/__init__.py", text)[0], "product")
+
+    def test_earlier_rules_win_for_an_empty_file(self):
+        disposition, reason = self.classify("tests/__init__.py", "", is_test=True)
+        self.assertEqual(disposition, "test")
+        self.assertIn("tests/", reason)
+        disposition, reason = self.classify("examples/__init__.py", "")
+        self.assertEqual(disposition, "asset")
+        self.assertIn("examples/", reason)
+        self.assertEqual(self.classify("vendor/__init__.py", "")[0], "vendor")
+
+
+class EmptyFilesInAScope(unittest.TestCase):
+    NAMES = ("pkg/__init__.py", "pkg/blank.py", "pkg/note.py", "pkg/doc.py", "pkg/real.py",
+             "tests/__init__.py", "examples/__init__.py")
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = os.path.realpath(self.tmp.name)
+        texts = {"pkg/blank.py": " \n\t\n", "pkg/note.py": "# a comment\n",
+                 "pkg/doc.py": '"""Doc."""\n', "pkg/real.py": "def f():\n    return 1\n"}
+        for name in self.NAMES:
+            full = os.path.join(self.root, name)
+            os.makedirs(os.path.dirname(full), exist_ok=True)
+            with open(full, "w", encoding="utf-8") as fh:
+                fh.write(texts.get(name, ""))
+        self.index = {"index_hash": "sha256:x", "files": [
+            {"path": n, "symbols": [], "source_hash": "h-" + n, "is_test": n.startswith("tests/")}
+            for n in self.NAMES]}
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def rows(self, scope):
+        return {r["path"]: r for r in scope["files"]}
+
+    def test_coverage_and_documented_paths_ignore_empty_files(self):
+        scope = build_scope.build(self.index, self.root)
+        self.assertIsNone(scope_record.malformed(scope))
+        rows = self.rows(scope)
+        self.assertEqual(rows["pkg/__init__.py"]["disposition"], "empty")
+        self.assertEqual(rows["pkg/blank.py"]["disposition"], "empty")
+        self.assertEqual(rows["pkg/note.py"]["disposition"], "product")
+        self.assertEqual(rows["pkg/doc.py"]["reading"], "unread")
+        self.assertEqual(rows["tests/__init__.py"]["disposition"], "test")
+        self.assertEqual(rows["examples/__init__.py"]["disposition"], "asset")
+        for row in rows.values():
+            if row["disposition"] == "product":
+                row["reading"] = "analyzed"
+        self.assertEqual(scope_record.coverage(scope)["unread"], [])
+        self.assertEqual(scope_record.coverage(scope)["excluded_kinds"]["empty"], 2)
+        documented = scope_record.documented_paths(scope)
+        self.assertNotIn("pkg/__init__.py", documented)
+        self.assertNotIn("pkg/blank.py", documented)
+        self.assertIn("pkg/note.py", documented)
+
+    def test_an_earlier_product_row_becomes_empty(self):
+        previous = {"files": [{"path": "pkg/__init__.py", "disposition": "product",
+                               "reading": "unread", "symbols": 0}]}
+        rows = self.rows(build_scope.build(self.index, self.root, previous=previous))
+        self.assertEqual(rows["pkg/__init__.py"]["disposition"], "empty")
+        self.assertEqual(rows["pkg/__init__.py"]["reading"], "excluded")
+
+    def test_a_persons_override_back_to_product_survives(self):
+        previous = {"files": [{"path": "pkg/__init__.py", "disposition": "product",
+                               "reading": "unread", "override": "person wants it documented"}]}
+        rows = self.rows(build_scope.build(self.index, self.root, previous=previous))
+        self.assertEqual(rows["pkg/__init__.py"]["disposition"], "product")
+        self.assertEqual(rows["pkg/__init__.py"]["reading"], "unread")
+        self.assertEqual(rows["pkg/__init__.py"]["override"], "person wants it documented")
+
+    def test_an_unreadable_candidate_stays_product_and_build_does_not_raise(self):
+        # One file removed between scan and scope, one symlink leaving the root.
+        os.remove(os.path.join(self.root, "pkg/__init__.py"))
+        with tempfile.NamedTemporaryFile(delete=False) as outside:
+            pass
+        try:
+            os.remove(os.path.join(self.root, "pkg/blank.py"))
+            os.symlink(outside.name, os.path.join(self.root, "pkg/blank.py"))
+            rows = self.rows(build_scope.build(self.index, self.root))
+        finally:
+            os.unlink(outside.name)
+        for path in ("pkg/__init__.py", "pkg/blank.py"):
+            self.assertEqual(rows[path]["disposition"], "product", path)
+
+
 class CutoffOrdersTheReading(Repo):
     def test_every_product_file_is_in_the_scope_including_the_low_fan_in_feature(self):
-        for path in ("src/latest/feed.py", "src/shop/runner.py", "src/shop/__init__.py"):
+        for path in ("src/latest/feed.py", "src/shop/runner.py"):
             self.assertEqual(self.rows[path]["disposition"], "product", path)
+        for path in ("src/shop/__init__.py", "src/latest/__init__.py"):
+            self.assertEqual(self.rows[path]["disposition"], "empty", path)
+            self.assertEqual(self.rows[path]["reading"], "excluded", path)
+            self.assertEqual(self.rows[path]["reason"], "empty file: nothing to read or cite")
+            self.assertNotIn(path, self.units)
 
     def test_the_symbol_free_entry_module_is_a_unit_and_is_marked_symbol_free(self):
         self.assertIn("src/shop/runner.py", self.units)
@@ -242,7 +357,7 @@ class CoverageAgainstTheScope(Repo):
                    os.path.join(self.build, "scope.json"), "--out", out)
         report = load(out)
         self.assertEqual(done.returncode, 0, done.stderr)
-        self.assertEqual(report["scope"]["product_files"], 8)
+        self.assertEqual(report["scope"]["product_files"], 6)
         self.assertIn("src/latest/feed.py", report["scope"]["unread"])
         self.assertTrue(any(r.startswith("incomplete:") for r in report["reasons"]))
 
@@ -253,8 +368,8 @@ class CoverageAgainstTheScope(Repo):
         done = run(self.root, PIPELINE, "status", "--root", self.root)
         after = {p: os.stat(p).st_mtime_ns for p in before}
         self.assertEqual(before, after)
-        self.assertIn("8 unread", done.stdout)
-        self.assertIn("incomplete: 8 product file(s) unread", done.stdout)
+        self.assertIn("6 unread", done.stdout)
+        self.assertIn("incomplete: 6 product file(s) unread", done.stdout)
 
     def test_analyze_syncs_reading_from_the_ledger_and_status_follows(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -268,7 +383,7 @@ class CoverageAgainstTheScope(Repo):
                       encoding="utf-8") as fh:
                 fh.write(json.dumps({"path": "src/shop/money.py", "statements": []}) + "\n")
             done = run(tmp, PIPELINE, "status", "--root", tmp)
-            self.assertIn("1 analyzed, 7 unread", done.stdout)
+            self.assertIn("1 analyzed, 5 unread", done.stdout)
 
     def test_a_person_narrowing_the_scope_is_recorded_and_not_reported_unread(self):
         narrowed = json.loads(json.dumps(self.scope))
@@ -431,9 +546,10 @@ class OneProductView(Repo):
         self.assertNotIn("tests/test_cart.py", body)
         self.assertNotIn("schema_pb2", body)
         self.assertNotIn("third_party", body)
+        self.assertNotIn("__init__.py", body)
         rows = {r[0]: r[1] for page in json.loads(body)["pages"] for block in page["blocks"]
                 if block["id"] == "block:navigation-clusters" for r in block["rows"]}
-        self.assertEqual(rows, {"src/latest": "2", "src/shop": "6"})
+        self.assertEqual(rows, {"src/latest": "1", "src/shop": "5"})
 
     def test_a_test_cited_as_evidence_still_resolves(self):
         index = load(self.detail)
@@ -548,7 +664,9 @@ class FeatureMap(Repo):
 
     def test_the_files_an_area_owns_form_one_reading_task(self):
         self.assertEqual(self.rows["src/latest/feed.py"]["task"], "feature:latest-feed")
-        self.assertEqual(self.rows["src/latest/__init__.py"]["task"], "feature:latest-feed")
+        # An empty file is not product, so it carries no feature and no task.
+        self.assertNotIn("task", self.rows["src/latest/__init__.py"])
+        self.assertNotIn("features", self.rows["src/latest/__init__.py"])
         self.assertEqual(self.rows["src/shop/cart.py"]["features"], ["cart"])
         # A test an area owns is evidence and is never taken into the product.
         self.assertEqual(self.rows["tests/test_cart.py"]["disposition"], "test")
