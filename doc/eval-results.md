@@ -69,6 +69,14 @@ The suites cost $0.43 (`docs`), $0.92 (`presentation`), $1.75 (`testing`) and $4
   runs. The skill's description
   sends "how does this fit together" questions to a chat answer, and this prompt does not ask for files. The
   trigger case "Document this repo. Write proper architecture documentation for it." fired 3 of 3.
+  - **Rerun with a clearer prompt.** The prompt now asks for "architecture documentation for this codebase,
+    as pages under docs/". The skill fired in 3 of 3 runs. Each run then stopped at checkpoint P1 after 4
+    turns, recommended the `architecture` preset, and asked the user to confirm the scope and the preset. It
+    scored 0 / 3 (0.00), against 0 / 3 (0.50) without the plugin, for $0.58.
+  - **Why the case cannot pass as written.** The skill never answers P4 on the user's behalf (`SKILL.md`,
+    rule 6). Pages reach `docs/` only at `publish`, after P4. So a one-message run with nobody to answer can
+    never satisfy `wrote-docs` (`docs/**`). The case predates that rule and needs redesigning, not only
+    rewording.
 - **`setup-verification`: the skill chose a directory it could not write.** In the three failing runs with the
   plugin, it found `.claude/skills/` in the workspace, although the repository has no such folder.
   - **Where the folder comes from:** Claude Code's sandbox creates it. Inside a sandboxed shell, `.claude/`
