@@ -8,6 +8,9 @@ the planner's and is added later in a "Grading" section.
 - **Repository state.** The branch `test/docs-end-to-end-run` was rebased onto `origin/main` at `49e213d`
   (plan 15 merged, `fix/docs-scope-empty-files`). `plugins/docs/.github/plugin/plugin.json` says `docs`
   **1.7.1**. Plan 16 (`feat/docs-migrate-legacy-build`) is not on `main`.
+- **Versions.** Both runs used the plugin as it stood at the checkout they started on: `docs` 1.7.1 at `main`
+  `49e213d`. After the runs `main` moved to `0a8ff05` (plans 16 and 18, `docs` 1.8.0). The branch was rebased
+  onto it before the last push, and the runs were not repeated on 1.8.0.
 - **Host.** Claude Code, model `claude-sonnet-5-5`, Linux cloud container, running as root. No subagent tool
   was available to this session, so every role (Analyst, Writer, Reviewer) ran as a sequential pass in one
   context and every review is `self_review`. The run is explicitly unattended (Decision 3): P1 to P3 and the

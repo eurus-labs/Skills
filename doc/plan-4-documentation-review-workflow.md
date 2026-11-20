@@ -207,7 +207,7 @@ checks passed), both run for this update. Those tests check script behavior, not
 | W3 | Done | `a6b0733` removes `prefill()` (no `def prefill` remains in `manual.py`) and `test_manual_preset.py` passes |
 | W4 | Done by plan 9 | `references/workflow.md`, `analyst.md`, `writer.md`, `reviewer.md`, and the `SKILL.md` Roles section. Instructions only; sequential and subagent paths are written but not run end to end |
 | W5 | Done by plans 12 and 13 | Staging (`staging_of` in `pipeline.py`), the fresh-review rule (`ef83115`), and `drafts/rev-NNNN` snapshots with per-revision review history and a seal bound to one revision (`snapshot_revision.py`, `seal_draft.py`, `promote_docs.py`), and `pipeline.py resume` (plan 13) |
-| W6 | Migration done by plan 16; the end-to-end evaluation is plan 17 | `pipeline.py migrate` (`migrate_build.py`) rewrites a `manual_version` 1 answer file, v1 review rows and a `seal_version` 1 seal without approving anything. A v1 review row and a `manual_version` 1 answer are still refused by `review_records.py` and `manual.py` until migrated |
+| W6 | Migration by plan 16; end-to-end runs recorded in `doc/e2e-evaluation.md` (plan 17) | `pipeline.py migrate` (`migrate_build.py`) rewrites a `manual_version` 1 answer file, v1 review rows and a `seal_version` 1 seal without approving anything. A v1 review row and a `manual_version` 1 answer are still refused by `review_records.py` and `manual.py` until migrated |
 
 The package definitions follow.
 
