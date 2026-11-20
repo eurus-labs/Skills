@@ -551,6 +551,27 @@ class OneProductView(Repo):
                 if block["id"] == "block:navigation-clusters" for r in block["rows"]}
         self.assertEqual(rows, {"src/latest": "1", "src/shop": "5"})
 
+    def test_an_empty_file_is_no_node_page_or_module_entry(self):
+        empties = ("src/shop/__init__.py", "src/latest/__init__.py")
+        scoped = self.graph("--scope", self.detail_scope)
+        graph_body = json.dumps(scoped)
+        claims = os.path.join(self.build, "claims.jsonl")
+        fragments = os.path.join(self.build, "fragments.jsonl")
+        for path in (claims, fragments):
+            open(path, "w", encoding="utf-8").close()
+        out = os.path.join(self.build, "doc-empty.json")
+        done = run(self.root, script("build_document_model.py"), "--index", self.detail,
+                   "--claims", claims, "--fragments", fragments, "--preset", "onboarding",
+                   "--scope", self.detail_scope, "--out", out)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        model = read(out)
+        for path in empties:
+            self.assertNotIn(path, graph_body)
+            self.assertNotIn(path, model)
+            self.assertNotIn(path, scope_record.documented_paths(load(self.detail_scope)))
+        self.assertIn("src/shop/runner.py", model)
+        self.assertTrue(any("src/shop/cart.py" in json.dumps(m) for m in scoped["modules"]))
+
     def test_a_test_cited_as_evidence_still_resolves(self):
         index = load(self.detail)
         record = next(r for r in index["files"] if r["path"] == "tests/test_cart.py")
