@@ -1,6 +1,6 @@
 # Plan 17 — run `document-codebase` end to end on two real codebases (plan 4, W6 part 2)
 
-Status: approved
+Status: implemented
 Date: 2026-11-20
 Branch: `test/docs-end-to-end-run`
 Baseline: `origin/main` at `48371e031b17e39a9c27c2a7177ebea09f76c101`. Rebase onto `main` after plan 15 merges
