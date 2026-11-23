@@ -87,6 +87,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   50 trigger cases pass. Behavior cases are weakest in `docs`, where the skill did not fire on an
   "architecture overview" request, and in `setup-verification`. `doc/running-evals.md` adds the fixes for a
   missing sandbox, a read-only temp directory and a missing `pytest`.
+  `review-code`, `setup-review-rules` and `evaluate-skill` now have trigger and behavior cases and pass on
+  Claude Code, with a gain over no plugin of +0.50, +1.00 and +0.67.
 
 ### Fixed
 
