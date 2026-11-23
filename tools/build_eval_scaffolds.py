@@ -37,6 +37,12 @@ SCAFFOLDS = {
         ("tests/contracts/layered-repo", ()),
     "plugins/presentation/evals/behavior/workflow-slide-from-wordy-slide":
         ("fixtures/09-wordy-process-slide", ("README.md",)),
+    "plugins/review/evals/behavior/review-code-finds-planted-vulnerabilities":
+        ("fixtures/04-security", ("README.md",)),
+    "plugins/review/evals/behavior/setup-review-rules-scopes-per-package":
+        ("fixtures/05-mixed-monorepo", ("README.md",)),
+    "plugins/skill-authoring/evals/behavior/evaluate-skill-finds-planted-defects":
+        ("fixtures/16-flawed-skill", ("README.md",)),
 }
 
 # eval case directory -> a git repository built from two snapshots, for skills that work on a change.

@@ -81,8 +81,18 @@ class Catalog(unittest.TestCase):
         self.assertIsNone(board.stamp_time("sample", None))
 
     def test_plugins_without_evals_are_listed_with_their_skills(self):
-        self.assertEqual(self.plugins["skill-authoring"]["cases"], [])
-        self.assertIn("evaluate-skill", [s[0] for s in self.plugins["skill-authoring"]["skills"]])
+        # Every plugin of this repository has evals now, so a plugin without any is built here.
+        with tempfile.TemporaryDirectory() as repo:
+            plugin_dir = os.path.join(repo, "plugins", "bare")
+            os.makedirs(os.path.join(plugin_dir, ".github", "plugin"))
+            os.makedirs(os.path.join(plugin_dir, "skills", "only-skill"))
+            with open(os.path.join(plugin_dir, ".github", "plugin", "plugin.json"), "w") as fh:
+                json.dump({"name": "bare", "version": "0.1.0", "skills": ["./skills/only-skill/"]}, fh)
+            with open(os.path.join(plugin_dir, "skills", "only-skill", "SKILL.md"), "w") as fh:
+                fh.write("---\nname: only-skill\ndescription: A skill with no evals.\n---\n")
+            bare = {p["name"]: p for p in board.catalog(repo)}["bare"]
+        self.assertEqual(bare["cases"], [])
+        self.assertIn("only-skill", [s[0] for s in bare["skills"]])
 
 
 class Results(unittest.TestCase):
