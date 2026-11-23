@@ -37,6 +37,7 @@ resolves it independently.
 | [`13-pipes-in-ci/`](13-pipes-in-ci/) | `setup-verification` | A small library whose CI commands use shell pipes. Does the generated skill run every check CI runs, and report what they return? Built as a git repository. |
 | [`14-local-verify-skill/`](14-local-verify-skill/) | triggering | A repository that already has its own verify skill. Which skill answers "verify my branch"? Built as a git repository. |
 | [`15-shared-code-change/`](15-shared-code-change/) | `verify-change` | A branch that changes a helper two areas share, with a green suite. Does the agent check the area the issue does not name? Built as a git repository. |
+| [`16-flawed-skill/`](16-flawed-skill/) | `evaluate-skill` | A small plugin of two skills. Does the evaluation report what is wrong with them, without inventing problems or editing the skills? Not installable from any marketplace. |
 | [`../tests/contracts/layered-repo/`](../tests/contracts/layered-repo/) | `document-codebase` | For "write an architecture overview", does it choose an architecture preset and explain the real layers and flow instead of producing the default manual? |
 
 ## Running a demo

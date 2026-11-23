@@ -1,0 +1,16 @@
+{
+  "name": "notes-helper",
+  "description": "Turn meeting notes into a short summary with decisions and action items.",
+  "version": "0.1.0",
+  "keywords": [
+    "notes",
+    "meetings"
+  ],
+  "author": {
+    "name": "example"
+  },
+  "license": "MIT",
+  "skills": [
+    "./skills/summarize-notes/"
+  ]
+}

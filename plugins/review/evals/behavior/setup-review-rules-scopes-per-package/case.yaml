@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: setup-review-rules-scopes-per-package
+context:
+  scaffold_script: scaffold.sh

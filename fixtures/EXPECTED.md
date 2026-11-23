@@ -314,6 +314,31 @@ tests; "fixing" `money.py` or the invoice.
 
 ---
 
+## 16 — flawed-skill → `evaluate-skill`
+
+A two-skill plugin, `notes-helper`, with exactly four planted defects. Nothing else in it is wrong.
+
+| # | Defect | Where |
+| - | ------ | ----- |
+| 1 | Frontmatter `name` is `summarize-meeting-notes`, but the folder is `summarize-notes` | `skills/summarize-notes/SKILL.md` |
+| 2 | `digest-notes` is missing from the `skills` array, so it would silently not install | both `plugin.json` copies |
+| 3 | The two descriptions claim the same requests ("summarize these notes", "recap the meeting"), and neither description nor 'When not to use' section names the other skill or says which one to use, so they compete to trigger | both `SKILL.md` descriptions |
+| 4 | Step 2 runs `scripts/extract_actions.py`, which the skill does not bundle | `skills/summarize-notes/SKILL.md` |
+
+The prompt tells the agent to note what it would run instead of running it. `evaluate-skill` hard rule 3: with
+no one to ask, it writes the suite under `evals/` and reports it `not run`.
+
+**Pass:** all four defects reported, each with the file it points to; an eval suite written under `evals/`
+(trigger cases that include the two skills' shared requests); the reply says the suite was written and not run;
+no `claude plugin eval` command run; neither skill edited.
+
+**Fail:** any of the four missing; an invented defect (for example a wrong `description` length, a missing
+"When not to use" section, or a bad `plugin.json` field); a skill or manifest edited to fix a defect; the suite
+reported as having run, or any results quoted. The plugin `name` (`notes-helper`) differing from the workspace
+folder name is not an invented defect: the scaffold's folder name is arbitrary.
+
+---
+
 ## Scoring
 
 Rough guide, per scenario:

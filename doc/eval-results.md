@@ -8,6 +8,62 @@ compare runs with the same `--model` and `--judge-model`. How to run the suites 
 Behavior cases run three times with the plugin and three times without it. **Δ** is the score with the plugin
 minus the score without it. A pass needs every scored grader to pass in a run.
 
+## 2026-11-23 — `review` and `skill-authoring` on Claude Code (plan 19)
+
+- **Host:** Claude Code 2.1.330, in a Linux cloud container, running as root, with `TMPDIR` outside `/tmp`.
+- **Models:** `--model claude-sonnet-5-5 --judge-model haiku`, with `-j 3 --no-publish --trust-plugin`.
+- **Commit:** the plan 19 branch, `test/evals-review-and-skill-authoring`. Plugin versions are unchanged.
+- **Cost:** $4.17 in total, under the $15 ceiling the user agreed.
+- **Not covered:** GitHub Copilot CLI.
+
+### Trigger cases
+
+These ran with `--tag trigger --ablation none`. Each case ran three times.
+
+| Plugin | Cases passed | Runs passed | Score | Cost | Time |
+| --- | --- | --- | --- | --- | --- |
+| `review` | 9 / 9 | 27 / 27 | 1.00 | $1.43 | 97 s |
+| `skill-authoring` | 3 / 3 | 9 / 9 | 1.00 | $0.43 | 28 s |
+
+The `review` suite includes the three existing `review-ui` cases, which still pass.
+
+### Behavior cases
+
+These ran with `--tag behavior --scaffold --allow-tools Bash Write Edit`, so both arms ran, three runs each.
+
+| Case | With plugin | Without | Δ | Cost |
+| --- | --- | --- | --- | --- |
+| `setup-review-rules-scopes-per-package` | 3 / 3 (1.00) | 0 / 3 (0.00) | +1.00 | part of $1.15 (the `review` run) |
+| `evaluate-skill-finds-planted-defects` | 3 / 3 (1.00) | 0 / 3 (0.33) | +0.67 | $0.64 |
+| `review-code-finds-planted-vulnerabilities`, first run | 0 / 3 (0.50) | 0 / 3 (0.50) | 0 | part of $1.15 |
+| `review-code-finds-planted-vulnerabilities`, rerun after the grader fix | 3 / 3 (1.00) | 0 / 3 (0.50) | +0.50 | $0.52 |
+
+### What the traces show
+
+- **`setup-review-rules`:** without the plugin, the agent never wrote `AGENTS.md` in any run, so `wrote-rules`
+  failed and `scoped-commands` had no file to read. With the plugin, each `AGENTS.md` had a per-package command
+  table (install and test for `services/api` and `apps/web`), matching `EXPECTED.md` section 05.
+- **`evaluate-skill`:** without the plugin, the agent read the plugin and reported overlapping skills but wrote
+  no eval suite (`wrote-trigger-cases` failed) and did not pass `defects`. With the plugin, all three runs
+  wrote `evals/trigger/**/prompt.md`, reported the four defects, and said the suite was "not run" because no
+  one could agree to the model-call cost. `did-not-run` passed in both arms: no run called
+  `claude plugin eval`.
+- **`review-code`, first run:** the `findings` grader failed all 6 runs. With the plugin, every reply found
+  all four blocking findings, each with its CWE and an exploit input. But each also rated the hardcoded signing
+  key, MD5 and the open redirect as Blocking, and one added a non-security nit on `format_receipt` (use
+  `Decimal` for money). `EXPECTED.md` section 04 calls those three "Should fix", but `review-code`'s own
+  severity ladder (`references/review-standard.md:28`) lists "secret in source" as Blocking. The answer key
+  and the skill disagree. By the user's choice, the grader was loosened (the amendment to Decision 2, commit
+  `96f1085`). `EXPECTED.md` section 04 was left unchanged.
+- **`review-code`, rerun:** with the plugin, 3 / 3 passed. The judge voted PASS PASS FAIL in one run and
+  PASS, PASS, PASS in the others. Without the plugin, 3 / 3 failed `findings`: those replies listed the right
+  issues but gave no CWE. `code-untouched` passed in all 12 runs across both `review-code` runs.
+
+### Open item
+
+The severities in `EXPECTED.md` section 04 (open redirect, hardcoded key and MD5 as "Should fix") disagree
+with `review-code`'s severity ladder. Settle which is right in a later plan.
+
 ## 2026-11-19 and 2026-11-20 — `docs`, `testing`, `verification` and `presentation` on Claude Code
 
 - **Host:** Claude Code 2.1.329, in a Linux cloud container, running as root.
@@ -15,7 +71,8 @@ minus the score without it. A pass needs every scored grader to pass in a run.
 - **Commit:** `main` at `642a431`, after plan 14. The plugin versions are those in the tables.
 - **Not covered:**
   - GitHub Copilot CLI;
-  - `review-code`, `setup-review-rules` and `evaluate-skill`, which have no eval cases.
+  - `review-code`, `setup-review-rules` and `evaluate-skill`, which had no eval cases then; see the
+    2026-11-23 section above.
 
 ### Trigger cases
 
