@@ -1,6 +1,6 @@
 # Plan 19 — eval cases for `review-code`, `setup-review-rules` and `evaluate-skill`
 
-Status: approved
+Status: implemented
 Date: 2026-11-20
 Branch: `test/evals-review-and-skill-authoring`
 Baseline: `origin/main` at `efc202530d5b934bc73a2a34f837af042fa7cecf`
