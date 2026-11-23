@@ -1,9 +1,9 @@
 # Plan 19 — eval cases for `review-code`, `setup-review-rules` and `evaluate-skill`
 
-Status: draft
+Status: approved
 Date: 2026-11-20
 Branch: `test/evals-review-and-skill-authoring`
-Baseline: `origin/main` at `e61dd84c12d6e179ed7ce3d3e8c1d065e36f3d1e`
+Baseline: `origin/main` at `efc202530d5b934bc73a2a34f837af042fa7cecf`
 Target: `plugins/review/evals/`, `plugins/skill-authoring/evals/` (new), `fixtures/16-flawed-skill/` (new),
 `fixtures/EXPECTED.md`, `fixtures/README.md`, `tools/build_eval_scaffolds.py`, the two plugin READMEs,
 `doc/eval-results.md`
