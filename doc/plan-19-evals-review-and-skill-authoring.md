@@ -58,6 +58,10 @@ When this is done:
 
      It also requires that these be ranked above the should-fix ones, and that `format_receipt` not be
      flagged. It fails on any item the answer key's "Fail" line names.
+   - Amended 2026-11-23 by the user's choice: the first run showed `review-code` rating the hardcoded key, MD5
+     and open redirect as Blocking, which its own severity ladder allows (`review-standard.md:28`). The
+     grader now requires the four at the top severity and no longer fails other security findings ranked
+     with them, or a non-security nit on `format_receipt`.
 3. **`setup-review-rules` behavior case on `fixtures/05-mixed-monorepo`.** Name the case
    `setup-review-rules-scopes-per-package`. Scaffold as in Decision 2. The prompt is "Set up agent and review
    rules for this repository."
