@@ -254,6 +254,9 @@ link to their output. A run starts the same runner you would start from a termin
 (`tools/copilot_eval.py --run` or `claude plugin eval`). A Markdown transcript opens as a readable page: roles,
 each tool call with its arguments and output folded, and timings; add `&raw=1` to the link for the file itself.
 The page escapes everything the agent wrote and may run no script. When a job ends the scores reload.
+An open page also picks up a new or rewritten `aggregate-result.json` within about 5 seconds, whatever wrote it (a
+terminal run, copied folders, or an earlier case of a run in progress). It keeps the open skill, case, search and
+run forms, and waits while you type. It checks only while the tab is visible, and the static board does not poll.
 
 The hosts come from one list, `HOSTS` in `tools/build_eval_board.py`: the server builds its commands from it and
 the page draws its badges, run forms and platform buttons from it.
@@ -295,7 +298,7 @@ English and Vietnamese. Add result files from elsewhere with `--results [plugin=
 | `Sandbox required but unavailable: … bubblewrap (bwrap) not installed, socat not installed` on every behavior run | A case that grants Bash needs the OS sandbox. On Linux, install `bubblewrap` and `socat` (for example `apt-get install -y bubblewrap socat`). |
 | A behavior run says the workspace or `$TMPDIR` is a `Read-only file system` | Seen once, running as root in a Linux container: the run's temp directory was under `/tmp`, which the sandbox denied writing to. Run with `TMPDIR` set to a directory outside `/tmp`, for example `TMPDIR="$HOME/evaltmp" claude plugin eval …`. |
 | A `testing` behavior case fails with the plugin because `pip install pytest` was blocked | The sandbox has no network, so a run cannot install the test runner, and the skill will not write tests it cannot run. Install the fixture's runner (`python3 -m pip install pytest`) for the Python the runs use, then rerun. |
-| The eval board or skill manager shows no results for runs made on another machine, such as a cloud session | `plugins/*/evals/results/` is git-ignored, so results stay on the machine that ran them. Copy the `plugins/<plugin>/evals/results/<timestamp>/` folders, at least `aggregate-result.json`, into the same paths in your checkout, or pass the files with `python3 tools/build_eval_board.py --results <plugin>=<file>`, then reload. Record runs worth keeping in `doc/eval-results.md`. |
+| The eval board or skill manager shows no results for runs made on another machine, such as a cloud session | `plugins/*/evals/results/` is git-ignored, so results stay on the machine that ran them. Copy the `plugins/<plugin>/evals/results/<timestamp>/` folders, at least `aggregate-result.json`, into the same paths in your checkout, and an open skill manager shows them within seconds. The static board needs a rebuild, and can take the files without copying: `python3 tools/build_eval_board.py --results <plugin>=<file>`. Record runs worth keeping in `doc/eval-results.md`. |
 | Board shows `untrusted` | The run was partial, errored, or had a skipped grader. Rerun, or grade the skipped graders. |
 
 ## After you change a skill or a fixture

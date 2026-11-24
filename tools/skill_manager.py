@@ -13,6 +13,9 @@ For people who develop the skills in this repository. It serves one local page w
   Update all and Uninstall all act on many plugins. A plugin the host has installed from this
   marketplace that the checkout no longer lists (a renamed one) gets a row with Uninstall only.
 
+An open page picks up a new or rewritten eval result within about 5 seconds, whatever wrote it (a run
+here, a terminal, or folders copied in), and keeps the open skill, case, search and forms.
+
 A run opens a Run view: progress through its cases, Stop, the waiting grading question with Yes, No
 and Skip, the transcripts, a tally of the answers, and the live output. It starts tools/copilot_eval.py
 (Copilot CLI) or `claude plugin eval` (Claude Code) on this machine. The hosts are build_eval_board.HOSTS.
@@ -38,6 +41,7 @@ Standard library only.
 
 import argparse
 import contextlib
+import hashlib
 import html
 import json
 import os
@@ -448,6 +452,22 @@ __BODY__
 """
 
 
+def results_signature(repo=None):
+    """(signature, count) of the eval result files: SHA-1 over each file's repository-relative path, mtime
+    and size. It reads no file contents, so the page can ask every few seconds. A file that vanishes
+    between the listing and its stat is left out."""
+    repo = repo or REPO
+    entries = []
+    for path in board.result_files(repo):
+        try:
+            st = os.stat(path)
+        except OSError:
+            continue
+        entries.append((os.path.relpath(path, repo).replace(os.sep, "/"), st.st_mtime_ns, st.st_size))
+    entries.sort()
+    return hashlib.sha1(json.dumps(entries).encode("utf-8")).hexdigest(), len(entries)
+
+
 class Manager:
     """The state the handlers share: the token and at most one job."""
 
@@ -599,7 +619,11 @@ def make_handler(state, port_ref):
             if not self._authorized(url):
                 return self._send(403, {"error": "forbidden: open the URL printed by the server"})
             if url.path == "/":
-                page = board.board(state.catalog(), board.load_results(board.result_files()), {"token": state.token})
+                # The signature is taken before the results are read: a result written in between only
+                # makes the page's first poll redraw once more, and is never missed.
+                signature = results_signature()[0]
+                page = board.board(state.catalog(), board.load_results(board.result_files()),
+                                   {"token": state.token, "signature": signature})
                 return self._send(200, page.encode("utf-8"), "text/html; charset=utf-8")
             if url.path == "/transcript":
                 path = transcript_path((parse_qs(url.query).get("file") or [""])[0])
@@ -613,6 +637,9 @@ def make_handler(state, port_ref):
                 return self._send(200, data, "text/plain; charset=utf-8")
             if url.path == "/api/state":
                 return self._send(200, state.state())
+            if url.path == "/api/results":
+                signature, count = results_signature()
+                return self._send(200, {"signature": signature, "count": count})
             if url.path == "/api/installed":
                 return self._send(200, installed())
             if url.path == "/api/job":
