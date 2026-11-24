@@ -34,6 +34,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Skill manager** (contributor tooling, no plugin version): an open page now shows a new or rewritten
+  `aggregate-result.json` within about 5 seconds, whatever wrote it (a terminal run, results copied from another
+  machine, or an earlier case of a run in progress), and keeps the open skill, case, search and run forms. The
+  page polls the new `GET /api/results` signature while it is visible, and waits while you type. The static
+  `eval-board.html` is unchanged.
 - **`coder-handoff`** (`reasoning` 0.3.0) always dispatches the plan to a model at least one tier below the
   planner's, from the allowed coders Sonnet, Haiku, terra and luna (the lowest tier hands off to itself). It
   learns the planner's model from the host or asks, stops when the host lacks the coder, asks before using a
