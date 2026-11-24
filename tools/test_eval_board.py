@@ -269,11 +269,12 @@ global.document = {getElementById: id => els[id] || (els[id] = mk()), querySelec
 global.window = {scrollTo(){}};
 global.localStorage = {getItem(){return null}, setItem(){}};
 const calls = [];
-let sig = "s1", down = false;
+let sig = "s1", down = false, hold = null;
 const newData = () => Object.assign({}, DATA, {results: {"p/c": [{score: 1, host: "claude", stamp: "x", errors: [], partial: false, skippedPaid: false}]}});
 global.fetch = async url => {
   calls.push(url);
   if (down) throw new Error("connection lost");
+  if (url === "/api/state" && hold) await hold;
   const body = url === "/api/results" ? {signature: sig, count: 1} : url === "/api/state" ? newData() : {status: "idle"};
   return {ok: true, json: async () => body};
 };
@@ -298,6 +299,18 @@ LIVE_CHECKS = """
   out.afterFocusLeaves = fetched("/api/state"); out.sig = LIVE.sig; out.pending = LIVE.pending;
   out.results = Object.keys(DATA.results); out.list = els.skilllist.innerHTML;
   out.form = state.form["p/c"]; out.expanded = [...state.expanded]; out.q = state.q; out.selected = state.selected; out.view = state.view;
+  /* Focus entering a field while /api/state is in flight: no redraw, still pending, fresh fetch next tick. */
+  sig = "s5"; els.skilllist.innerHTML = "MARK"; calls.length = 0;
+  let release; hold = new Promise(r => { release = r; });
+  const inflight = checkResults(); clearTimeout(LIVE.timer);
+  await new Promise(r => setTimeout(r, 20));
+  document.activeElement = {tagName: "INPUT", closest: () => null, hasAttribute: () => false};
+  release(); await inflight; clearTimeout(LIVE.timer);
+  out.raceRedrawn = els.skilllist.innerHTML !== "MARK"; out.racePending = LIVE.pending; out.raceSig = LIVE.sig;
+  document.activeElement = null; hold = null; calls.length = 0;
+  await checkResults(); clearTimeout(LIVE.timer);
+  out.raceAfterBlur = els.skilllist.innerHTML !== "MARK"; out.raceSigAfter = LIVE.sig; out.racePendingAfter = LIVE.pending;
+  out.raceStateFetches = fetched("/api/state");
   /* A hidden page does not poll. */
   calls.length = 0; document.visibilityState = "hidden"; sig = "s3";
   await checkResults(); clearTimeout(LIVE.timer);
@@ -342,6 +355,11 @@ class LiveResults(unittest.TestCase):
         self.assertEqual(got["q"], "g")
         self.assertEqual(got["selected"], {"case": "p/c", "skill": "skill:p/s"})
         self.assertEqual(got["view"], "evals")
+        self.assertFalse(got["raceRedrawn"], "focus that arrives while the state loads blocks the redraw")
+        self.assertTrue(got["racePending"])
+        self.assertEqual(got["raceSig"], "s2", "the signature is not taken until the redraw runs")
+        self.assertTrue(got["raceAfterBlur"], "the next tick after focus leaves redraws")
+        self.assertEqual((got["raceSigAfter"], got["racePendingAfter"], got["raceStateFetches"]), ("s5", False, 1))
         self.assertEqual(got["hidden"], 0, "a hidden page makes no request")
         self.assertEqual(got["onVisible"], "s3", "becoming visible checks at once")
         self.assertEqual(got["viewAfterFailure"], "evals", "a failed poll never opens the Run view")

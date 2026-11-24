@@ -876,8 +876,8 @@ async function checkResults(){
       if (r.signature !== LIVE.sig) LIVE.pending = true;
       if (LIVE.pending && !typing()) {
         const d = await api("/api/state");
-        LIVE.sig = r.signature; LIVE.pending = false;
-        redrawResults(d);
+        /* Focus may have entered a field while the request was in flight: stay pending, fetch fresh next tick. */
+        if (!typing()) { LIVE.sig = r.signature; LIVE.pending = false; redrawResults(d); }
       }
     } catch (err) { /* lost connection or stopped server: try again on the next tick */ }
     LIVE.busy = false;
