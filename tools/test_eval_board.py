@@ -222,6 +222,17 @@ class Page(unittest.TestCase):
         self.assertIn('(j.status !== "running" && JOB.seen)', page)
         self.assertIn('(j.status === "running" || !JOB.seen)', page)
 
+    def test_only_the_served_page_polls_for_results(self):
+        static = board.board([], {})
+        self.assertIn("const SERVER = null;", static)
+        # The poll starts only inside the SERVER guard.
+        self.assertRegex(static, r"if \(SERVER\) \{[^\n]*LIVE\.timer = setTimeout\(checkResults, 5000\)")
+        self.assertEqual(static.count("setTimeout(checkResults, 5000)"), 2, "the guarded start and the next tick only")
+        served = board.board([], {}, {"token": "t", "signature": "abc123"})
+        self.assertIn('const SERVER = {"token": "t", "signature": "abc123"};', served)
+        self.assertIn('document.visibilityState === "visible"', served)
+        self.assertNotIn("location.reload", served)
+
 
 HARNESS = """
 const els = {};
@@ -241,8 +252,101 @@ const pick = {"[data-install]": {dataset: {install: "uninstall", host: "copilot"
 global.clickHandler({target: {closest: sel => pick[sel] || null}}).then(() => {
 console.log(JSON.stringify({all: state.installing, body: els.installbody.innerHTML, confirm: commandText("copilot", "enable", ["reasoning"]),
   confirmClaude: commandText("claude", "enable", ["reasoning"]), uninstall: commandText("copilot", "uninstall", ["code-review"])}));
+process.exit(0); /* the page's 5-second results timer would keep node alive */
 });
 """
+
+
+LIVE_HARNESS = """
+const els = {};
+const mk = () => ({innerHTML:"", textContent:"", hidden:false, style:{}, dataset:{}, scrollTop:0, setAttribute(){}, addEventListener(){},
+  closest(){return null}, querySelector(){return null}, querySelectorAll(){return []}});
+const forms = [];
+global.CSS = {escape: s => s};
+global.FormData = class { constructor(el){ this.f = el.fields; } entries(){ return Object.entries(this.f); } };
+global.document = {getElementById: id => els[id] || (els[id] = mk()), querySelectorAll: sel => sel === "form[data-run]" ? forms : [],
+  querySelector: () => null, addEventListener(t, f){ global["on_" + t] = f; }, documentElement:{}, activeElement:null, visibilityState:"visible"};
+global.window = {scrollTo(){}};
+global.localStorage = {getItem(){return null}, setItem(){}};
+const calls = [];
+let sig = "s1", down = false;
+const newData = () => Object.assign({}, DATA, {results: {"p/c": [{score: 1, host: "claude", stamp: "x", errors: [], partial: false, skippedPaid: false}]}});
+global.fetch = async url => {
+  calls.push(url);
+  if (down) throw new Error("connection lost");
+  const body = url === "/api/results" ? {signature: sig, count: 1} : url === "/api/state" ? newData() : {status: "idle"};
+  return {ok: true, json: async () => body};
+};
+"""
+LIVE_CHECKS = """
+;(async () => {
+  const out = {};
+  const fetched = what => calls.filter(u => u === what).length;
+  await new Promise(r => setTimeout(r, 20));
+  clearTimeout(LIVE.timer);
+  calls.length = 0;
+  await checkResults(); clearTimeout(LIVE.timer);
+  out.sameSignature = fetched("/api/state");
+  /* A new result while the user types: the redraw waits, then runs once focus leaves. */
+  sig = "s2"; document.activeElement = {tagName: "INPUT", closest: () => null, hasAttribute: () => false};
+  await checkResults(); clearTimeout(LIVE.timer);
+  out.whileTyping = fetched("/api/state"); out.pendingWhileTyping = LIVE.pending;
+  forms.push({dataset: {run: "p/c"}, fields: {host: "claude", arms: "with", model: "m1", effort: "high", cost: "3"}});
+  state.expanded.add("skill:p/s"); state.q = "g"; state.selected = {case: "p/c", skill: "skill:p/s"};
+  document.activeElement = null;
+  await checkResults(); clearTimeout(LIVE.timer);
+  out.afterFocusLeaves = fetched("/api/state"); out.sig = LIVE.sig; out.pending = LIVE.pending;
+  out.results = Object.keys(DATA.results); out.list = els.skilllist.innerHTML;
+  out.form = state.form["p/c"]; out.expanded = [...state.expanded]; out.q = state.q; out.selected = state.selected; out.view = state.view;
+  /* A hidden page does not poll. */
+  calls.length = 0; document.visibilityState = "hidden"; sig = "s3";
+  await checkResults(); clearTimeout(LIVE.timer);
+  out.hidden = calls.length;
+  /* Becoming visible checks at once. */
+  document.visibilityState = "visible"; global.on_visibilitychange(); await new Promise(r => setTimeout(r, 20)); clearTimeout(LIVE.timer);
+  out.onVisible = LIVE.sig;
+  /* A lost connection is silent and never opens the Run view. */
+  down = true; sig = "s4";
+  await checkResults(); clearTimeout(LIVE.timer);
+  out.viewAfterFailure = state.view; out.sigAfterFailure = LIVE.sig; out.busyAfterFailure = LIVE.busy;
+  console.log(JSON.stringify(out)); process.exit(0);
+})();
+"""
+
+
+class LiveResults(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("node"), "node is needed to run the page script")
+    def test_the_page_redraws_on_a_new_signature_and_keeps_what_is_open(self):
+        plugins = [{"name": "p", "version": "0.1.0", "skills": [["s", "g"]],
+                    "cases": [{"name": "c", "kind": "trigger", "description": "d", "prompt": "x", "graders": [],
+                               "fires": ["s"], "quiet": [], "skills": ["s"]}]}]
+        page = board.board(plugins, {}, {"token": "t", "signature": "s1"})
+        script = page[page.index("<script>") + len("<script>"):page.rindex("</script>")]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "page.js")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(LIVE_HARNESS + script + LIVE_CHECKS)
+            out = subprocess.run(["node", path], capture_output=True, text=True, timeout=60)
+        self.assertEqual(out.returncode, 0, out.stderr)
+        got = json.loads(out.stdout.strip().splitlines()[-1])
+        self.assertEqual(got["sameSignature"], 0, "an unchanged signature fetches no state")
+        self.assertEqual(got["whileTyping"], 0, "focus in an input defers the redraw")
+        self.assertTrue(got["pendingWhileTyping"])
+        self.assertEqual(got["afterFocusLeaves"], 1, "the redraw runs once focus has left")
+        self.assertEqual((got["sig"], got["pending"]), ("s2", False))
+        self.assertEqual(got["results"], ["p/c"], "the new result is in the page data")
+        self.assertIn("1.00", got["list"], "the open skill is drawn again with the new score")
+        self.assertEqual(got["form"], {"host": "claude", "arms": "with", "model": "m1", "effort": "high", "cost": "3"},
+                         "an open run form's values are kept for the redraw")
+        self.assertEqual(got["expanded"], ["skill:p/s"])
+        self.assertEqual(got["q"], "g")
+        self.assertEqual(got["selected"], {"case": "p/c", "skill": "skill:p/s"})
+        self.assertEqual(got["view"], "evals")
+        self.assertEqual(got["hidden"], 0, "a hidden page makes no request")
+        self.assertEqual(got["onVisible"], "s3", "becoming visible checks at once")
+        self.assertEqual(got["viewAfterFailure"], "evals", "a failed poll never opens the Run view")
+        self.assertEqual(got["sigAfterFailure"], "s3")
+        self.assertFalse(got["busyAfterFailure"], "a failed poll is retried on the next tick")
 
 
 class SkillsTab(unittest.TestCase):

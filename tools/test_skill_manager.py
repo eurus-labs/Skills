@@ -16,6 +16,7 @@ import os
 import re
 import shutil
 import sys
+import tempfile
 import threading
 import time
 import unittest
@@ -68,7 +69,7 @@ class Access(Server):
         self.assertEqual(self.request("GET", "/", token=None)[0], 403)
         status, page = self.request("GET", "/?token=t0k3n", token=None)
         self.assertEqual(status, 200)
-        self.assertIn('const SERVER = {"token": "t0k3n"}', page)
+        self.assertRegex(page, r'const SERVER = \{"token": "t0k3n", "signature": "[0-9a-f]{40}"\};')
         self.assertIn('data-view="run"', page)
         self.assertIn('"hosts": [{"id": "copilot"', page, "the page draws its hosts from the server's list")
 
@@ -106,6 +107,87 @@ class Access(Server):
                                         {"plugin": "verification", "case": "none-implement-feature", "host": "copilot"})
         self.assertEqual(status, 400)
         self.assertIn("not on PATH", data["error"])
+
+
+class LiveResults(Server):
+    def make_repo(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, True)
+        return tmp
+
+    def write_result(self, repo, stamp, text='{"schemaVersion": 1, "cases": []}'):
+        folder = os.path.join(repo, "plugins", "verification", "evals", "results", stamp)
+        os.makedirs(folder, exist_ok=True)
+        path = os.path.join(folder, "aggregate-result.json")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        return path
+
+    def pointed_at(self, repo):
+        """Make the server list result files under `repo` instead of the real checkout."""
+        real = ebs.board.result_files
+        for patcher in (patch.object(ebs.board, "result_files", lambda r=None: real(repo)), patch.object(ebs, "REPO", repo)):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def test_the_signature_needs_the_token(self):
+        self.assertEqual(self.request("GET", "/api/results", token=None)[0], 403)
+        self.assertEqual(self.request("GET", "/api/results", token="wrong")[0], 403)
+        status, data = self.request("GET", "/api/results")
+        self.assertEqual(status, 200)
+        self.assertRegex(data["signature"], r"^[0-9a-f]{40}$")
+        self.assertIsInstance(data["count"], int)
+
+    def test_the_signature_follows_the_result_files(self):
+        repo = self.make_repo()
+        self.pointed_at(repo)
+        empty = self.request("GET", "/api/results")[1]
+        self.assertEqual(empty["count"], 0)
+        self.assertEqual(self.request("GET", "/api/results")[1], empty, "stable across calls")
+        first = self.write_result(repo, "20260101-000000")
+        one = self.request("GET", "/api/results")[1]
+        self.assertEqual(one["count"], 1)
+        self.assertNotEqual(one["signature"], empty["signature"], "a new result folder changes it")
+        self.assertEqual(self.request("GET", "/api/results")[1], one)
+        with open(first, "w", encoding="utf-8") as fh:
+            fh.write('{"schemaVersion": 1, "cases": [], "note": "rewritten, longer"}')
+        rewritten = self.request("GET", "/api/results")[1]
+        self.assertEqual(rewritten["count"], 1)
+        self.assertNotEqual(rewritten["signature"], one["signature"], "a rewritten file changes it")
+        stat = os.stat(first)
+        os.utime(first, ns=(stat.st_atime_ns, stat.st_mtime_ns + 5000000000))
+        self.assertNotEqual(self.request("GET", "/api/results")[1]["signature"], rewritten["signature"],
+                            "a new mtime alone changes it")
+        self.write_result(repo, "20260102-000000")
+        self.assertEqual(self.request("GET", "/api/results")[1]["count"], 2)
+
+    def test_a_file_that_vanishes_before_its_stat_is_left_out(self):
+        repo = self.make_repo()
+        keep = self.write_result(repo, "20260101-000000")
+        gone = os.path.join(repo, "plugins", "verification", "evals", "results", "20260102-000000", "aggregate-result.json")
+        with patch.object(ebs.board, "result_files", lambda r=None: [keep, gone]):
+            signature, count = ebs.results_signature(repo)
+        self.assertEqual(count, 1)
+        self.assertRegex(signature, r"^[0-9a-f]{40}$")
+
+    def test_a_half_written_result_changes_the_signature_and_breaks_nothing(self):
+        repo = self.make_repo()
+        self.pointed_at(repo)
+        before = self.request("GET", "/api/results")[1]["signature"]
+        self.write_result(repo, "20260101-000000", '{"schemaVersion": 1, "cases": [')
+        status, after = self.request("GET", "/api/results")
+        self.assertEqual(status, 200)
+        self.assertNotEqual(after["signature"], before)
+        self.assertEqual(after["count"], 1)
+        with patch("sys.stderr", new_callable=io.StringIO), patch("sys.stdout", new_callable=io.StringIO):
+            status, data = self.request("GET", "/api/state")
+        self.assertEqual(status, 200)
+        self.assertEqual(data["results"], {}, "the bad file is skipped as before")
+
+    def test_the_page_carries_the_first_signature(self):
+        signature = self.request("GET", "/api/results")[1]["signature"]
+        _, page = self.request("GET", "/?token=t0k3n", token=None)
+        self.assertIn('"signature": "%s"' % signature, page)
 
 
 class Transcripts(Server):

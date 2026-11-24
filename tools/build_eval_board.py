@@ -849,6 +849,43 @@ function alertRun(msg){
   if (state.view !== "run") setView("run"); else renderRun();
 }
 
+/* Live results: a new or rewritten aggregate-result.json, from any source, redraws the Evals view.
+   Every 5 seconds, only while the page is visible, ask /api/results for a signature of the result files
+   (no file is read there). The first signature comes with the page. When it differs, fetch /api/state and
+   redraw, keeping everything the user has open (state is untouched; open run forms are snapshotted into
+   state.form first, and runFormFor draws their values back). While focus is in an input, select or
+   textarea the redraw waits for the next tick. A failed poll is silent and retried; it never opens the
+   Run view. */
+const LIVE = {sig: SERVER ? SERVER.signature : null, timer: null, busy: false, pending: false};
+const typing = () => { const a = document.activeElement; return !!a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName); };
+function redrawResults(d){
+  document.querySelectorAll("form[data-run]").forEach(f => formOf(f.dataset.run, f));
+  const a = document.activeElement, keep = a && a.closest && a.closest("#skilllist,#casepanel,#filters");
+  const sel = keep ? ["data-expand", "data-skillrun", "data-case", "data-closepanel", "data-filter"].map(n => a.hasAttribute(n) ? `[${n}="${CSS.escape(a.getAttribute(n))}"]` : "").find(Boolean) : "";
+  const panel = $("casepanel"), top = panel.scrollTop;
+  setData(d); renderEvals();
+  panel.scrollTop = top;
+  const again = sel && document.querySelector(sel); if (again) again.focus();
+}
+async function checkResults(){
+  clearTimeout(LIVE.timer);
+  if (!LIVE.busy && document.visibilityState === "visible") {
+    LIVE.busy = true;
+    try {
+      const r = await api("/api/results");
+      if (r.signature !== LIVE.sig) LIVE.pending = true;
+      if (LIVE.pending && !typing()) {
+        const d = await api("/api/state");
+        LIVE.sig = r.signature; LIVE.pending = false;
+        redrawResults(d);
+      }
+    } catch (err) { /* lost connection or stopped server: try again on the next tick */ }
+    LIVE.busy = false;
+  }
+  LIVE.timer = setTimeout(checkResults, 5000);
+}
+document.addEventListener("visibilitychange", () => { if (SERVER && document.visibilityState === "visible") checkResults(); });
+
 /* Install: the platform buttons, then the chosen host's marketplace card and plugin table. */
 async function loadInstalled(){
   if (!SERVER) return;
@@ -1033,7 +1070,7 @@ let saved = "evals";
 try { if (localStorage.getItem("eval-board-tab") === "install") saved = "install"; } catch (e) {}
 applyLang();
 setView(saved);
-if (SERVER) { poll(); loadInstalled().then(renderAll); }
+if (SERVER) { poll(); loadInstalled().then(renderAll); LIVE.timer = setTimeout(checkResults, 5000); }
 </script>
 </body>
 </html>
