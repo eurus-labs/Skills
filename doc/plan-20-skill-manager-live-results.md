@@ -1,6 +1,6 @@
 # Plan 20 — the skill manager redraws itself when a new eval result appears
 
-Status: draft
+Status: approved
 Date: 2026-11-24
 Branch: `feat/tools-skill-manager-live-results`
 Baseline: `origin/main` at `efe98efb8c1aacfde416de66a428885a64d691c7`
