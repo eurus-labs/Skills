@@ -1,6 +1,6 @@
 # Plan 22 — align the `fixtures/04-security` answer key with `review-code`'s severity ladder
 
-Status: approved
+Status: implemented
 Date: 2026-11-25
 Branch: `test/fixtures-security-severities`
 Baseline: `origin/main` at `b26907b82c54ccb7b26ed1e9044003546e400f85`
