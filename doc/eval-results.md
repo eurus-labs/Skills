@@ -14,7 +14,7 @@ minus the score without it. A pass needs every scored grader to pass in a run.
 - **Models:** `--model claude-sonnet-5-5 --judge-model haiku`, with `-j 3 --no-publish --trust-plugin`.
 - **Change under test:** the new `analyze-requirements` skill (`reasoning` 0.4.0), the hand-off sentences added
   to the `design-solution` and `write-plan` descriptions, and fixture 17.
-- **Cost:** $4.03 in total, under the $5 ceiling the user agreed.
+- **Cost:** $4.78 in total, under the $5 ceiling the user agreed.
 - **Not covered:** GitHub Copilot CLI.
 
 ### Trigger cases
@@ -38,6 +38,7 @@ These ran with `--tag behavior --scaffold --allow-tools Bash Write Edit`, so bot
 | `analyze-requirements-flags-planted-changes`, first run | 2 / 3 (0.89) | 0 / 3 (0.33) | +0.56 | $0.69 |
 | `analyze-requirements-flags-planted-changes`, rerun after the fix | 3 / 3 (1.00) | 0 / 3 (0.33) | +0.67 | $0.72 |
 | `analyze-requirements-flags-planted-changes`, rerun after the sources step (Decision 11) | 3 / 3 (1.00) | 0 / 3 (0.33) | +0.67 | $0.72 |
+| `analyze-requirements-flags-planted-changes`, rerun after the diff and check fixes (Codex review) | 3 / 3 (1.00) | 0 / 3 (0.33) | +0.67 | $0.75 |
 
 ### What the traces show
 
@@ -57,6 +58,9 @@ These ran with `--tag behavior --scaffold --allow-tools Bash Write Edit`, so bot
   the Sources table listed the current requirement, the previous requirement and the code as `workspace`, said
   nothing was cloned (hard rule 10), and gave "no commits yet" as the commit, because the scaffold workspace
   has no commit. One run recorded the unasked sources question as OP-001.
+- **After the diff and check fixes (Codex review):** the three fixes (section moves, literal changes, quoted
+  source IDs) left fixture 17's five changes and the case result unchanged: 3 / 3 with the plugin and 0 / 3
+  without.
 
 ## 2026-11-25 — fixture 04 severities (plan 22)
 
