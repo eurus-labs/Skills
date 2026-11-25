@@ -34,6 +34,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`document-codebase`** (`docs` 1.9.0): the quality gate now checks that pages cite what was analysed. An
+  analysed product file that no block on any page cites makes the run `partial`, with a reason naming the files
+  and a `scope.prose_coverage` section in `generation-report.json`. A person can mark a file deliberately
+  undocumented in `scope.json` with a note of five or more words: it is reported with its note and does not hold
+  the run, and a rerun of `survey` keeps the mark. The agent never writes that mark.
 - **Skill manager** (contributor tooling, no plugin version): an open page now shows a new or rewritten
   `aggregate-result.json` within about 5 seconds, whatever wrote it (a terminal run, results copied from another
   machine, or an earlier case of a run in progress), and keeps the open skill, case, search and run forms. The

@@ -259,6 +259,9 @@ def build(index, root, template=None, feature_map=None, previous=None):
     by_path = {row["path"]: row for row in rows}
     for path, before in earlier.items():
         row = by_path.get(path)
+        # Only a person writes it, and it changes neither disposition nor reading.
+        if row is not None and before.get("undocumented"):
+            row["undocumented"] = before["undocumented"]
         if row is None or not before.get("override"):
             continue
         row["override"] = before["override"]

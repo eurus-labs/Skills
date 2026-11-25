@@ -299,6 +299,17 @@ def block_paths(block, claims, statements):
     return found
 
 
+def cited_paths(doc):
+    """Every repository path some block on any page of the document model cites."""
+    claims = {c.get("id"): c for c in doc.get("claims", ())}
+    statements = {s.get("id"): s for s in doc.get("statements", ())}
+    cited = set()
+    for page in doc.get("pages", ()):
+        for block in page.get("blocks", ()):
+            cited |= block_paths(block, claims, statements)
+    return cited
+
+
 def feature_report(scope, doc):
     """The feature map's areas, and which of them no section of the document cites.
 
@@ -320,16 +331,71 @@ def feature_report(scope, doc):
             out["owns_nothing"].append(area)
     if doc is None:
         return out
-    claims = {c.get("id"): c for c in doc.get("claims", ())}
-    statements = {s.get("id"): s for s in doc.get("statements", ())}
-    cited = set()
-    for page in doc.get("pages", ()):
-        for block in page.get("blocks", ()):
-            cited |= block_paths(block, claims, statements)
+    cited = cited_paths(doc)
     for area in areas:
         if owned[area] and not (set(owned[area]) & cited):
             out["uncovered"].append({"area": area, "owns": owned[area]})
     return out
+
+
+# The same floor a checkpoint note has to clear: a mark is a decision, and the report has to
+# be able to say who made it and why.
+UNDOCUMENTED_NOTE_WORDS = 5
+
+
+def prose_report(synced, doc):
+    """`(prose_coverage, status or None, reasons)`: is every analysed product file cited?
+
+    "Analysed" only says the file was read. A page that never cites it has not documented
+    it, so an analysed file no block cites holds the run at `partial`. A person may mark a
+    file `undocumented` with a note; the mark is reported and never written by the agent.
+    """
+    out = {"checked": doc is not None, "analysed": 0, "cited": 0, "uncited": [],
+           "undocumented": []}
+    if doc is None:
+        return out, None, []
+    cited = cited_paths(doc)
+    rows = sorted((r for r in synced.get("files", ()) or ()
+                   if r.get("disposition") in scope_record.DOCUMENTED
+                   and r.get("reading") == "analyzed"), key=lambda r: r["path"])
+    out["analysed"] = len(rows)
+    short, unneeded = set(), []
+    for row in rows:
+        path, note = row["path"], row.get("undocumented")
+        marked = isinstance(note, str) and note.strip() != ""
+        valid = marked and len(note.split()) >= UNDOCUMENTED_NOTE_WORDS
+        if path in cited:
+            out["cited"] += 1
+            if marked:
+                unneeded.append(path)
+        elif valid:
+            out["undocumented"].append({"path": path, "note": note.strip()})
+        else:
+            out["uncited"].append(path)
+            if marked:
+                short.add(path)
+    status, reasons = None, []
+    if out["uncited"]:
+        status = STATUS_PARTIAL
+        named = ["%s (its undocumented note is too short)" % p if p in short else p
+                 for p in out["uncited"][:10]]
+        shown = ", ".join(named)
+        if len(out["uncited"]) > 10:
+            shown += ", and %d more" % (len(out["uncited"]) - 10)
+        reasons.append("%d analysed product file(s) are cited by no page: %s"
+                       % (len(out["uncited"]), shown))
+    if out["undocumented"] or unneeded:
+        parts = []
+        if out["undocumented"]:
+            parts.append("%d file(s) left undocumented by a person: %s"
+                         % (len(out["undocumented"]),
+                            ", ".join("%s (%s)" % (u["path"], u["note"])
+                                      for u in out["undocumented"][:5])))
+        if unneeded:
+            parts.append("%d undocumented mark(s) not needed, because a page cites the "
+                         "file: %s" % (len(unneeded), ", ".join(unneeded[:5])))
+        reasons.append("; ".join(parts))
+    return out, status, reasons
 
 
 def scope_report(scope, analysis_path, doc):
@@ -368,6 +434,11 @@ def scope_report(scope, analysis_path, doc):
                            "nothing can be checked for them: %s"
                            % (len(features["owns_nothing"]),
                               ", ".join(features["owns_nothing"][:5])))
+    prose, prose_status, prose_reasons = prose_report(synced, doc)
+    report["prose_coverage"] = prose
+    if prose_status:
+        status = prose_status
+    reasons.extend(prose_reasons)
     return report, status, reasons
 
 
