@@ -7,6 +7,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-11-25
+
+Renames `code-review` to **`review`** and adds **`review-ui`**; takes `document-codebase` from a draft pipeline to a
+reviewed, resumable workflow (`docs` 1.9.0); and gives every skill eval cases, with the results recorded in
+`doc/eval-results.md`.
+
 ### Breaking changes
 
 - **`code-review` renamed to `review`** (`review` 0.3.0), because the plugin now reviews the interface as well
