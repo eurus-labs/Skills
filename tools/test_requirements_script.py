@@ -171,6 +171,41 @@ def test_diff_move_survives_changes_only(tmp):
           str(result["summary"]))
 
 
+def test_diff_literal_changes_survive_normalization(tmp):
+    prev = write(tmp, "p.md", "- Files match `report*.csv`.\n- Status must be READY.\n"
+                              "- Keep the trailing dot.\n- Use a * b and snake_case_name.\n")
+    cur = write(tmp, "c.md", "- Files match `report.csv`.\n- Status must be ready.\n"
+                             "- Keep the trailing dot\n- Use a * b and snake_case_name.\n")
+    result = req.diff(prev, cur)
+    changed = [u["current"]["text"] for u in by_status(result, "changed")]
+    check("a changed glob inside inline code is changed", "Files match `report.csv`." in changed, str(changed))
+    check("a change of case is changed", "Status must be ready." in changed, str(changed))
+    check("a dropped trailing period is changed", "Keep the trailing dot" in changed, str(changed))
+    check("a stray * and underscores inside a word are kept, so that unit is unchanged",
+          result["summary"]["unchanged"] == 1 and result["summary"]["changed"] == 3, str(result["summary"]))
+    only = req.diff(prev, cur, changes_only=True)
+    check("--changes-only returns the literal changes", len(only["units"]) == 3, str(only["units"]))
+
+
+def test_diff_formatting_only_is_unchanged(tmp):
+    prev = write(tmp, "f.md", "# Export\n\n- The **system** exports `report*.csv`  and _only_ owners.\n"
+                              "- Exports  run\n  every night.\n")
+    cur = write(tmp, "f.rst", "Export\n======\n\n- The **system** exports ``report*.csv`` and *only* owners.\n"
+                              "- Exports run every night.\n")
+    result = req.diff(prev, cur)
+    check("emphasis, code delimiters, whitespace and heading style differences are unchanged",
+          result["summary"] == {"added": 0, "removed": 0, "changed": 0, "moved": 0, "unchanged": 3},
+          str(result["summary"]))
+
+
+def test_diff_fixture_17_reports_five_changes():
+    base = os.path.join(REPO, "fixtures", "17-requirement-change", "requirements")
+    result = req.diff(os.path.join(base, "v1.md"), os.path.join(base, "v2.rst"), changes_only=True)
+    check("fixture 17 reports exactly its five planted changes",
+          (result["summary"]["added"], result["summary"]["removed"], result["summary"]["changed"],
+           result["summary"]["moved"]) == (2, 1, 2, 0) and len(result["units"]) == 5, str(result["summary"]))
+
+
 def test_diff_ids_and_failures(tmp):
     prev = write(tmp, "p.md", "- REQ-1 The service answers within 2 seconds.\n")
     cur = write(tmp, "c.md", "- REQ-1 Respond to every call.\n")
@@ -356,10 +391,12 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         for test in (test_diff_markdown_and_rst, test_diff_changes_only, test_diff_text,
                      test_diff_first_analysis_and_moves, test_diff_move_survives_changes_only,
+                     test_diff_literal_changes_survive_normalization, test_diff_formatting_only_is_unchanged,
                      test_diff_ids_and_failures, test_check):
             sub = os.path.join(tmp, test.__name__)
             os.makedirs(sub)
             test(sub)
+    test_diff_fixture_17_reports_five_changes()
     test_template_is_checkable()
     if FAILURES:
         print("\n%d failure(s)." % len(FAILURES))

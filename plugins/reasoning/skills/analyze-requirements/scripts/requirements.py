@@ -190,11 +190,33 @@ def split_units(lines, fmt):
     return units
 
 
+CODE_SPAN_RE = re.compile(r"(`+)(.+?)\1")
+EMPHASIS_RES = (
+    re.compile(r"(?<![\w*])(\*\*|\*)(?=\S)(.+?)(?<=\S)\1(?![\w*])"),
+    re.compile(r"(?<![\w_])(__|_)(?=\S)(.+?)(?<=\S)\1(?![\w_])"),
+)
+
+
 def normalize(text):
-    """Text with the markup that differs between formats removed, so md and rst compare."""
-    text = text.lower().replace("`", "").replace("*", "").replace("\\", "")
-    text = re.sub(r"\s+", " ", text).strip()
-    return text.rstrip(".:;")
+    """Text with formatting removed, so the same sentence in .md and .rst compares equal.
+
+    Only formatting goes: whitespace runs, the delimiters of inline code, and emphasis marks around
+    words. Case, punctuation and the content of inline code stay, so a changed glob, a lower-cased
+    status or a dropped full stop is still a difference."""
+    out = []
+    pos = 0
+    for m in CODE_SPAN_RE.finditer(text):
+        out.append(strip_emphasis(text[pos:m.start()]))
+        out.append(m.group(2).strip())
+        pos = m.end()
+    out.append(strip_emphasis(text[pos:]))
+    return re.sub(r"\s+", " ", "".join(out)).strip()
+
+
+def strip_emphasis(text):
+    for pattern in EMPHASIS_RES:
+        text = pattern.sub(r"\2", text)
+    return re.sub(r"\\([^\w\s])", r"\1", text)
 
 
 def unit_key(unit):

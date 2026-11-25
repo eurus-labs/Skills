@@ -23,9 +23,10 @@ A unit entry:
 
 How units are matched, in order: identical text in the same section, identical text anywhere, the same
 explicit ID (such as `REQ-12`) once on each side, then the most similar pairs of the same kind (similarity of
-at least 0.6, or one text contained in the other). Text is compared after lower-casing and removing Markdown
-and reStructuredText markup, list markers and heading underlines, so the same sentence in `.md` and `.rst`
-compares equal. A different number, a word or a clause makes the unit `changed`.
+at least 0.6, or one text contained in the other). Text is compared after removing formatting only: list
+markers, heading underlines, whitespace runs, the delimiters of inline code, and emphasis marks around words.
+The same sentence in `.md` and `.rst` therefore compares equal. Case, punctuation and the content of inline
+code are kept, so a changed number, glob, word, capital letter or full stop makes the unit `changed`.
 
 The script decides what differs, not what it means. A `changed` unit may be a rewording, a real change, or two
 different requirements paired by similarity; read both texts.
