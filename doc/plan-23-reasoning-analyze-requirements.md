@@ -1,6 +1,6 @@
 # Plan 23 — `analyze-requirements`: compare a requirement with its previous version, resolve open points with the PO, then split epics
 
-Status: draft
+Status: approved
 Date: 2026-11-25
 Branch: `feat/reasoning-analyze-requirements`
 Baseline: `origin/main` at `2b81ebf557ea1f5f394ae967b6a5c7a892ddc253`
