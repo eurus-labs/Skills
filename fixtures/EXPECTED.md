@@ -340,6 +340,36 @@ folder name is not an invented defect: the scaffold's folder name is arbitrary.
 
 ---
 
+## 17 — requirement-change → `analyze-requirements`
+
+A report-export requirement in two versions, `requirements/v1.md` and `requirements/v2.rst` (so both formats are
+read), and a small module, `src/exporter.py`. Exactly five things differ between the versions. Nothing else in
+v2 is a change; the other seven units are word for word the same.
+
+| # | Planted change | Where |
+| - | -------------- | ----- |
+| 1 | **Added requirement:** "A user can schedule an export to run every night." Nothing in the code implements it, so its impact is `new` | `v2.rst:20` |
+| 2 | **Removed requirement:** "Every export is recorded in the audit log." Dropped from v2, but the code still logs every export, so the removal changes existing behavior or needs a decision | `v1.md:16` |
+| 3 | **Changed number:** the limit goes from 50 to 100 reports per request. The code still enforces 50 (`MAX_REPORTS_PER_REQUEST`) | `v1.md:10` to `v2.rst:13`; `src/exporter.py:8` |
+| 4 | **Ambiguous new sentence:** "Exports of large reports should finish quickly." No size, no time, no way to test it | `v2.rst:21` |
+| 5 | **Requirement that contradicts the code:** v2 says a request from anyone but the owner is rejected, and the code lets any teammate of the owner export (`_may_export`) | `v2.rst:19`; `src/exporter.py:17-19` |
+
+The prompt is unattended: the PO cannot be asked. The skill must write `analysis.md` with every difference, a
+`path:line` for the code it read, and the open points it needs the PO to answer (at least the limit, the
+ownership contradiction, and the meaning of "quickly"). It must not write `epics.md`, because blocking open
+points remain, and it must not answer any open point itself.
+
+**Pass:** all five found, each tied to its requirement text; the contradiction cited with the `src/exporter.py`
+line; the ambiguous sentence raised as a question for the PO rather than given a number; open points left
+`open`; `analysis.md` written and `scripts/requirements.py check` run on it; `epics.md` not written; no code
+edited.
+
+**Fail:** any of the five missing; an unchanged requirement reported as changed (for example a formatting
+difference between `.md` and `.rst`); a claim about the code with no line; an invented PO answer, a number for
+"quickly", or a resolved open point; `epics.md` written; `src/exporter.py` or a requirement file edited.
+
+---
+
 ## Scoring
 
 Rough guide, per scenario:
