@@ -733,6 +733,139 @@ class FeatureMap(Repo):
         self.assertNotIn("features", report)
 
 
+class ProseCoverage(unittest.TestCase):
+    """Plan 21: an analysed product file that no page cites holds the run at partial."""
+
+    NOTE = "left out by the maintainers, it is a thin shim"
+
+    def scope(self, unread=False, **marks):
+        rows = [{"path": "src/%s.py" % n, "disposition": "product", "reading": "analyzed"}
+                for n in "abc"]
+        rows.append({"path": "src/__init__.py", "disposition": "empty",
+                     "reading": "excluded", "reason": "no code"})
+        if unread:
+            rows.append({"path": "src/unread.py", "disposition": "product",
+                         "reading": "unread"})
+        for row in rows:
+            if row["path"] in marks:
+                row["undocumented"] = marks[row["path"]]
+        return {"scope_version": 1, "index_hash": "x", "product_roots": ["src"],
+                "required_topics": [], "files": rows}
+
+    def doc(self, *paths):
+        return {"claims": [], "statements": [],
+                "pages": [{"id": "p", "blocks": [
+                    {"id": "b%d" % n, "type": "prose", "text": "x",
+                     "evidence": [{"path": p, "line_start": 1, "line_end": 1}]}
+                    for n, p in enumerate(paths)]}]}
+
+    def gate(self, scope, doc):
+        # `analyzed` is derived from the ledger, so each analysed row needs one.
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        ledger = os.path.join(tmp.name, "ledger.jsonl")
+        with open(ledger, "w", encoding="utf-8") as fh:
+            for row in scope["files"]:
+                if row["reading"] == "analyzed":
+                    fh.write(json.dumps({"path": row["path"], "statements": []}) + "\n")
+        return quality_docs.scope_report(scope, ledger, doc)
+
+    def check(self, scope, doc):
+        report, status, reasons = self.gate(scope, doc)
+        return report["prose_coverage"], status, reasons
+
+    def test_an_analysed_file_no_page_cites_makes_the_run_partial(self):
+        prose, status, reasons = self.check(self.scope(), self.doc("src/a.py", "src/b.py"))
+        self.assertEqual(status, quality_docs.STATUS_PARTIAL)
+        self.assertEqual(prose, {"checked": True, "analysed": 3, "cited": 2,
+                                 "uncited": ["src/c.py"], "undocumented": []})
+        self.assertIn("1 analysed product file(s) are cited by no page: src/c.py", reasons)
+
+    def test_a_citation_through_a_claim_or_a_statement_counts(self):
+        doc = self.doc("src/a.py")
+        ev = lambda p: [{"path": p, "line_start": 1, "line_end": 1}]
+        doc["claims"] = [{"id": "c1", "evidence": ev("src/b.py")}]
+        doc["statements"] = [{"id": "s1", "evidence": ev("src/c.py")}]
+        doc["pages"][0]["blocks"].append({"id": "x", "type": "prose", "text": "x",
+                                          "claim_refs": ["c1"], "analysis_refs": ["s1"]})
+        prose, status, reasons = self.check(self.scope(), doc)
+        self.assertEqual(prose["uncited"], [])
+        self.assertIsNone(status)
+        self.assertEqual(reasons, [])
+
+    def test_a_marked_file_is_reported_and_does_not_make_the_run_partial(self):
+        prose, status, reasons = self.check(self.scope(**{"src/c.py": self.NOTE}),
+                                            self.doc("src/a.py", "src/b.py"))
+        self.assertIsNone(status)
+        self.assertEqual(prose["uncited"], [])
+        self.assertEqual(prose["undocumented"], [{"path": "src/c.py", "note": self.NOTE}])
+        self.assertEqual(reasons, ["1 file(s) left undocumented by a person: src/c.py (%s)"
+                                   % self.NOTE])
+
+    def test_a_short_note_does_not_excuse_a_file(self):
+        prose, status, reasons = self.check(self.scope(**{"src/c.py": "too thin to count"}),
+                                            self.doc("src/a.py", "src/b.py"))
+        self.assertEqual(status, quality_docs.STATUS_PARTIAL)
+        self.assertEqual(prose["uncited"], ["src/c.py"])
+        self.assertEqual(prose["undocumented"], [])
+        self.assertTrue(any("src/c.py (its undocumented note is too short)" in r
+                            for r in reasons), reasons)
+
+    def test_a_mark_on_a_file_a_page_cites_is_reported_as_not_needed(self):
+        prose, status, reasons = self.check(self.scope(**{"src/a.py": self.NOTE}),
+                                            self.doc("src/a.py", "src/b.py", "src/c.py"))
+        self.assertIsNone(status)
+        self.assertEqual(prose["undocumented"], [])
+        self.assertEqual(len(reasons), 1)
+        self.assertIn("not needed", reasons[0])
+        self.assertIn("src/a.py", reasons[0])
+
+    def test_without_a_document_model_nothing_is_claimed(self):
+        prose, status, reasons = self.check(self.scope(), None)
+        self.assertEqual(prose, {"checked": False, "analysed": 0, "cited": 0,
+                                 "uncited": [], "undocumented": []})
+        self.assertIsNone(status)
+        self.assertEqual(reasons, [])
+
+    def test_unread_and_empty_files_are_not_counted_twice(self):
+        report, status, reasons = self.gate(
+            self.scope(unread=True), self.doc("src/a.py", "src/b.py", "src/c.py"))
+        prose = report["prose_coverage"]
+        self.assertEqual(report["unread"], ["src/unread.py"])
+        self.assertEqual(prose["uncited"], [])
+        self.assertEqual(prose["analysed"], 3)
+        self.assertEqual(status, quality_docs.STATUS_PARTIAL)
+        self.assertEqual([r for r in reasons if "cited by no page" in r], [])
+        self.assertFalse(any("src/__init__.py" in r for r in reasons))
+        self.assertEqual(len([r for r in reasons if "src/unread.py" in r]), 1)
+
+    def test_more_than_ten_uncited_files_are_summarised(self):
+        scope = self.scope()
+        scope["files"] += [{"path": "src/m%d.py" % n, "disposition": "product",
+                            "reading": "analyzed"} for n in range(10)]
+        _, _, reasons = self.check(scope, self.doc())
+        self.assertTrue(any(r.startswith("13 analysed product file(s)")
+                            and r.endswith("and 3 more") for r in reasons), reasons)
+
+    def test_the_mark_survives_a_rerun_and_changes_nothing_else(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = os.path.realpath(tmp.name)
+        os.makedirs(os.path.join(root, "pkg"))
+        with open(os.path.join(root, "pkg", "real.py"), "w", encoding="utf-8") as fh:
+            fh.write("def f():\n    return 1\n")
+        index = {"index_hash": "sha256:x", "files": [
+            {"path": "pkg/real.py", "symbols": [], "source_hash": "h"}]}
+        previous = {"files": [{"path": "pkg/real.py", "disposition": "product",
+                               "reading": "analyzed", "source_hash": "h",
+                               "undocumented": self.NOTE}]}
+        row = build_scope.build(index, root, previous=previous)["files"][0]
+        self.assertEqual(row["undocumented"], self.NOTE)
+        self.assertEqual(row["disposition"], "product")
+        self.assertEqual(row["reading"], "analyzed")
+        self.assertNotIn("override", row)
+
+
 class FeatureMapReading(unittest.TestCase):
     def test_no_map_prints_the_line_writes_nothing_and_clears_a_stale_file(self):
         with tempfile.TemporaryDirectory() as tmp:

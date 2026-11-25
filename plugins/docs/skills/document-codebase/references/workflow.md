@@ -68,6 +68,10 @@ not seal it. Either survey without the cap (the default), or have the user narro
 the scope at P1 (see [survey](survey.md)). Carrying one run across several batches is not specified yet:
 `assemble` and the checkpoints treat `units.txt` as the whole list.
 
+Reading a file is not documenting it: the gate lists each analysed product file that no page block cites as
+`prose_coverage.uncited` and holds the run at `partial`. Cite it, or leave the decision to the user, who may mark
+the row `undocumented` (see [survey](survey.md)). Never write that mark yourself.
+
 A worker may instead write isolated artifacts under `.docs-build/tasks/<task-id>/`. You merge them into the
 shared files and resolve conflicting readings of the same source yourself, by reading it.
 

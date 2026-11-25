@@ -77,7 +77,10 @@ present, empty, still holding placeholder text, or a copy of the template's ques
    `.github/docs-allowed-signers`**, each of these decisions must also carry the user's SSH signature: run
    `pipeline.py approve` and give the user the `ssh-keygen -Y sign` commands it prints to run with their own
    key; `publish` verifies them. Never sign an approval, and never create or edit the allowed-signers file.
-7. Run every command from the repository being documented, invoking `scripts/pipeline.py` by its path in
+7. **The gate checks that pages cite what was analysed.** An analysed product file that no page block cites
+   makes the run `partial`. Only a person may mark a file `undocumented` in `scope.json` (see
+   [survey](references/survey.md)); never write that mark yourself, even in an unattended run.
+8. Run every command from the repository being documented, invoking `scripts/pipeline.py` by its path in
    this skill's folder. Relative `--build`, `--docs`, `--staging` and `--review` paths resolve against
    `--root`.
 

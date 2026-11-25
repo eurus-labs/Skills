@@ -44,7 +44,11 @@ unread` and lists them, and `status` prints the count. **The gate will not seal 
 run capped by `--top` below the product-file count needs one of two things at P1: a survey without the cap
 (the default), or a deliberate narrowing. To narrow, edit the row: set its `disposition`,
 a `reason`, and an `override` note saying who decided and why, then run `survey` again. The rows you changed
-survive the rerun, P1 reopens on the narrower material, and the report records each one as a scope change. **Read the warnings the selection prints.** A repository whose modules import nothing from each
+survive the rerun, P1 reopens on the narrower material, and the report records each one as a scope change.
+
+**Marking a file undocumented.** The gate holds a run at `partial` when an analysed product file is cited by no page. A file that is deliberately left out of the prose (a thin shim, say) is marked on its row in `scope.json` with `"undocumented": "<who decided and why, five words or more>"`. The file stays product and analysed, the report lists it with the note, and it no longer holds the run. A note under five words is ignored, and the report says so. Add the mark by hand: no `survey` rerun is needed, and a rerun keeps it. **Only a person sets it.** Never write `undocumented` yourself, not even in an unattended run: leave the files uncited, so the run stays `partial`, and list them in the handoff.
+
+**Read the warnings the selection prints.** A repository whose modules import nothing from each
 other — standalone CLIs, scripts a scheduler runs — has no connections to rank, and the order it gets is
 arbitrary rather than considered; say so in the document.
 
