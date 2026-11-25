@@ -357,6 +357,27 @@ def test_check(tmp):
     bad_blocks = folder(tmp, "bad-blocks", analysis=ANALYSIS.replace("| no | open", "| maybe | open"))
     check("an open point with an unknown Blocks value fails", has(problems(bad_blocks), "analysis.md", "Blocks 'maybe'"))
 
+    quoted = ANALYSIS.replace("| R-001 | changed | in | a | b |",
+                              '| R-001 | changed | in | "R-1042: Reports must be encrypted." | "OP-77 is old; R-1042 stays." |')
+    qdir = folder(tmp, "quoted", analysis=quoted,
+                  dou=DOU + '- PO answer (as given): "R-1042 is dropped, see OP-77."\n',
+                  epics=EPICS.replace("- Goal: raise the limit", '- Goal: keep "R-1042: Reports must be encrypted."'))
+    check("IDs quoted from the source, in a table cell, a DoU line or an epic line, are not references",
+          problems(qdir) == [], str(problems(qdir)))
+    bare = folder(tmp, "bare-ref", analysis=quoted.replace("| R-001 | yes | resolved", "| R-1042 | yes | resolved"))
+    check("an unknown ID in an Affects cell still fails when the quote cells hold IDs",
+          has(problems(bare), "analysis.md", "unknown ID R-1042"), str(problems(bare)))
+    bare_epic = folder(tmp, "bare-epic", epics=EPICS.replace("- Goal: raise the limit",
+                                                             '- Goal: "R-1042 quoted" and R-2000'))
+    check("an unquoted unknown ID next to a quote still fails",
+          [p[2] for p in problems(bare_epic)] == ["unknown ID R-2000"], str(problems(bare_epic)))
+    note = folder(tmp, "note", analysis=ANALYSIS.replace("| new | |\n| R-002", "| new | superseded by R-099 |\n| R-002"))
+    check("an unknown ID in the Note column of a requirement row still fails",
+          has(problems(note), "analysis.md", "unknown ID R-099"), str(problems(note)))
+    trace = folder(tmp, "trace", epics=EPICS.replace("| R-001 | E-01 |", "| R-001 | E-01 |\n| R-050 | E-01 |"))
+    check("an unknown ID in a traceability row still fails",
+          has(problems(trace), "epics.md", "unknown ID R-050"), str(problems(trace)))
+
     proc = subprocess.run([sys.executable, SCRIPT, "check", os.path.join(tmp, "uncovered")],
                           capture_output=True, text=True)
     check("the CLI exits 1 and prints FAIL file:line: message",

@@ -347,6 +347,13 @@ R_RE = re.compile(r"\bR-\d+\b")
 OP_RE = re.compile(r"\bOP-\d+\b")
 EPIC_HEAD_RE = re.compile(r"^##\s+(E-\d+)\b")
 DOU_RE = re.compile(r"\bdou-(\d+)\b", re.I)
+QUOTE_RE = re.compile(r'"[^"\n]*"|\u201c[^\u201d\n]*\u201d')
+# Table columns that hold references. The Previous and Current columns quote the source and are not read.
+REF_COLUMNS = ("id", "affects", "resolved by", "note", "requirement", "covers", "depends", "changes")
+
+
+def strip_quotes(text):
+    return QUOTE_RE.sub(" ", text)
 
 
 def split_row(line):
@@ -440,11 +447,23 @@ def check(folder):
                 fail(analysis_path, n, "%s names dou-%s, which does not exist in the folder" % (op, num))
 
     def unknown_ids(path, lines):
+        """Check the IDs a file refers to. Quoted source text is never scanned: in a table only the
+        reference columns are read, and in other lines the text inside double quotes is dropped."""
+        rows = {n: (header, cells) for n, header, cells in parse_tables(lines)}
         for n, line in enumerate(lines, 1):
-            for tok in ID_RE.findall(line):
-                known = reqs if tok.startswith("R-") else ops
-                if tok not in known:
-                    fail(path, n, "unknown ID %s" % tok)
+            if split_row(line) is None:
+                scanned = [strip_quotes(line)]
+            elif n in rows:
+                header, cells = rows[n]
+                scanned = [strip_quotes(cells[idx]) for key, idx in header.items()
+                           if key.startswith(REF_COLUMNS) and idx < len(cells)]
+            else:
+                scanned = []
+            for text in scanned:
+                for tok in ID_RE.findall(text):
+                    known = reqs if tok.startswith("R-") else ops
+                    if tok not in known:
+                        fail(path, n, "unknown ID %s" % tok)
 
     unknown_ids(analysis_path, alines)
     for path in dou_files:
