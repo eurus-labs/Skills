@@ -42,8 +42,8 @@ three artifacts, and it never commits them unless the user asks.
 3. **Epics only when nothing blocks.** Write `epics.md` only when no open point marked blocking is `open`. If
    one is, list them and stop. If the user explicitly asks for epics anyway, head the file `Provisional` and
    name the open point on each epic that depends on it.
-4. **Claim about code only after reading that code**, and cite it as `path:line`. Outside a repository, or when
-   no code applies, record "code not checked".
+4. **Claim about code only after reading that code**, and cite it as `path:line`. Record "code not checked"
+   only after listing the workspace and finding no source file there; never record it without listing first.
 5. **Run `check` after every write** and fix what it reports before you report the result.
 6. **Quote, never paraphrase, the sources.** Each requirement row carries the source text with `path:line`.
 7. **Every in-scope requirement is in exactly one epic**, or in the "Not in any epic" list with the reason.
@@ -94,8 +94,10 @@ epics means **Split epics**.
    with the same meaning is recorded as `unchanged (wording)` with both quotes, not dropped. A pair the script
    matched by similarity may be two different requirements: split it into `removed` and `added` if so. Read
    the unchanged units around a change when they qualify it.
-4. **Check the code** when the session is in a repository (hard rule 4). Find the code each changed
-   requirement touches and read it. Record its impact as `new`, `changes existing behavior` or `already met`.
+4. **Check the code** (hard rule 4). First list the workspace's files: `git ls-files`, or a Glob of `**/*`
+   when it is not a git work tree. Search the listing for the terms each changed requirement uses, then read
+   the code each one touches. Record "code not checked" only when the listing holds no source file, and say
+   what was listed. Record its impact as `new`, `changes existing behavior` or `already met`.
    A requirement that contradicts what the code does now is an open point.
 5. **Find the problems** per requirement: ambiguous, missing, conflicting, untestable, non-functional gap.
    Every one that needs the PO becomes an open point with the question, the R- IDs it affects, and whether it
