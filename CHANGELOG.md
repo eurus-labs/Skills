@@ -17,6 +17,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `requirements.py`, lists the changed units between two versions (`diff`) and checks the files agree
   (`check`). `design-solution` and `write-plan` now hand requirement analysis to it. Trigger cases, a behavior
   case and fixture 17 (`17-requirement-change`) measure it.
+  Its trigger and behavior cases pass on Claude Code (behavior Δ +0.67).
 
 ## [0.4.0] — 2026-11-25
 

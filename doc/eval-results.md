@@ -8,6 +8,51 @@ compare runs with the same `--model` and `--judge-model`. How to run the suites 
 Behavior cases run three times with the plugin and three times without it. **Δ** is the score with the plugin
 minus the score without it. A pass needs every scored grader to pass in a run.
 
+## 2026-11-25 — reasoning and analyze-requirements on Claude Code (plan 23)
+
+- **Host:** Claude Code 2.1.330, in a Linux cloud container, with `TMPDIR` outside `/tmp`.
+- **Models:** `--model claude-sonnet-5-5 --judge-model haiku`, with `-j 3 --no-publish --trust-plugin`.
+- **Change under test:** the new `analyze-requirements` skill (`reasoning` 0.4.0), the hand-off sentences added
+  to the `design-solution` and `write-plan` descriptions, and fixture 17.
+- **Cost:** $3.31 in total, under the $5 ceiling the user agreed.
+- **Not covered:** GitHub Copilot CLI.
+
+### Trigger cases
+
+These ran with `--tag trigger --ablation none`. Each case ran three times.
+
+| Plugin | Cases passed | Runs passed | Score | Cost | Time |
+| --- | --- | --- | --- | --- | --- |
+| `reasoning` | 11 / 11 | 33 / 33 | 1.00 | $1.90 | 130 s |
+
+This includes the three new `analyze-requirements` cases, and the quiet `design-export` case stayed quiet. The
+eight existing `design-solution`, `write-plan` and `coder-handoff` cases still pass after the hand-off
+sentences were added to their descriptions.
+
+### Behavior cases
+
+These ran with `--tag behavior --scaffold --allow-tools Bash Write Edit`, so both arms ran, three runs each.
+
+| Case | With plugin | Without | Δ | Cost |
+| --- | --- | --- | --- | --- |
+| `analyze-requirements-flags-planted-changes`, first run | 2 / 3 (0.89) | 0 / 3 (0.33) | +0.56 | $0.69 |
+| `analyze-requirements-flags-planted-changes`, rerun after the fix | 3 / 3 (1.00) | 0 / 3 (0.33) | +0.67 | $0.72 |
+
+### What the traces show
+
+- **First run:** one with-plugin run wrote `analysis.md` with "code not checked (the repository holds only
+  `requirements/`, no source)". The scaffold does create `src/exporter.py`, but the run never listed the
+  workspace, so it missed the ownership contradiction with the code and failed `findings`. Its other content
+  was sound: it found the five changes in the requirement text, every open point stayed open, and it wrote no
+  `epics.md`.
+- **The fix, commit e521800:** Analyse step 4 and hard rule 4 now require listing the workspace (`git ls-files`,
+  or a Glob) before recording "code not checked".
+- **Rerun:** all three with-plugin runs got PASS PASS PASS from the judge. Each cited `src/exporter.py` lines,
+  such as `:8` for the limit of 50 and `:18-19` for teammate access. No run resolved an open point or wrote
+  `epics.md`.
+- **Without the plugin:** in all six baseline runs across both runs, the agent answered in chat and wrote no
+  `analysis.md`, so `wrote-analysis` and `findings` failed. `no-epics` passed.
+
 ## 2026-11-25 — fixture 04 severities (plan 22)
 
 - **Host:** Claude Code 2.1.330, in a Linux cloud container, with `TMPDIR` outside `/tmp`.
