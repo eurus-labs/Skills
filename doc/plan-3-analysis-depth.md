@@ -1,7 +1,7 @@
 # Plan 3 — the analysis half
 
-Status: implemented through C8d (`c1867cb`). C9, the run on a real repository, was not done and carries
-over to plan 4's W6.
+Status: implemented through C8d (`c1867cb`). C9, the run on a real repository, carried over to plan 4's
+W6 and was done by plan 17 (`doc/e2e-evaluation.md`).
 
 Nine commits. This is `documentation-analysis-implementation-plan.md` reconciled with what
 the repository actually contains, and it replaces **A8** in `doc/plan-2-layout-and-release.md`.
