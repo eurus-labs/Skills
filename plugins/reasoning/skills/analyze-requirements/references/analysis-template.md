@@ -5,11 +5,18 @@ Written in the language of the requirement. Fill every section; a section with n
 
 ## Sources
 
-| Role | Path | Revision |
-| ---- | ---- | -------- |
-| Current | `requirements/v2.rst` | working tree |
-| Previous | `requirements/v1.md` | `git show <rev>:<path>`, or "another file", or "none: first analysis" |
-| Code | `src/` | commit `<sha>`, or "code not checked" |
+One row per role. Repository is the URL, or `workspace`. Ref is the branch or tag. Commit is the exact sha
+(`git rev-parse HEAD`). Local path is where the repository is on disk. Path in repository is relative to that
+repository's root, and every `path:line` below is too. A previous version that is the same file at an earlier
+revision gives that revision as its Commit. A role with no source says `none: first analysis` or
+`code not checked`, with what was listed. In an unattended run all three roles are `workspace`, and the
+question that would have been asked is an open point.
+
+| Role | Repository | Ref | Commit | Local path | Path in repository |
+| ---- | ---------- | --- | ------ | ---------- | ------------------ |
+| Current requirement | workspace | `main` | `3f9c2ab…` | `.` | `requirements/v2.rst` |
+| Previous requirement | workspace | `main` | `1d7e0c4…` | `.` | `requirements/v1.md` |
+| Code | `https://example.org/team/export-service.git` | `main` | `9b41e6a…` | `../export-service` | `src/` |
 
 ## Changes
 

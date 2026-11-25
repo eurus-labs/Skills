@@ -108,7 +108,8 @@ Where you install the plugin decides who uses it. Each method below says whether
 ## Notes
 
 - **Side effects:** `analyze-requirements` writes `analysis.md`, `dou-NNN.md` and `epics.md` in its topic folder
-  and never commits them unless you ask. Its bundled script, `requirements.py`, is standard library only, reads
+  and never commits them unless you ask. It asks where the requirement and the code live, and may run `git clone` and
+  `git fetch` (network access) for a repository you name, writing the clone only to a destination you confirm. Its bundled script, `requirements.py`, is standard library only, reads
   only the files it is given, makes no network call and writes nothing. `write-plan` creates a local branch, writes one file, and commits it. It pushes only
   after you confirm, unless you already asked it to push. `coder-handoff` pushes the approval commit, starts a
   subagent, and opens the pull request after a passing review; it merges only when you ask. Neither installs anything or runs scripts.
