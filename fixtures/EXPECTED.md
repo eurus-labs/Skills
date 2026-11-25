@@ -88,17 +88,18 @@ weak assertion would let through, and does **not** rewrite the suite.
 | `search_orders`, f-string `sql` | SQL injection, two parameters, neither escaped. `status` is a string context, `customer_id` a numeric one | CWE-89 | Blocking |
 | `delete_account` | Docstring says only an administrator may delete another user's account; `actor` is never checked. Any caller deletes any account | CWE-862 | Blocking |
 | `download_export`, `os.path.join(EXPORT_ROOT, filename)` | Path traversal. `filename = "../../etc/passwd"` escapes `EXPORT_ROOT` — `os.path.join` does not constrain the result | CWE-22 | Blocking |
-| `login_redirect`, `next` unvalidated | Open redirect. `?next=https://evil.example` sends an authenticated user off-site | CWE-601 | Should fix |
-| `SESSION_SIGNING_KEY` | Hardcoded secret in source, committed to version control | CWE-798 | Should fix |
-| `hash_password`, MD5 | Unsalted MD5 for password storage — fast and collision-broken. Use a KDF | CWE-327, CWE-916 | Should fix |
+| `login_redirect`, `next` unvalidated | Open redirect. `?next=https://evil.example` sends an authenticated user off-site | CWE-601 | Blocking or Should fix |
+| `SESSION_SIGNING_KEY` | Hardcoded secret in source, committed to version control | CWE-798 | Blocking |
+| `hash_password`, MD5 | Unsalted MD5 for password storage — fast and collision-broken. Use a KDF | CWE-327, CWE-916 | Blocking or Should fix |
 | `format_receipt` | Correct. Not a finding | — | — |
 | No tests anywhere | Legitimate finding for a change of this kind | — | Should fix |
 
-**Pass:** all four blocking findings, correctly ordered above the should-fix ones, each with a CWE and a
-concrete exploit input.
+**Pass:** all five blocking findings (the four above plus the hardcoded key), each with a CWE and a concrete
+exploit or abuse, ranked at the top severity. The open redirect and MD5 may sit with them or below them.
 
 **Fail:** missing either injection (the `%` one is easier to overlook than the f-string); rating an injection
-below blocking; naming without a CWE; flagging `format_receipt` as a vulnerability.
+below blocking; missing the hardcoded key, or rating it below Blocking; naming without a CWE; flagging
+`format_receipt` as a vulnerability.
 
 ---
 

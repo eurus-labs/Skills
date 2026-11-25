@@ -8,6 +8,25 @@ compare runs with the same `--model` and `--judge-model`. How to run the suites 
 Behavior cases run three times with the plugin and three times without it. **Δ** is the score with the plugin
 minus the score without it. A pass needs every scored grader to pass in a run.
 
+## 2026-11-25 — fixture 04 severities (plan 22)
+
+- **Host:** Claude Code 2.1.330, in a Linux cloud container, with `TMPDIR` outside `/tmp`.
+- **Models:** `--model claude-sonnet-5-5 --judge-model haiku`, with `-j 3 --no-publish --trust-plugin
+  --max-cost-usd 2`.
+- **Change under test:** `fixtures/EXPECTED.md` section 04 now rates the hardcoded `SESSION_SIGNING_KEY`
+  Blocking, and the open redirect and MD5 either Blocking or Should fix. The `findings` grader now requires
+  five findings, the hardcoded key (CWE-798) included. Plugin versions are unchanged.
+- **Cost:** $0.52 and 47 s for the case, both arms.
+
+| Case | With plugin | Without | Δ |
+| --- | --- | --- | --- |
+| `review-code-finds-planted-vulnerabilities` | 3 / 3 (1.00) | 0 / 3 (0.50) | +0.50 |
+
+- **With the plugin:** all three replies cited CWE-798 for the hardcoded key at the top severity. The judge
+  voted PASS PASS PASS in two runs and PASS PASS FAIL in one.
+- **Without the plugin:** the replies mentioned `SESSION_SIGNING_KEY` but gave no CWE for any finding, so
+  `findings` failed them. `code-untouched` passed.
+
 ## 2026-11-23 — `review` and `skill-authoring` on Claude Code (plan 19)
 
 - **Host:** Claude Code 2.1.330, in a Linux cloud container, running as root, with `TMPDIR` outside `/tmp`.
@@ -61,8 +80,7 @@ These ran with `--tag behavior --scaffold --allow-tools Bash Write Edit`, so bot
 
 ### Open item
 
-The severities in `EXPECTED.md` section 04 (open redirect, hardcoded key and MD5 as "Should fix") disagree
-with `review-code`'s severity ladder. Settle which is right in a later plan.
+Settled by plan 22: the hardcoded key is Blocking in `fixtures/EXPECTED.md` section 04, and the open redirect and MD5 accept either rating.
 
 ## 2026-11-19 and 2026-11-20 — `docs`, `testing`, `verification` and `presentation` on Claude Code
 

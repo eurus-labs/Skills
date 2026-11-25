@@ -94,6 +94,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   missing sandbox, a read-only temp directory and a missing `pytest`.
   `review-code`, `setup-review-rules` and `evaluate-skill` now have trigger and behavior cases and pass on
   Claude Code, with a gain over no plugin of +0.50, +1.00 and +0.67.
+  Fixture 04's answer key now rates the hardcoded key Blocking, per `review-code`'s ladder, and the case still
+  passes (Δ +0.50).
 
 ### Fixed
 
