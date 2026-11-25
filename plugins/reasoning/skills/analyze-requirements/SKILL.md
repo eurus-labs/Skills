@@ -113,11 +113,13 @@ entry that is missing or whose local path no longer exists.
    revision. With no previous version, this is a first analysis and every requirement is `added`.
 3. **Run the comparison**: `python3 scripts/requirements.py diff <previous> <current> --changes-only`. Without
    `--changes-only` the output also lists unchanged units. Read `references/diff-output.md` only if a field is
-   unclear. The output is JSON: each unit is `added`, `removed`, `changed` (both line ranges) or `unchanged`.
+   unclear. The output is JSON: each unit is `added`, `removed`, `changed` (both line ranges), `moved` (the same
+   text under another section) or `unchanged`.
 4. **Read every non-`unchanged` unit and the units around it.** Decide what the change means. A reworded unit
    with the same meaning is recorded as `unchanged (wording)` with both quotes, not dropped. A pair the script
-   matched by similarity may be two different requirements: split it into `removed` and `added` if so. Read
-   the unchanged units around a change when they qualify it.
+   matched by similarity may be two different requirements: split it into `removed` and `added` if so. Review
+   a `moved` unit for a change of scope or meaning: the same words under another heading can apply to other
+   users or cases. Read the unchanged units around a change when they qualify it.
 5. **Check the code** (hard rule 4). First list the codebase's files (the workspace, or the repository from
    step 1): `git ls-files`, or a Glob of `**/*` when it is not a git work tree. Search the listing for the terms each changed requirement uses, then read
    the code each one touches. Record "code not checked" only when the listing holds no source file, and say

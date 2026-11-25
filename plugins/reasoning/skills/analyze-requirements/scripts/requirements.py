@@ -6,7 +6,7 @@
 
 `diff` splits each file into units (headings, list items, paragraphs, table rows), matches
 the units of the two versions and prints one JSON object: each unit is `added`, `removed`,
-`changed` or `unchanged`, with its file and 1-based line range. It decides what differs,
+`changed`, `moved` or `unchanged`, with its file and 1-based line range. It decides what differs,
 not what the difference means; the caller reads every non-`unchanged` unit.
 
 `check` reads analysis.md, dou-*.md and epics.md in a folder and prints one line per
@@ -297,19 +297,20 @@ def diff(prev_path, cur_path, changes_only=False):
         else:
             pu = prev[matched_cur[ci]]
             same = normalize(pu["text"]) == normalize(cu["text"])
-            entry = {"status": "unchanged" if same else "changed", "kind": cu["kind"],
-                     "section": cu["section"], "previous": side(prev_path, pu),
-                     "current": side(cur_path, cu)}
+            moved = pu["section"] != cu["section"]
+            status = "changed" if not same else ("moved" if moved else "unchanged")
+            entry = {"status": status, "kind": cu["kind"], "section": cu["section"],
+                     "previous": side(prev_path, pu), "current": side(cur_path, cu)}
             if not same:
                 entry["similarity"] = round(difflib.SequenceMatcher(
                     None, normalize(pu["text"]), normalize(cu["text"]), autojunk=False).ratio(), 2)
-            if pu["section"] != cu["section"]:
-                entry["moved"] = True
+            if moved:
+                entry["previous_section"] = pu["section"]
             entries.append(entry)
         removed_entries(ci)
 
     counts = {k: sum(1 for e in entries if e["status"] == k)
-              for k in ("added", "removed", "changed", "unchanged")}
+              for k in ("added", "removed", "changed", "moved", "unchanged")}
     if changes_only:
         entries = [e for e in entries if e["status"] != "unchanged"]
     return {"previous": {"path": prev_path, "format": pfmt, "units": len(prev)},

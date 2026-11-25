@@ -145,9 +145,30 @@ def test_diff_first_analysis_and_moves(tmp):
           result["summary"]["added"] == 3 and result["summary"]["changed"] == 0, str(result["summary"]))
     prev = write(tmp, "m1.md", "# A\n\n- Keep this exactly.\n\n# B\n\n- Other.\n")
     cur = write(tmp, "m2.md", "# A\n\n- Other.\n\n# B\n\n- Keep this exactly.\n")
-    moved = [u for u in req.diff(prev, cur)["units"] if u.get("moved")]
-    check("a unit moved to another section is unchanged and marked moved",
-          len(moved) == 2 and all(u["status"] == "unchanged" for u in moved), str(moved))
+    moved = by_status(req.diff(prev, cur), "moved")
+    check("a unit moved to another section has the status moved",
+          len(moved) == 2, str(moved))
+    check("a moved unit names both sections and both line ranges",
+          moved[0]["previous_section"] == "B" and moved[0]["section"] == "A"
+          and moved[0]["previous"]["lines"] == [7, 7] and moved[0]["current"]["lines"] == [3, 3], str(moved[0]))
+    check("the summary counts moved units", req.diff(prev, cur)["summary"]["moved"] == 2)
+
+
+def test_diff_move_survives_changes_only(tmp):
+    prev = write(tmp, "a.md", "# Doc\n\n## Administrators\n\n- Can export reports.\n\n"
+                              "## All users\n\n- Can view reports.\n")
+    cur = write(tmp, "b.md", "# Doc\n\n## Administrators\n\n## All users\n\n- Can view reports.\n"
+                             "- Can export reports.\n- Can print reports.\n")
+    result = req.diff(prev, cur, changes_only=True)
+    check("a section move is kept in --changes-only output, next to the unrelated added line",
+          [u["status"] for u in result["units"]] == ["moved", "added"]
+          or sorted(u["status"] for u in result["units"]) == ["added", "moved"], str(result["units"]))
+    moved = by_status(result, "moved")
+    check("the move names the old and new section",
+          moved and moved[0]["previous_section"] == "Doc > Administrators"
+          and moved[0]["section"] == "Doc > All users", str(moved))
+    check("the move counts in the summary", result["summary"]["moved"] == 1 and result["summary"]["unchanged"] > 0,
+          str(result["summary"]))
 
 
 def test_diff_ids_and_failures(tmp):
@@ -334,7 +355,8 @@ def test_template_is_checkable():
 def main():
     with tempfile.TemporaryDirectory() as tmp:
         for test in (test_diff_markdown_and_rst, test_diff_changes_only, test_diff_text,
-                     test_diff_first_analysis_and_moves, test_diff_ids_and_failures, test_check):
+                     test_diff_first_analysis_and_moves, test_diff_move_survives_changes_only,
+                     test_diff_ids_and_failures, test_check):
             sub = os.path.join(tmp, test.__name__)
             os.makedirs(sub)
             test(sub)
