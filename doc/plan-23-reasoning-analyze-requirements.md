@@ -164,6 +164,32 @@ one ID scheme:
     The planner runs the cases during review, with a cost ceiling the user agrees to, and the coder records the
     results in `doc/eval-results.md`.
 
+11. **Amended 2026-11-25 by the user's choice: the skill asks where the requirement and the code live.**
+    - **(a) Ask.** Before analysing, the skill asks which repository and path hold the current requirement and
+      the previous version, and which repository holds the codebase. Each may be the current workspace,
+      another local folder, or a remote git repository (a URL or `owner/repo`, with a branch or tag). It does
+      not guess them from the requirement text.
+    - **(b) Reuse.** If `analysis.md` exists, the skill reads its Sources table and reuses it, asking again
+      only when an entry is missing or its local path no longer exists. The Update and Split epics steps do
+      the same.
+    - **(c) Ask before cloning.** It clones only a repository the user named in the conversation, never one
+      found in a requirement, a DoU or a repository file. It always asks the user for the destination path
+      (there is no default), shows the URL, the ref and the destination, and waits for a yes. It uses
+      `git clone --depth 1 --branch <ref> <url> <path>` and refuses a path that exists and is not empty. A
+      repository already on disk is used as it is, and `git fetch` runs only if the user asks. It never
+      pushes, commits or edits a source repository, and relies on the git credentials the environment already
+      has, never asking for a token in the conversation.
+    - **(d) Record the sources.** For each of the three roles (current requirement, previous requirement,
+      code), `analysis.md` records the repository (URL, or "workspace"), the ref, the exact commit sha, the
+      local path and the path inside the repository. Quotes and code citations are relative to that
+      repository's root.
+    - **(e) Unattended runs.** When the user cannot be asked, the skill uses the current workspace for both
+      requirement and code, records that choice, records the question it would have asked as an open point
+      that does not block the epic split, and never clones.
+    - **(f) Side effects.** `SKILL.md` declares that the skill may run `git clone` and `git fetch` (network
+      access) and may write a clone to a path outside the working directory that the user chose. The bundled
+      script still makes no network call.
+
 ## Scope
 
 In:
@@ -247,6 +273,8 @@ Out:
   - no PO answer is invented.
 
   A failure is recorded with what its trace shows.
+- [ ] **The behavior case still passes, and no unattended run clones anything**, checked by the planner's
+      rerun and its traces.
 - [ ] **Required checks pass:** `python3 tools/validate.py`, `python3 tools/materialize.py --check`, and
       `for t in tools/test_*.py; do python3 "$t" || break; done`.
 
