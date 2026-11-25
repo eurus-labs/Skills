@@ -668,7 +668,7 @@ work — it may not quietly decide which features are in the manual.
 | `batch` | unread product | `1` is `units.txt`; later numbers are the next reading batches, in connection order. Written by `select_units.py --scope` |
 | `features`, `task` | product | the feature-map areas whose `owns:` globs match, and the first of them as a reading task (`feature:<area>`); only when a feature map exists |
 | `override` | any | a person's note that they changed this row's disposition at P1. `quality_docs.py` reports it as a scope change, so a deliberately partial draft is not mistaken for a forgotten one |
-| `undocumented` | product | a person's note, at least five words, saying who decided and why this file is left out of the prose. A page that cites no analysed file makes the run `partial`; a marked file is listed under `prose_coverage.undocumented` with its note and does not. Only a person writes it, and a rerun keeps it |
+| `undocumented` | product | a person's note, at least five words, saying who decided and why this file is left out of the prose. An analysed product file that no page cites makes the run `partial`; a marked file is listed under `prose_coverage.undocumented` with its note and does not. Only a person writes it, and a rerun keeps it |
 
 `required_topics` holds `question:<id>` for each question of the chosen template (when one is recorded when
 the scope is built) and `feature:<area>` for each area of a feature map. `product_roots` are the directories
