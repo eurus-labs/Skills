@@ -1,6 +1,6 @@
 # Plan 21 — `document-codebase`: an analysed file that no page cites makes the run partial
 
-Status: draft
+Status: approved
 Date: 2026-11-25
 Branch: `feat/docs-prose-coverage-gate`
 Baseline: `origin/main` at `b26907b82c54ccb7b26ed1e9044003546e400f85`
