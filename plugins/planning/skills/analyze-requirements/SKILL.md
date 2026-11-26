@@ -55,7 +55,10 @@ network.
    `epics.md`. When the analysis is final, name `derive-software-requirements` as the next step.
 4. **Claim about code only after reading that code**, and cite it as `path:line`. Record "code not checked"
    only after listing the workspace and finding no source file there; never record it without listing first.
-5. **Run `check` after every write** and fix what it reports before you report the result.
+5. **Run `check --upto analysis` after every write** (`python3 scripts/requirements.py check <topic-folder> --upto
+   analysis`) and fix what it reports before you report the result. Then run the full `check`. If it reports
+   only files after `dou.md` (a stale `software-requirements.md` or `epics.md`, reported at that file), say they
+   are stale and name `derive-software-requirements` or `group-epics` to regenerate them. Never edit them.
 6. **Quote, never paraphrase, the sources.** Each requirement row carries the source text with `path:line`.
 7. **Every in-scope requirement has a DoD verdict**: `met`, or `gap` pointing at a `DOU-` point. With no DoD
    given, ask for one; if the user cannot be asked or has none, record "DoD not given" as a `DOU-` point with
@@ -155,7 +158,7 @@ entry that is missing or whose local path no longer exists.
    software requirement until it is answered, else `no`. Put what you assumed in the assumptions table with an
    owner and the risk.
 8. **Write `dou.md` and `analysis.md`** from `references/dou-template.md` and `references/analysis-template.md`.
-   Set `Status:` by hard rule 3, then run `check`.
+   Set `Status:` by hard rule 3, then run `check --upto analysis` (hard rule 5).
 
 ### Update from the DoU
 
@@ -166,14 +169,14 @@ entry that is missing or whose local path no longer exists.
 2. **Update `analysis.md`:** apply each closed point to the requirements it changes (hard rule 2); re-check the
    code and the DoD only for rows whose text changed; add a revision-history line naming the points applied.
 3. **Add the new points** this discussion raised to `dou.md`, with the next free `DOU-` numbers.
-4. **Set `Status:`** by hard rule 3, run `check`, fix, and report which points are closed, which stay open,
+4. **Set `Status:`** by hard rule 3, run `check --upto analysis` (hard rule 5), fix, and report which points are closed, which stay open,
    which block, and, when the analysis is now `final`, that `derive-software-requirements` is the next step.
 
 ## Bundled resources
 
 | Path | Load when |
 | ---- | --------- |
-| `scripts/requirements.py` | Run `diff` in Analyse step 3 and `check` after every write. Do not read it. |
+| `scripts/requirements.py` | Run `diff` in Analyse step 3 and `check --upto analysis` after every write. Do not read it. |
 | `references/analysis-template.md` | Before writing or updating `analysis.md`. |
 | `references/dou-template.md` | Before writing or updating `dou.md`. |
 | `references/formats.md` | When a `check` message is unclear, or to see which lines of the files it reads. |

@@ -468,9 +468,10 @@ def test_check_status(tmp):
 
 def test_check_traceability(tmp):
     untraced = folder(tmp, "untraced", swr=SWR.replace("Traces to: SYS-002", "Traces to: SYS-001"))
-    found = has(problems(untraced), "analysis.md", "SYS-002 has no software requirement")
-    check("an in-scope SYS- with no SWR- and not in 'Not derived' fails, naming the line",
-          len(found) == 1 and found[0][1] == line_of(ANALYSIS, "| SYS-002 |"), str(problems(untraced)))
+    found = has(problems(untraced), "software-requirements.md", "SYS-002 (analysis.md:%d) has no software requirement"
+                % line_of(ANALYSIS, "| SYS-002 |"))
+    check("an in-scope SYS- with no SWR- and not in 'Not derived' fails at software-requirements.md, naming the row",
+          len(found) == 1 and found[0][1] == 1, str(problems(untraced)))
     listed = folder(tmp, "listed", swr=SWR.replace("Traces to: SYS-002", "Traces to: SYS-001").replace(
         "| SYS-004 | a manual review step |", "| SYS-004 | a manual review step |\n| SYS-002 | hardware |"))
     check("an in-scope SYS- in the 'Not derived to software' table passes", problems(listed) == [], str(problems(listed)))
@@ -478,7 +479,7 @@ def test_check_traceability(tmp):
     check("an out-of-scope SYS- needs no SWR-", not has(problems(out_of_scope), "analysis.md", "SYS-003"))
     wrong_section = folder(tmp, "wrong-section", swr=SWR.replace("## Not derived to software", "## Elsewhere"))
     check("a SYS- listed under another heading is not 'Not derived'",
-          has(problems(wrong_section), "analysis.md", "SYS-004 has no software requirement"),
+          has(problems(wrong_section), "software-requirements.md", "SYS-004 (analysis.md:"),
           str(problems(wrong_section)))
 
     nowhere = folder(tmp, "traces-nowhere", swr=SWR.replace("Traces to: SYS-002", "Traces to: SYS-088"))
@@ -494,9 +495,10 @@ def test_check_traceability(tmp):
           has(problems(missing), "software-requirements.md", "SWR-002 traces to no SYS- ID"), str(problems(missing)))
 
     uncovered = folder(tmp, "swr-in-no-epic", epics=EPICS.replace("Covers: SWR-002", "Covers: none"))
-    found = has(problems(uncovered), "software-requirements.md", "SWR-002 is in no epic")
-    check("an SWR- in no epic fails, naming the line",
-          len(found) == 1 and found[0][1] == line_of(SWR, "## SWR-002"), str(problems(uncovered)))
+    found = has(problems(uncovered), "epics.md", "SWR-002 (software-requirements.md:%d) is in no epic"
+                % line_of(SWR, "## SWR-002"))
+    check("an SWR- in no epic fails at epics.md, naming the SWR- line",
+          len(found) == 1 and found[0][1] == 1, str(problems(uncovered)))
     twice = folder(tmp, "swr-in-two-epics", epics=EPICS.replace("Covers: SWR-002", "Covers: SWR-001, SWR-002"))
     found = has(problems(twice), "epics.md", "SWR-001 is in both E-01 and E-02")
     check("an SWR- in two epics fails", len(found) == 1 and found[0][1] == line_of(EPICS, "Covers: SWR-002"),
@@ -505,11 +507,81 @@ def test_check_traceability(tmp):
     check("with no epics.md, no SWR- needs an epic", problems(no_epics) == [], str(problems(no_epics)))
 
 
+def test_check_references(tmp):
+    """Regression (Codex 1): a DOU- ID in epics.md or software-requirements.md must be declared."""
+    epic_ref = folder(tmp, "epic-dou", epics=EPICS.replace("- Goal: raise the limit", "- Risks: blocked on DOU-999."))
+    check("an unknown DOU- ID in epics.md fails", has(problems(epic_ref), "epics.md", "unknown ID DOU-999"),
+          str(problems(epic_ref)))
+    known = folder(tmp, "epic-dou-known", epics=EPICS.replace("- Goal: raise the limit", "- Risks: see DOU-002."))
+    check("a declared DOU- ID in epics.md passes", problems(known) == [], str(problems(known)))
+    quoted = folder(tmp, "epic-dou-quoted",
+                    epics=EPICS.replace("- Goal: raise the limit", '- Risks: the source says "DOU-999".'))
+    check("a quoted DOU- ID in epics.md is not a reference", problems(quoted) == [], str(problems(quoted)))
+    swr_ref = folder(tmp, "swr-dou", swr=SWR.replace("- Type: functional\n- Verification", "- Type: functional\n"
+                                                    "- Note: waits on DOU-998.\n- Verification", 1))
+    check("an unknown DOU- ID in software-requirements.md fails",
+          has(problems(swr_ref), "software-requirements.md", "unknown ID DOU-998"), str(problems(swr_ref)))
+
+
+def test_check_superseded(tmp):
+    """Regression (Codex 2): a superseded row is never derived, whatever its Scope says."""
+    sup = folder(tmp, "superseded-in", analysis=ANALYSIS.replace("| SYS-004 | added | in |", "| SYS-004 | superseded | in |")
+                 .replace("| SYS-004 | a manual review step |", ""), swr=SWR.replace("| SYS-004 | a manual review step |", ""))
+    check("a superseded row with Scope in needs no SWR-", problems(sup) == [], str(problems(sup)))
+    ref = folder(tmp, "superseded-ref", analysis=ANALYSIS.replace("| SYS-004 | added | in |", "| SYS-004 | superseded | in |"))
+    check("a superseded row is still a known ID", not has(problems(ref), "software-requirements.md", "unknown ID"),
+          str(problems(ref)))
+    live = folder(tmp, "added-in", swr=SWR.replace("| SYS-004 | a manual review step |", ""))
+    check("the same row as added still needs coverage",
+          has(problems(live), "software-requirements.md", "SYS-004 (analysis.md:"), str(problems(live)))
+
+
+def test_check_stages(tmp):
+    """Regression (Codex 3): a stale downstream file must not block the stage that regenerates it."""
+    grown = ANALYSIS.replace("| SYS-004 | added | in | - | e | new | met | |",
+                             "| SYS-004 | added | in | - | e | new | met | |\n| SYS-009 | added | in | - | f | new | met | |")
+    stale_swr = folder(tmp, "stale-swr", analysis=grown)
+    found = problems(stale_swr)
+    check("a stale software-requirements.md fails the full check, at software-requirements.md",
+          has(found, "software-requirements.md", "SYS-009 (analysis.md:") and not has(found, "analysis.md", "SYS-009"),
+          str(found))
+    check("a stale software-requirements.md fails --upto software",
+          has(req.check(stale_swr, "software")[0], "software-requirements.md", "SYS-009"))
+    check("a stale software-requirements.md passes --upto analysis", req.check(stale_swr, "analysis")[0] == [],
+          str(req.check(stale_swr, "analysis")[0]))
+    proc = subprocess.run([sys.executable, SCRIPT, "check", stale_swr, "--upto", "analysis"],
+                          capture_output=True, text=True)
+    check("the CLI accepts --upto analysis and prints OK with no software requirements counted",
+          proc.returncode == 0 and proc.stdout.startswith("OK 5 system requirement(s), 2 DoU point(s)")
+          and "software" not in proc.stdout, proc.stdout + proc.stderr)
+
+    grown_swr = SWR.replace("## Traceability", "## SWR-003 - Extra\n\n- Statement: The software shall do more.\n"
+                            "- Traces to: SYS-001\n- Type: functional\n\n## Traceability")
+    stale_epics = folder(tmp, "stale-epics", swr=grown_swr)
+    found = problems(stale_epics)
+    check("a stale epics.md fails the full check, at epics.md",
+          has(found, "epics.md", "SWR-003 (software-requirements.md:") and not has(found, "software-requirements.md", "SWR-003"),
+          str(found))
+    check("a stale epics.md passes --upto software", req.check(stale_epics, "software")[0] == [],
+          str(req.check(stale_epics, "software")[0]))
+    check("a stale epics.md passes --upto analysis", req.check(stale_epics, "analysis")[0] == [])
+    check("--upto epics is the default", req.check(stale_epics, "epics")[0] == found)
+    proc = subprocess.run([sys.executable, SCRIPT, "check", stale_epics, "--upto", "software"],
+                          capture_output=True, text=True)
+    check("the CLI --upto software exits 0 over a stale epics.md",
+          proc.returncode == 0 and "epic" not in proc.stdout, proc.stdout)
+    proc = subprocess.run([sys.executable, SCRIPT, "check", stale_epics, "--upto", "nowhere"],
+                          capture_output=True, text=True)
+    check("an unknown --upto stage exits 2", proc.returncode == 2 and "--upto" in proc.stderr, proc.stderr)
+    proc = subprocess.run([sys.executable, SCRIPT, "check", stale_epics, "--bogus"], capture_output=True, text=True)
+    check("an unknown flag exits 2", proc.returncode == 2 and "usage" in proc.stderr, proc.stderr)
+
+
 def test_check_cli(tmp):
     bad = folder(tmp, "cli-bad", swr=SWR.replace("Traces to: SYS-002", "Traces to: SYS-001"))
     proc = subprocess.run([sys.executable, SCRIPT, "check", bad], capture_output=True, text=True)
     check("the CLI exits 1 and prints FAIL file:line: message",
-          proc.returncode == 1 and "FAIL analysis.md:%d:" % line_of(ANALYSIS, "| SYS-002 |") in proc.stdout
+          proc.returncode == 1 and "FAIL software-requirements.md:1:" in proc.stdout
           and "1 problem(s)." in proc.stdout, proc.stdout)
     empty = os.path.join(tmp, "empty-folder")
     os.makedirs(empty)
@@ -541,7 +613,7 @@ def test_templates_are_checkable(tmp):
         text = fh.read()
     write(root, "epics.md", text.replace("Covers: SWR-002", "Covers: SWR-001"))
     check("a template epic that drops a software requirement is reported",
-          has(problems(root), "software-requirements.md", "SWR-002 is in no epic"), str(problems(root)))
+          has(problems(root), "epics.md", "SWR-002 (software-requirements.md:"), str(problems(root)))
 
 
 def main():
@@ -550,7 +622,8 @@ def main():
                      test_diff_first_analysis_and_moves, test_diff_move_survives_changes_only,
                      test_diff_literal_changes_survive_normalization, test_diff_formatting_only_is_unchanged,
                      test_diff_ids_and_failures, test_check_consistent, test_check_ids, test_check_dou,
-                     test_check_status, test_check_traceability, test_check_cli,
+                     test_check_status, test_check_traceability, test_check_references,
+                     test_check_superseded, test_check_stages, test_check_cli,
                      test_templates_are_checkable):
             sub = os.path.join(tmp, test.__name__)
             os.makedirs(sub)

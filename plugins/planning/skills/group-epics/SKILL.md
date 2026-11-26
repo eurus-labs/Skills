@@ -99,15 +99,17 @@ State at the start which folder you read.
 
 1. **Find the input.** Read `software-requirements.md` in the topic folder. If it does not exist, follow the
    first item of "When not to use this skill" and stop. Read `references/formats.md` once, to know the lines.
-2. **Check the folder.** Run `python3 scripts/requirements.py check <topic-folder>`. If it fails, stop and
-   report the lines (hard rule 7); read `references/formats.md` if a message is unclear.
+2. **Check the folder.** Run `python3 scripts/requirements.py check <topic-folder> --upto software`, which
+   leaves out `epics.md`, so an existing, stale `epics.md` does not stop you. If it fails, stop and report the
+   lines (hard rule 7); read `references/formats.md` if a message is unclear.
 3. **Apply the gate.** If the file is `Provisional` and the user did not explicitly ask for epics anyway, say so
    and stop (hard rule 1).
 4. **Group** the software requirements by the basis you chose (hard rule 2): by the outcome they deliver and
    the code they share. Place each in exactly one epic (hard rule 3). Keep an epic to a size a team can finish
    and verify as a whole.
-5. **Write `epics.md`** from `references/epics-template.md` (hard rules 4 and 5), then run `check` and fix it
-   (hard rule 7).
+5. **Write `epics.md`** from `references/epics-template.md` (hard rules 4 and 5), then run the full `check` (no
+   flag) and fix it (hard rule 7). When `epics.md` already exists, update it: keep each existing `E-` ID,
+   add new ones, and never reuse an ID.
 6. **Report** the epics written, any note for the user to take back to an earlier skill, and the `check`
    result. Never claim `check` passed without running it.
 
@@ -115,7 +117,7 @@ State at the start which folder you read.
 
 | Path | Load when |
 | ---- | --------- |
-| `scripts/requirements.py` | Run `check` in step 2 and after writing in step 5. Do not read it. |
+| `scripts/requirements.py` | Run `check --upto software` in step 2 and the full `check` after writing in step 5. Do not read it. |
 | `references/formats.md` | Step 1: the lines the input must have, and what `check` reads in the output. |
 | `references/epics-template.md` | Step 5, before writing `epics.md`. |
 

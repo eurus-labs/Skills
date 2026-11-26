@@ -2,7 +2,7 @@
 """Compare two versions of a requirement, and check a requirement-analysis folder.
 
     requirements.py diff <previous> <current> [--changes-only]
-    requirements.py check <topic-folder>
+    requirements.py check <topic-folder> [--upto analysis|software|epics]
 
 `diff` splits each file into units (headings, list items, paragraphs, table rows), matches
 the units of the two versions and prints one JSON object: each unit is `added`, `removed`,
@@ -459,7 +459,16 @@ def first_title(lines):
     return ""
 
 
-def check(folder):
+STAGES = ("analysis", "software", "epics")
+
+
+def check(folder, upto="epics"):
+    """Check a topic folder up to a stage: analysis (analysis.md, dou.md), software (adds
+    software-requirements.md and the SYS-SWR rules) or epics (everything). A later file is not read at
+    an earlier stage, so a stale downstream file never blocks the skill that regenerates it."""
+    if upto not in STAGES:
+        raise UsageError("--upto must be one of: %s" % ", ".join(STAGES))
+    stage = STAGES.index(upto)
     if not os.path.isdir(folder):
         raise UsageError("%s: not a folder" % folder)
     problems = []
@@ -478,8 +487,8 @@ def check(folder):
     epics_path = os.path.join(folder, "epics.md")
     alines = read_text(analysis_path)
     dlines = read_text(dou_path) if os.path.isfile(dou_path) else None
-    slines = read_text(swr_path) if os.path.isfile(swr_path) else None
-    elines = read_text(epics_path) if os.path.isfile(epics_path) else None
+    slines = read_text(swr_path) if stage >= 1 and os.path.isfile(swr_path) else None
+    elines = read_text(epics_path) if stage >= 2 and os.path.isfile(epics_path) else None
 
     # analysis.md: the Status line, and the system requirements.
     status_line, status = 1, None
@@ -501,7 +510,10 @@ def check(folder):
             if first in sys_ids:
                 fail(analysis_path, n, "duplicate ID %s (first at line %d)" % (first, sys_ids[first][0]))
                 continue
-            sys_ids[first] = (n, (column(header, cells, "scope") or "").strip().lower())
+            scope = (column(header, cells, "scope") or "").strip().lower()
+            row_status = (column(header, cells, "status") or "").strip().lower()
+            # A superseded row stays a known ID for history, but is never derived, whatever its Scope says.
+            sys_ids[first] = (n, "out" if row_status.startswith("superseded") else scope)
 
     # dou.md: the points.
     points = {}                # id -> (line, status, blocking)
@@ -557,8 +569,8 @@ def check(folder):
         traced = {sysid for _, named in swrs.values() for sysid in named}
         for sysid, (n, scope) in sys_ids.items():
             if scope.startswith("in") and sysid not in traced and sysid not in not_derived:
-                fail(analysis_path, n, "in-scope system requirement %s has no software requirement and is "
-                                       "not in 'Not derived to software'" % sysid)
+                fail(swr_path, 1, "in-scope system requirement %s (analysis.md:%d) has no software requirement "
+                                  "and is not in 'Not derived to software'" % (sysid, n))
         if status == "draft" and "provisional" not in first_title(slines).lower():
             fail(swr_path, 1, "software-requirements.md is not marked Provisional while analysis.md is draft")
 
@@ -585,7 +597,7 @@ def check(folder):
                     covered.setdefault(sid, current)
         for sid, (n, _) in swrs.items():
             if sid not in covered:
-                fail(swr_path, n, "%s is in no epic" % sid)
+                fail(epics_path, 1, "%s (software-requirements.md:%d) is in no epic" % (sid, n))
         if status == "draft" and "provisional" not in first_title(elines).lower():
             fail(epics_path, 1, "epics.md is not marked Provisional while analysis.md is draft")
 
@@ -621,7 +633,7 @@ def check(folder):
     if slines is not None:
         unknown_ids(swr_path, slines, ("SYS", "SWR", "DOU"))
     if elines is not None:
-        unknown_ids(epics_path, elines, ("SYS", "SWR", "E"))
+        unknown_ids(epics_path, elines, ("SYS", "SWR", "E", "DOU"))
     return problems, {"system_requirements": len(sys_ids),
                       "dou_points": len(points) if dlines is not None else None,
                       "software_requirements": len(swrs) if slines is not None else None,
@@ -637,8 +649,14 @@ def main(argv):
                   ensure_ascii=False)
         sys.stdout.write("\n")
         return 0
-    if len(argv) == 3 and argv[1] == "check":
-        problems, stats = check(argv[2])
+    if len(argv) >= 3 and argv[1] == "check":
+        rest = argv[3:]
+        upto = "epics"
+        if rest and rest[0] == "--upto" and len(rest) == 2:
+            upto = rest[1]
+        elif rest:
+            raise UsageError("usage: requirements.py check <topic-folder> [--upto analysis|software|epics]")
+        problems, stats = check(argv[2], upto)
         for name, line, message in sorted(problems, key=lambda p: (p[0], p[1])):
             print("FAIL %s:%d: %s" % (name, line, message))
         if problems:
@@ -652,7 +670,7 @@ def main(argv):
         print("OK " + ", ".join(parts))
         return 0
     raise UsageError("usage: requirements.py diff <previous> <current> [--changes-only] | "
-                     "check <topic-folder>")
+                     "check <topic-folder> [--upto analysis|software|epics]")
 
 
 if __name__ == "__main__":
