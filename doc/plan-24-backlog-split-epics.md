@@ -1,6 +1,6 @@
 # Plan 24 — move the epic split into a new `backlog` plugin as `split-epics`
 
-Status: draft
+Status: approved
 Date: 2026-11-26
 Branch: `feat/backlog-split-epics`
 Baseline: `origin/main` at `c24e3eb106ec68015b519fc78e883466d6813cdd` (marketplace 0.5.0)
