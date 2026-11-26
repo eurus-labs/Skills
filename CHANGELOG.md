@@ -7,6 +7,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-11-26
+
+Adds **`analyze-requirements`** to the `reasoning` plugin (0.4.0): compare a requirement with its previous version,
+track the open points for the Product Owner through each DoU, and split the result into epics.
+
 ### Added
 
 - **`analyze-requirements`** (`reasoning` 0.4.0): compare a new requirement (`.md`, `.txt` or `.rst`) with its
