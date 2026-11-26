@@ -7,3 +7,4 @@
 # Regenerate with: python3 tools/materialize.py
 
 scripts/requirements/requirements.py -> skills/analyze-requirements/scripts/requirements.py
+scripts/requirements/requirements.py -> skills/derive-software-requirements/scripts/requirements.py

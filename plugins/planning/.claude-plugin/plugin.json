@@ -16,6 +16,7 @@
   "repository": "https://github.com/eurus-labs/Skills",
   "license": "MIT",
   "skills": [
-    "./skills/analyze-requirements/"
+    "./skills/analyze-requirements/",
+    "./skills/derive-software-requirements/"
   ]
 }
