@@ -3,6 +3,16 @@
 # Recreates fixtures/17-requirement-change in the eval's empty workspace.
 set -euo pipefail
 mkdir -p 'requirements'
+cat > 'requirements/dod.md' <<'EVAL_FIXTURE_EOF'
+# Definition of Done
+
+A requirement is done when it meets all of these.
+
+1. It states one behavior that a test can observe from outside the system.
+2. A time or speed target gives a number, its unit, and the size of the input it applies to.
+3. It can be checked with a number or an example; "fast", "easy" and similar words are not criteria.
+EVAL_FIXTURE_EOF
+mkdir -p 'requirements'
 cat > 'requirements/v1.md' <<'EVAL_FIXTURE_EOF'
 # Report Export Requirements
 

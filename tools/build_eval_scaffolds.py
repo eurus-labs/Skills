@@ -45,6 +45,12 @@ SCAFFOLDS = {
         ("fixtures/16-flawed-skill", ("README.md",)),
     "plugins/planning/evals/behavior/analyze-requirements-flags-planted-changes":
         ("fixtures/17-requirement-change", ("README.md",)),
+    "plugins/planning/evals/behavior/derive-software-requirements-from-final-analysis":
+        ("fixtures/18-final-analysis/final", ("README.md",)),
+    "plugins/planning/evals/behavior/derive-software-requirements-refuses-while-blocked":
+        ("fixtures/18-final-analysis/blocked", ("README.md",)),
+    "plugins/planning/evals/behavior/group-epics-from-software-requirements":
+        ("fixtures/18-final-analysis/with-software-requirements", ("README.md",)),
 }
 
 # eval case directory -> a git repository built from two snapshots, for skills that work on a change.
