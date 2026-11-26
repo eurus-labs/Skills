@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Behavioural tests for plugins/reasoning/skills/analyze-requirements/scripts/requirements.py.
+"""Behavioural tests for shared/scripts/requirements/requirements.py, the source of the copies in
+the analyze-requirements and split-epics skills.
 
 `diff` must find every added, removed, changed and unchanged unit in .md, .rst and .txt files with
 correct line ranges, and `check` must fail, naming the line, for each rule of the skill's Decision 8
@@ -16,8 +17,7 @@ import sys
 import tempfile
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SCRIPT = os.path.join(REPO, "plugins", "reasoning", "skills", "analyze-requirements", "scripts",
-                      "requirements.py")
+SCRIPT = os.path.join(REPO, "shared", "scripts", "requirements", "requirements.py")
 spec = importlib.util.spec_from_file_location("requirements_script", SCRIPT)
 req = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(req)
@@ -393,7 +393,7 @@ def test_check(tmp):
 
 def test_template_is_checkable():
     """The shipped templates, filled as-is, must follow the format `check` reads."""
-    refs = os.path.join(os.path.dirname(os.path.dirname(SCRIPT)), "references")
+    refs = os.path.join(REPO, "plugins", "reasoning", "skills", "analyze-requirements", "references")
     with tempfile.TemporaryDirectory() as tmp:
         with open(os.path.join(refs, "analysis-template.md"), encoding="utf-8") as fh:
             analysis = fh.read()

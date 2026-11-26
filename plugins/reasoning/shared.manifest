@@ -1,0 +1,10 @@
+# Shared sources materialized into this plugin.
+#   <path under shared/>  ->  <path under this plugin>
+#
+# Destinations are per-skill: a SKILL.md resolves bundled paths relative to its own folder.
+# The same script is also copied into the backlog plugin, so both skills check one file format
+# from one source.
+#
+# Regenerate with: python3 tools/materialize.py
+
+scripts/requirements/requirements.py -> skills/analyze-requirements/scripts/requirements.py

@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# GENERATED FILE -- DO NOT EDIT.
+# Source: shared/scripts/requirements/requirements.py
+# Regenerate: python3 tools/materialize.py
 """Compare two versions of a requirement, and check a requirement-analysis folder.
 
     requirements.py diff <previous> <current> [--changes-only]
