@@ -33,6 +33,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     changed units between two versions of a requirement, and `check` verifies the whole folder agrees.
   - Trigger cases (two that must fire and one that must stay quiet per skill), behavior cases, and fixtures 17
     (`17-requirement-change`, now with a DoD) and 18 (`18-final-analysis`) measure them.
+    Their trigger cases pass, and the behavior cases pass on Claude Code (refuse-while-blocked Δ +0.83, derive
+    Δ +0.27, analyze and group 2/3 each).
 - `reasoning` 0.5.0: `design-solution` and `write-plan` hand requirement work to the `planning` skills.
 
 ## [0.5.0] — 2026-11-26

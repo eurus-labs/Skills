@@ -8,6 +8,65 @@ compare runs with the same `--model` and `--judge-model`. How to run the suites 
 Behavior cases run three times with the plugin and three times without it. **Δ** is the score with the plugin
 minus the score without it. A pass needs every scored grader to pass in a run.
 
+## 2026-11-26 — planning on Claude Code (plan 25)
+
+- **Host:** Claude Code 2.1.330, in a Linux cloud container, with `TMPDIR` outside `/tmp`.
+- **Models:** `--model claude-sonnet-5-5 --judge-model haiku`, with `-j 3 --no-publish --trust-plugin`.
+- **Change under test:** the new `planning` plugin (0.1.0) with `analyze-requirements` moved out of `reasoning`
+  (0.5.0), `derive-software-requirements` and `group-epics`, the changed `design-solution` and `write-plan`
+  descriptions, and fixtures 17 and 18.
+- **Cost:** $8.63 in total, under the $9 ceiling the user agreed (raised from $8).
+- **Not covered:** GitHub Copilot CLI.
+
+### Trigger cases
+
+These ran with `--tag trigger --ablation none`. Each case ran three times.
+
+| Plugin | Cases passed | Runs passed | Cost | Time |
+| --- | --- | --- | --- | --- |
+| `planning` | 9 / 9 | 27 / 27 | $1.34 | 79 s |
+| `reasoning` | 8 / 8 | 24 / 24 | $1.45 | 113 s |
+
+Every quiet case stayed quiet: "split these software requirements into epics" did not fire
+`derive-software-requirements`, "derive software requirements" did not fire `group-epics`, and the design-export
+prompt did not fire `analyze-requirements`. The `reasoning` cases ran after `analyze-requirements` was removed and
+the descriptions were changed.
+
+### Behavior cases
+
+Both arms ran, three runs each.
+
+| Case | Run | With plugin | Without | Δ | Cost |
+| --- | --- | --- | --- | --- | --- |
+| `derive-software-requirements-refuses-while-blocked` | first | 3 / 3 (1.00) | 0 / 3 (0.17) | +0.83 | part of $2.83 |
+| `analyze-requirements-flags-planted-changes` | first | 1 / 3 | 0 / 3 | — | part of $2.83 |
+| `derive-software-requirements-from-final-analysis` | first | 0 / 3 | 0 / 3 | — | part of $2.83 |
+| `group-epics-from-software-requirements` | first | 0 / 3 | 0 / 3 | — | part of $2.83 |
+| `analyze-requirements-flags-planted-changes` | after the regex fix (`50b9aa4`) | 2 / 3 (0.90) | 0 / 3 (0.43) | +0.48 | $0.88 |
+| `derive-software-requirements-from-final-analysis` | after the regex fix | 0 / 3 (0.80) | 0 / 3 (0.73) | +0.07 | $0.78 |
+| `group-epics-from-software-requirements` | after the regex fix | 2 / 3 (0.94) | 0 / 3 (0.67) | +0.28 | $0.60 |
+| `derive-software-requirements-from-final-analysis` | after the SYS-003 wording fix (`390e325`) | 3 / 3 (1.00) | 0 / 3 (0.73) | +0.27 | $0.75 |
+
+### What the traces show
+
+- **First run:** the regex graders were written in Python syntax, but `claude plugin eval` runs them as
+  JavaScript RegExp. `\Z` never matched, and `(?i)` and `(?im)` threw "Invalid regular expression", so every
+  `*-untouched`, `grouping-basis` and `not-provisional` grader failed in both arms. They were fixed in `50b9aa4`,
+  and `running-evals.md` now has a row for it.
+- **`dou-points`** required a separate PO question about the 50 to 100 limit, which is a requirement change
+  rather than an ambiguity. It was loosened in `50b9aa4`.
+- **The `software-requirements` grader** described SYS-003 as "teammates included", while the fixture's PO answer
+  is "Owner only. Teammates must ask the owner." The judge therefore failed files that correctly reject
+  teammates. It was fixed in `390e325`, and the rerun passed 3 / 3.
+- **The refuse case:** in every with-plugin run the skill named DOU-003 and wrote no `software-requirements.md`.
+  Without the plugin, the runs wrote one or gave no reason.
+- **Remaining failures, recorded and not fixed:**
+  - One `analyze-requirements` run (the rerun) asked about the non-owner error wording but raised no DoU point
+    for the ownership contradiction with `src/exporter.py:19`. This is a real miss, 1 in 3.
+  - One `group-epics` run got split judge votes (FAIL FAIL PASS) on a file that covers SWR-001 to SWR-005 once
+    each with a stated grouping basis.
+- **Without the plugin**, the baseline runs wrote the files in places, but none passed the content graders.
+
 ## 2026-11-25 — reasoning and analyze-requirements on Claude Code (plan 23)
 
 - **Host:** Claude Code 2.1.330, in a Linux cloud container, with `TMPDIR` outside `/tmp`.
