@@ -7,6 +7,34 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Breaking changes
+
+- **`analyze-requirements` moved from `reasoning` to the new `planning` plugin.** `reasoning` 0.5.0 no longer
+  ships it, so an install that relied on it loses the skill on update. Install it with
+  `copilot plugin install planning@eurus-labs` (or `claude plugin install planning@eurus-labs`). The skill's
+  files change too: its requirements are system requirements `SYS-001…` (they were `R-001…`), and the points
+  for the PO are one `dou.md` of `DOU-001…` points (they were an `OP-` table and one `dou-NNN.md` per meeting).
+  It no longer splits epics; `group-epics` does.
+
+### Added
+
+- **`planning`** (0.1.0): turns a requirement into work in three skills that share one ID scheme and one check
+  script.
+  - **`analyze-requirements`** analyses a requirement against its previous version, the DoD (Definition of Done)
+    and the code, and settles every unclear point with the PO through one `dou.md`. Each pass adds points; it
+    records only what the PO said, and marks `analysis.md` `final` only when no blocking point is open.
+  - **`derive-software-requirements`** derives `SWR-` software requirements from a final analysis, in the style
+    of ASPICE system-to-software requirements: one "The software shall …" statement each, traced to `SYS-` IDs,
+    with testable verification criteria that meet the DoD and the code area, and a two-way traceability table.
+    It stops and lists the blocking points while the analysis is a draft.
+  - **`group-epics`** groups the software requirements into epics `E-01…`, each `SWR-` in exactly one, with
+    acceptance criteria, dependencies, risks, code areas and a `SYS-` to `SWR-` to `E-` traceability table.
+  - One stdlib script, `requirements.py`, authored in `shared/` and bundled in each skill: `diff` lists the
+    changed units between two versions of a requirement, and `check` verifies the whole folder agrees.
+  - Trigger cases (two that must fire and one that must stay quiet per skill), behavior cases, and fixtures 17
+    (`17-requirement-change`, now with a DoD) and 18 (`18-final-analysis`) measure them.
+- `reasoning` 0.5.0: `design-solution` and `write-plan` hand requirement work to the `planning` skills.
+
 ## [0.5.0] — 2026-11-26
 
 Adds **`analyze-requirements`** to the `reasoning` plugin (0.4.0): compare a requirement with its previous version,
