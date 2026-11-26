@@ -356,8 +356,8 @@ differ between the versions. Nothing else in v2 is a change; the other seven uni
 
 The prompt is unattended: the PO cannot be asked. The skill must write `analysis.md` (system requirements `SYS-001…`,
 each with a DoD verdict, and `Status: draft`) and `dou.md` (points `DOU-001…`), with every difference, a `path:line`
-for the code it read, and the points it needs the PO to answer (at least the limit, the ownership contradiction, and
-the meaning of "quickly"). It must not write `software-requirements.md` or `epics.md`, and it must not answer any
+for the code it read, and the points it needs the PO to answer (at least the ownership contradiction and the meaning of
+"quickly"; a question about the limit is allowed, since the limit change is a code impact, not a required point). It must not write `software-requirements.md` or `epics.md`, and it must not answer any
 point itself.
 
 **Pass:** all five found, each tied to its requirement text; the contradiction cited with the `src/exporter.py`

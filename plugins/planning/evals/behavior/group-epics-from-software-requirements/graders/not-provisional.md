@@ -1,6 +1,6 @@
 ---
 type: regex
 target: { source: file, path: requirements/export/epics.md }
-pattern: '(?im)^# .*provisional'
+pattern: '(^|\n)# [^\n]*[Pp]rovisional'
 match: not_contains
 ---

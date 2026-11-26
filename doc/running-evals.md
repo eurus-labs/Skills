@@ -291,6 +291,7 @@ English and Vietnamese. Add result files from elsewhere with `--results [plugin=
 | `invalid YAML frontmatter` on a case | A description with `: ` or ` #` must be quoted. `tools/test_eval_frontmatter.py` catches this; run the tests. |
 | `Plugin under test: none resolved` | `claude plugin eval` reads `plugin.json` or `.claude-plugin/plugin.json`. Every plugin needs both copies, identical; `tools/validate.py` checks. |
 | `Not logged in · Please run /login` | Export `ANTHROPIC_API_KEY` in the same shell and run again. |
+| `grader threw: Invalid regular expression`, or a `regex` grader that never matches | `type: regex` patterns run as JavaScript RegExp: no inline flags such as `(?i)`, and no `\Z` or `\A`. Use character classes for case (`[Gg]rouping`) and `$` for the end of input. |
 | A case scores `1.00` and has an `error:` | The run never started. A grader that asks for silence passes on a dead agent. Fix the error; do not read the score. |
 | `no usable bash found` (Copilot script, Windows) | Install Git for Windows. |
 | `copilot exited 1` right away, or the check prompt fails | Copilot refused to start. Read the lines printed under it. Usually the model is not on your plan (use a name from `/model`), the model has no such `--reasoning-effort` (leave it out), or you are signed out (`copilot login`). |
