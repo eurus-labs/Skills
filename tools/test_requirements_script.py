@@ -393,11 +393,12 @@ def test_check(tmp):
 
 def test_template_is_checkable():
     """The shipped templates, filled as-is, must follow the format `check` reads."""
-    refs = os.path.join(REPO, "plugins", "reasoning", "skills", "analyze-requirements", "references")
+    analysis_refs = os.path.join(REPO, "plugins", "reasoning", "skills", "analyze-requirements", "references")
+    epics_refs = os.path.join(REPO, "plugins", "backlog", "skills", "split-epics", "references")
     with tempfile.TemporaryDirectory() as tmp:
-        with open(os.path.join(refs, "analysis-template.md"), encoding="utf-8") as fh:
+        with open(os.path.join(analysis_refs, "analysis-template.md"), encoding="utf-8") as fh:
             analysis = fh.read()
-        with open(os.path.join(refs, "epics-template.md"), encoding="utf-8") as fh:
+        with open(os.path.join(epics_refs, "epics-template.md"), encoding="utf-8") as fh:
             epics = fh.read()
         write(tmp, "analysis.md", analysis)
         found = req.check(tmp)[0]

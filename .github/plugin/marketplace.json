@@ -39,6 +39,12 @@
       "version": "0.4.0"
     },
     {
+      "name": "backlog",
+      "source": "./plugins/backlog",
+      "description": "Turn settled requirements into a delivery backlog, epics for now: split-epics reads the analysis.md that analyze-requirements (reasoning plugin) writes and splits it into epics.md, with every in-scope requirement in exactly one epic, acceptance criteria and a traceability table, only once no blocking open point is open.",
+      "version": "0.1.0"
+    },
+    {
       "name": "verification",
       "source": "./plugins/verification",
       "description": "Set up a repository's own verification \u2014 its build, lint, static analysis, and test checks with pass/fail criteria, a feature map, and evidence capture \u2014 and verify any existing change against its goal, with evidence for every check and criterion and one honest verdict.",

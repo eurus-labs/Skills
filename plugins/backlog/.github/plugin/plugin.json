@@ -1,0 +1,19 @@
+{
+  "name": "backlog",
+  "description": "Turn settled requirements into a delivery backlog, epics for now: split-epics reads the analysis.md that analyze-requirements (reasoning plugin) writes and splits it into epics.md, with every in-scope requirement in exactly one epic, acceptance criteria and a traceability table, only once no blocking open point is open.",
+  "version": "0.1.0",
+  "keywords": [
+    "backlog",
+    "epics",
+    "requirements",
+    "traceability"
+  ],
+  "author": {
+    "name": "eurus-labs"
+  },
+  "repository": "https://github.com/eurus-labs/Skills",
+  "license": "MIT",
+  "skills": [
+    "./skills/split-epics/"
+  ]
+}
