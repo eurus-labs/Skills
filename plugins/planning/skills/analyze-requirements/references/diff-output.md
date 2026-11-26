@@ -1,4 +1,6 @@
-# `requirements.py` output
+# `requirements.py diff` output
+
+`check` is described in `formats.md`.
 
 ## `diff <previous> <current> [--changes-only]`
 
@@ -30,19 +32,3 @@ code are kept, so a changed number, glob, word, capital letter or full stop make
 
 The script decides what differs, not what it means. A `changed` unit may be a rewording, a real change, or two
 different requirements paired by similarity; read both texts.
-
-## `check <topic-folder>`
-
-Reads `analysis.md`, `dou-*.md` and `epics.md`. Prints `FAIL <file>:<line>: <message>` per broken rule, then the
-count, and exits 1; prints `OK …` and exits 0 when consistent. Exit 2 means a usage error: a missing folder or
-`analysis.md`, an unreadable file.
-
-| Message | Rule |
-| ------- | ---- |
-| `duplicate ID …` | an `R-`, `OP-` or `E-` ID is declared twice |
-| `unknown ID …` | an `R-` or `OP-` ID is referenced but no table row declares it. Only references are read: the ID, Affects, Resolved by, Note, Requirement, Covers and Depends columns, and text outside double quotes. Quoted source text, and the Previous and Current columns, are never scanned |
-| `OP-… is resolved but names no DoU` / `names dou-NNN, which does not exist` | a resolved open point needs an existing `dou-NNN.md` |
-| `in-scope requirement … is in no epic …` | a row whose Scope starts with `in` is in no epic's `Covers:` line and not in the "Not in any epic" list |
-| `… is in both E-01 and E-02` | a requirement is covered by two epics |
-| `epics are not marked Provisional while blocking open point …` | `epics.md` exists, its title lacks `Provisional`, and an open point with `Blocks: yes` is `open` |
-| `… has status …` / `… has Blocks …` | an open point's Status is not `open` or `resolved`, or Blocks is not `yes` or `no` |

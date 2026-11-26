@@ -43,7 +43,7 @@ SCAFFOLDS = {
         ("fixtures/05-mixed-monorepo", ("README.md",)),
     "plugins/skill-authoring/evals/behavior/evaluate-skill-finds-planted-defects":
         ("fixtures/16-flawed-skill", ("README.md",)),
-    "plugins/reasoning/evals/behavior/analyze-requirements-flags-planted-changes":
+    "plugins/planning/evals/behavior/analyze-requirements-flags-planted-changes":
         ("fixtures/17-requirement-change", ("README.md",)),
 }
 

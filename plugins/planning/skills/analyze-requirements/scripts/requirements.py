@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# GENERATED FILE -- DO NOT EDIT.
+# Source: shared/scripts/requirements/requirements.py
+# Regenerate: python3 tools/materialize.py
 """Compare two versions of a requirement, and check a requirement-analysis folder.
 
     requirements.py diff <previous> <current> [--changes-only]
@@ -9,15 +12,14 @@ the units of the two versions and prints one JSON object: each unit is `added`, 
 `changed`, `moved` or `unchanged`, with its file and 1-based line range. It decides what differs,
 not what the difference means; the caller reads every non-`unchanged` unit.
 
-`check` reads analysis.md, dou-*.md and epics.md in a folder and prints one line per
-broken rule, `file:line: message`. Exit 0 when consistent, 1 when a rule is broken,
-2 on a usage error.
+`check` reads analysis.md, dou.md, software-requirements.md and epics.md in a folder (only
+analysis.md is required) and prints one line per broken rule, `FAIL file:line: message`. Exit 0
+when consistent, 1 when a rule is broken, 2 on a usage error.
 
 Standard library only. Reads only the files it is given; makes no network call; writes nothing.
 """
 
 import difflib
-import glob
 import json
 import os
 import re
@@ -341,15 +343,27 @@ def diff(prev_path, cur_path, changes_only=False):
 
 
 # --- check ---------------------------------------------------------------------------------
+#
+# A topic folder holds up to four files that share one ID scheme:
+#   analysis.md               SYS-001  system requirements, in a table, and a `Status: draft|final` line
+#   dou.md                    DOU-001  one `## DOU-001` block per point for the PO
+#   software-requirements.md  SWR-001  one `## SWR-001` block each, with a `Traces to:` line
+#   epics.md                  E-01     one `## E-01` block each, with a `Covers:` line of SWR- IDs
 
-ID_RE = re.compile(r"\b(?:R|OP)-\d+\b")
-R_RE = re.compile(r"\bR-\d+\b")
-OP_RE = re.compile(r"\bOP-\d+\b")
-EPIC_HEAD_RE = re.compile(r"^##\s+(E-\d+)\b")
-DOU_RE = re.compile(r"\bdou-(\d+)\b", re.I)
-QUOTE_RE = re.compile(r'"[^"\n]*"|\u201c[^\u201d\n]*\u201d')
+SYS_RE = re.compile(r"\bSYS-\d+\b")
+SWR_RE = re.compile(r"\bSWR-\d+\b")
+DOU_ID_RE = re.compile(r"DOU-\d+\b")
+SWR_HEAD_RE = re.compile(r"SWR-\d+\b")
+EPIC_HEAD_RE = re.compile(r"E-\d+\b")
+ID_RE = re.compile(r"\b(?:SYS|SWR|DOU)-\d+\b|\bE-\d+\b")
+HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
+FIELD_RE = re.compile(r"^[-*]\s+([A-Za-z][^:\n]*?):\s*(.*)$")
+DATE_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
+QUOTE_RE = re.compile(r'"[^"\n]*"|“[^”\n]*”')
 # Table columns that hold references. The Previous and Current columns quote the source and are not read.
-REF_COLUMNS = ("id", "affects", "resolved by", "note", "requirement", "covers", "depends", "changes")
+REF_COLUMNS = ("id", "affects", "concerns", "note", "dod", "requirement", "system", "software",
+               "epic", "covers", "depends", "traces", "reason")
+NO_ANSWER = ("", "not given", "none", "n/a", "-", "—", "–")
 
 
 def strip_quotes(text):
@@ -373,7 +387,7 @@ def read_text(path):
 
 
 def parse_tables(lines):
-    """Yield (lineno, header-map, cells) for each table row whose first cell is an ID."""
+    """Yield (lineno, header-map, cells) for each table body row."""
     header = None
     rows = []
     for n, line in enumerate(lines, 1):
@@ -397,60 +411,197 @@ def column(header, cells, *names):
     return None
 
 
+def blocks(lines, head_re):
+    """Split a file into blocks, one per heading whose text starts with an ID matching `head_re`.
+
+    Returns [(id, heading_line, {field: (line, value)})]. A field is a `- Key: value` bullet at the
+    start of a line; an indented line after it continues its value. Field names are lower-cased."""
+    out = []
+    current = None
+    last = None
+    for n, line in enumerate(lines, 1):
+        head = HEADING_RE.match(line)
+        if head:
+            m = head_re.match(head.group(2))
+            current = (m.group(0), n, {}) if m else None
+            if current:
+                out.append(current)
+            last = None
+            continue
+        if current is None or not line.strip():
+            continue
+        m = FIELD_RE.match(line)
+        if m:
+            last = m.group(1).strip().lower()
+            current[2][last] = (n, m.group(2).strip())
+        elif last and line.startswith((" ", "\t")):
+            ln, value = current[2][last]
+            current[2][last] = (ln, (value + " " + line.strip()).strip())
+        else:
+            last = None
+    return out
+
+
+def field(fields, *names):
+    """(line, value) of the first field whose name starts with one of `names`, else (None, "")."""
+    for key, (n, value) in fields.items():
+        if key.startswith(names):
+            return n, value
+    return None, ""
+
+
+def first_word(text):
+    words = text.strip().lower().split()
+    return words[0] if words else ""
+
+
+def first_title(lines):
+    for line in lines:
+        if line.startswith("# "):
+            return line
+    return ""
+
+
 def check(folder):
     if not os.path.isdir(folder):
         raise UsageError("%s: not a folder" % folder)
     problems = []
+    explained = set()         # (file, line) already reported with a specific message
 
-    def fail(path, line, message):
+    def fail(path, line, message, specific=False):
         problems.append((os.path.basename(path), line, message))
+        if specific:
+            explained.add((os.path.basename(path), line))
 
     analysis_path = os.path.join(folder, "analysis.md")
     if not os.path.isfile(analysis_path):
         raise UsageError("%s: analysis.md not found" % folder)
+    dou_path = os.path.join(folder, "dou.md")
+    swr_path = os.path.join(folder, "software-requirements.md")
+    epics_path = os.path.join(folder, "epics.md")
     alines = read_text(analysis_path)
-    dou_files = sorted(glob.glob(os.path.join(folder, "dou-*.md")))
-    dou_ids = {re.match(r"dou-(\d+)\.md$", os.path.basename(p), re.I).group(1)
-               for p in dou_files if re.match(r"dou-(\d+)\.md$", os.path.basename(p), re.I)}
-    dou_ids = {d.lstrip("0") or "0" for d in dou_ids}
+    dlines = read_text(dou_path) if os.path.isfile(dou_path) else None
+    slines = read_text(swr_path) if os.path.isfile(swr_path) else None
+    elines = read_text(epics_path) if os.path.isfile(epics_path) else None
 
-    reqs, ops = {}, {}          # id -> (line, fields)
+    # analysis.md: the Status line, and the system requirements.
+    status_line, status = 1, None
+    for n, line in enumerate(alines, 1):
+        m = re.match(r"^Status:\s*(.*?)\s*$", line)
+        if m:
+            status_line, status = n, first_word(m.group(1))
+            break
+    if status not in ("draft", "final"):
+        fail(analysis_path, status_line,
+             "analysis.md has no 'Status: draft' or 'Status: final' line" if status is None
+             else "analysis.md has status '%s'; use draft or final" % status)
+        status = None
+
+    sys_ids = {}               # id -> (line, scope)
     for n, header, cells in parse_tables(alines):
         first = cells[0] if cells else ""
-        if R_RE.fullmatch(first):
-            if first in reqs:
-                fail(analysis_path, n, "duplicate ID %s (first at line %d)" % (first, reqs[first][0]))
+        if SYS_RE.fullmatch(first):
+            if first in sys_ids:
+                fail(analysis_path, n, "duplicate ID %s (first at line %d)" % (first, sys_ids[first][0]))
                 continue
-            reqs[first] = (n, {"scope": column(header, cells, "scope") or ""})
-        elif OP_RE.fullmatch(first):
-            if first in ops:
-                fail(analysis_path, n, "duplicate ID %s (first at line %d)" % (first, ops[first][0]))
+            sys_ids[first] = (n, (column(header, cells, "scope") or "").strip().lower())
+
+    # dou.md: the points.
+    points = {}                # id -> (line, status, blocking)
+    if dlines is not None:
+        for pid, n, fields in blocks(dlines, DOU_ID_RE):
+            if pid in points:
+                fail(dou_path, n, "duplicate ID %s (first at line %d)" % (pid, points[pid][0]))
                 continue
-            status = (column(header, cells, "status") or "").strip().lower()
-            blocks = (column(header, cells, "block") or "").strip().lower()
-            resolved_by = column(header, cells, "resolved by", "dou") or ""
-            if status.split(" ")[0] not in ("open", "resolved"):
-                fail(analysis_path, n, "%s has status '%s'; use open or resolved" % (first, status))
-            if blocks.split(" ")[0] not in ("yes", "no"):
-                fail(analysis_path, n, "%s has Blocks '%s'; use yes or no" % (first, blocks))
-            ops[first] = (n, {"status": status.split(" ")[0], "blocking": blocks.startswith("yes"),
-                              "resolved_by": resolved_by})
+            st = first_word(field(fields, "status")[1])
+            bl = first_word(field(fields, "blocks")[1])
+            if st not in ("open", "closed"):
+                fail(dou_path, n, "%s has status '%s'; use open or closed" % (pid, st))
+            if bl not in ("yes", "no"):
+                fail(dou_path, n, "%s has Blocks '%s'; use yes or no" % (pid, bl))
+            if st == "closed":
+                answer = field(fields, "po answer", "answer")[1]
+                if answer.strip().strip('"“”').strip().lower() in NO_ANSWER:
+                    fail(dou_path, n, "%s is closed but has no PO answer" % pid)
+                if not DATE_RE.search(field(fields, "date")[1]):
+                    fail(dou_path, n, "%s is closed but has no date (YYYY-MM-DD)" % pid)
+            points[pid] = (n, st, bl == "yes")
 
-    for op, (n, f) in ops.items():
-        if f["status"] != "resolved":
-            continue
-        named = DOU_RE.findall(f["resolved_by"])
-        if not named:
-            fail(analysis_path, n, "%s is resolved but names no DoU" % op)
-        for num in named:
-            if (num.lstrip("0") or "0") not in dou_ids:
-                fail(analysis_path, n, "%s names dou-%s, which does not exist in the folder" % (op, num))
+    if status == "final":
+        for pid, (n, st, blocking) in points.items():
+            if st == "open" and blocking:
+                fail(analysis_path, status_line,
+                     "analysis.md is final while blocking %s is open (dou.md:%d)" % (pid, n))
 
-    def unknown_ids(path, lines):
-        """Check the IDs a file refers to. Quoted source text is never scanned: in a table only the
-        reference columns are read, and in other lines the text inside double quotes is dropped."""
+    # software-requirements.md: the software requirements and what they trace to.
+    swrs = {}                  # id -> (line, [SYS ids])
+    if slines is not None:
+        for sid, n, fields in blocks(slines, SWR_HEAD_RE):
+            if sid in swrs:
+                fail(swr_path, n, "duplicate ID %s (first at line %d)" % (sid, swrs[sid][0]))
+                continue
+            tn, traces = field(fields, "traces")
+            named = SYS_RE.findall(strip_quotes(traces))
+            if not named:
+                fail(swr_path, tn or n, "%s traces to no SYS- ID" % sid, specific=True)
+            for sysid in named:
+                if sysid not in sys_ids:
+                    fail(swr_path, tn, "%s traces to %s, which does not exist in analysis.md"
+                         % (sid, sysid), specific=True)
+            swrs[sid] = (n, named)
+        section, sections = "", {}
+        for n, line in enumerate(slines, 1):
+            head = HEADING_RE.match(line)
+            if head:
+                section = head.group(2).strip().lower()
+            sections[n] = section
+        not_derived = {cells[0] for n, _, cells in parse_tables(slines)
+                       if sections.get(n, "").startswith("not derived") and cells and SYS_RE.fullmatch(cells[0])}
+        traced = {sysid for _, named in swrs.values() for sysid in named}
+        for sysid, (n, scope) in sys_ids.items():
+            if scope.startswith("in") and sysid not in traced and sysid not in not_derived:
+                fail(analysis_path, n, "in-scope system requirement %s has no software requirement and is "
+                                       "not in 'Not derived to software'" % sysid)
+        if status == "draft" and "provisional" not in first_title(slines).lower():
+            fail(swr_path, 1, "software-requirements.md is not marked Provisional while analysis.md is draft")
+
+    # epics.md: the epics and the software requirements each covers.
+    epic_ids = {}
+    if elines is not None:
+        covered = {}           # SWR id -> epic id
+        current = None
+        for n, line in enumerate(elines, 1):
+            head = HEADING_RE.match(line)
+            if head:
+                m = EPIC_HEAD_RE.match(head.group(2))
+                current = m.group(0) if m else None
+                if current:
+                    if current in epic_ids:
+                        fail(epics_path, n, "duplicate ID %s (first at line %d)" % (current, epic_ids[current]))
+                    else:
+                        epic_ids[current] = n
+                continue
+            if current and re.match(r"^\W*covers\b", line, re.I):
+                for sid in SWR_RE.findall(strip_quotes(line)):
+                    if sid in covered and covered[sid] != current:
+                        fail(epics_path, n, "%s is in both %s and %s" % (sid, covered[sid], current))
+                    covered.setdefault(sid, current)
+        for sid, (n, _) in swrs.items():
+            if sid not in covered:
+                fail(swr_path, n, "%s is in no epic" % sid)
+        if status == "draft" and "provisional" not in first_title(elines).lower():
+            fail(epics_path, 1, "epics.md is not marked Provisional while analysis.md is draft")
+
+    # Every ID a file refers to must be declared. Quoted source text is never scanned: in a table
+    # only the reference columns are read, and in other lines the text inside double quotes is dropped.
+    known = {"SYS": sys_ids, "DOU": points, "SWR": swrs, "E": epic_ids}
+
+    def unknown_ids(path, lines, kinds):
+        base = os.path.basename(path)
         rows = {n: (header, cells) for n, header, cells in parse_tables(lines)}
         for n, line in enumerate(lines, 1):
+            if (base, n) in explained:
+                continue
             if split_row(line) is None:
                 scanned = [strip_quotes(line)]
             elif n in rows:
@@ -459,62 +610,25 @@ def check(folder):
                            if key.startswith(REF_COLUMNS) and idx < len(cells)]
             else:
                 scanned = []
+            seen = set()
             for text in scanned:
                 for tok in ID_RE.findall(text):
-                    known = reqs if tok.startswith("R-") else ops
-                    if tok not in known:
+                    kind = tok.split("-")[0]
+                    if kind in kinds and tok not in known[kind] and tok not in seen:
+                        seen.add(tok)
                         fail(path, n, "unknown ID %s" % tok)
 
-    unknown_ids(analysis_path, alines)
-    for path in dou_files:
-        unknown_ids(path, read_text(path))
-
-    epics_path = os.path.join(folder, "epics.md")
-    if os.path.isfile(epics_path):
-        elines = read_text(epics_path)
-        unknown_ids(epics_path, elines)
-        epic_ids = {}
-        covered = {}               # R-id -> epic id
-        current = None
-        not_in = False
-        not_in_ids = set()
-        for n, line in enumerate(elines, 1):
-            head = re.match(r"^(#{1,6})\s+(.*)", line)
-            if head:
-                not_in = bool(re.match(r"not in any epic", head.group(2).strip(), re.I))
-                m = EPIC_HEAD_RE.match(line)
-                if m:
-                    current = m.group(1)
-                    if current in epic_ids:
-                        fail(epics_path, n, "duplicate ID %s (first at line %d)" % (current, epic_ids[current]))
-                    else:
-                        epic_ids[current] = n
-                else:
-                    current = None
-                continue
-            if not_in:
-                not_in_ids.update(R_RE.findall(line))
-            elif current and re.match(r"^\W*covers\b", line, re.I):
-                for rid in R_RE.findall(line):
-                    if rid in covered and covered[rid] != current:
-                        fail(epics_path, n, "%s is in both %s and %s" % (rid, covered[rid], current))
-                    covered.setdefault(rid, current)
-        for rid, (n, f) in reqs.items():
-            if f["scope"].strip().lower().startswith("in") and rid not in covered and rid not in not_in_ids:
-                fail(analysis_path, n, "in-scope requirement %s is in no epic and not in the "
-                                       "'Not in any epic' list" % rid)
-        provisional = False
-        for line in elines:
-            if line.startswith("# "):
-                provisional = "provisional" in line.lower()
-                break
-        if not provisional:
-            for op, (n, f) in ops.items():
-                if f["blocking"] and f["status"] == "open":
-                    fail(epics_path, 1, "epics are not marked Provisional while blocking open point %s "
-                                        "is open (analysis.md:%d)" % (op, n))
-    return problems, {"requirements": len(reqs), "open_points": len(ops), "dous": len(dou_files),
-                      "epics": os.path.isfile(epics_path)}
+    unknown_ids(analysis_path, alines, ("SYS", "DOU"))
+    if dlines is not None:
+        unknown_ids(dou_path, dlines, ("SYS", "DOU"))
+    if slines is not None:
+        unknown_ids(swr_path, slines, ("SYS", "SWR", "DOU"))
+    if elines is not None:
+        unknown_ids(epics_path, elines, ("SYS", "SWR", "E"))
+    return problems, {"system_requirements": len(sys_ids),
+                      "dou_points": len(points) if dlines is not None else None,
+                      "software_requirements": len(swrs) if slines is not None else None,
+                      "epics": len(epic_ids) if elines is not None else None}
 
 
 def main(argv):
@@ -528,14 +642,17 @@ def main(argv):
         return 0
     if len(argv) == 3 and argv[1] == "check":
         problems, stats = check(argv[2])
-        for name, line, message in problems:
+        for name, line, message in sorted(problems, key=lambda p: (p[0], p[1])):
             print("FAIL %s:%d: %s" % (name, line, message))
         if problems:
             print("%d problem(s)." % len(problems))
             return 1
-        print("OK %d requirement(s), %d open point(s), %d DoU file(s)%s"
-              % (stats["requirements"], stats["open_points"], stats["dous"],
-                 ", epics.md present" if stats["epics"] else ""))
+        parts = ["%d system requirement(s)" % stats["system_requirements"]]
+        for key, label in (("dou_points", "DoU point(s)"), ("software_requirements", "software requirement(s)"),
+                           ("epics", "epic(s)")):
+            if stats[key] is not None:
+                parts.append("%d %s" % (stats[key], label))
+        print("OK " + ", ".join(parts))
         return 0
     raise UsageError("usage: requirements.py diff <previous> <current> [--changes-only] | "
                      "check <topic-folder>")

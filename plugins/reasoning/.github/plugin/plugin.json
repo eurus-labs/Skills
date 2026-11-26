@@ -15,7 +15,6 @@
   "repository": "https://github.com/eurus-labs/Skills",
   "license": "MIT",
   "skills": [
-    "./skills/analyze-requirements/",
     "./skills/design-solution/",
     "./skills/write-plan/",
     "./skills/coder-handoff/"
