@@ -1,0 +1,21 @@
+Report Export Requirements
+==========================
+
+Formats
+-------
+
+- The system exports a saved report as CSV.
+- The system exports a saved report as PDF.
+
+Limits
+------
+
+- A user can export at most 100 reports in one request.
+- An export request is rejected when the report has no rows.
+
+Access
+------
+
+- Only the owner of a report can export it; a request from anyone else is rejected with an error.
+- A user can schedule an export to run every night.
+- Exports of large reports should finish quickly.

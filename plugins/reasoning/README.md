@@ -1,8 +1,8 @@
 # reasoning
 
-Plan a change before anyone codes it. One skill answers design questions in the conversation; one writes a
-plan to a file on its own branch; one hands the approved plan to a coder and reviews the result. None changes
-application code.
+Plan a change before anyone codes it. One skill analyzes a new requirement against its previous version and
+splits it into epics; one answers design questions in the conversation; one writes a plan to a file on its own
+branch; one hands the approved plan to a coder and reviews the result. None changes application code.
 
 Meant for planning sessions on a high-tier model (Opus, Fable, GPT "astra" on Copilot). Building the plan is
 `implement`, in the `development` plugin.
@@ -19,6 +19,15 @@ where you run a plan yourself. `implement` works from a plan without `reasoning`
 
 ## Skills
 
+- **`analyze-requirements`** — the requirement loop, on files that share one ID scheme. It compares the current
+  requirement (`.md`, `.txt` or `.rst`, or pasted) with the previous version (another file, or the same file at
+  an earlier git revision), checks each changed requirement against the repository's code with `path:line`, and
+  writes `analysis.md`: the change table (`R-001…`), the findings, the open points for the Product Owner
+  (`OP-001…`, each marked blocking or not), the assumptions and a revision history. From the user's notes of a
+  PO discussion it drafts `dou-NNN.md` (or reads a DoU the user brings), records only what the PO said, and
+  updates the analysis, keeping superseded rows. It writes `epics.md` only when no blocking open point is open,
+  unless you explicitly ask for provisional epics. Fires on "compare this requirement with the previous
+  version", "update the analysis from the DoU", "split into epics", "cập nhật requirement analysis từ DoU với PO".
 - **`design-solution`** — an implementation-ready design, grounded in the current code, answered in the
   conversation: goal, scope, acceptance criteria, constraints, affected components, decisions with the
   alternatives they beat, steps, a verification plan, and open questions. Fires on "design this", "compare
@@ -41,10 +50,23 @@ where you run a plan yourself. `implement` works from a plan without `reasoning`
 
 | You ask for | Skill |
 | ----------- | ----- |
+| A requirement compared with its previous version, open points for the PO, a DoU, epics | `analyze-requirements` |
 | Advice, a comparison, or "how would you…", answered in chat | `design-solution` |
 | A plan saved to a file | `write-plan` |
 | An approved plan given to a coder subagent, then reviewed | `coder-handoff` |
 | The change made, or an approved plan built | `implement`, in the `development` plugin |
+
+## How the requirement analysis works
+
+1. Give it the current requirement and, if there is one, the previous version. It runs
+   `scripts/requirements.py diff`, which lists every added, removed, changed and unchanged unit with its line
+   range, then reads each change, checks the code, and writes `analysis.md` in `requirements/<topic>/`.
+2. Take its open points to the PO. Bring back your notes, or a DoU file; it drafts or reads the DoU and updates
+   the analysis. A point the notes leave unanswered stays open.
+3. When no blocking open point remains, ask for epics. It writes `epics.md` with every in-scope requirement in
+   exactly one epic, and a traceability table.
+4. After every write it runs `scripts/requirements.py check`, which fails on a duplicated ID, an unknown ID, a
+   resolved point with no DoU, a requirement in no epic, and non-provisional epics while a blocking point is open.
 
 ## How the hand-off works
 
@@ -85,7 +107,10 @@ Where you install the plugin decides who uses it. Each method below says whether
 
 ## Notes
 
-- **Side effects:** `write-plan` creates a local branch, writes one file, and commits it. It pushes only
+- **Side effects:** `analyze-requirements` writes `analysis.md`, `dou-NNN.md` and `epics.md` in its topic folder
+  and never commits them unless you ask. It asks where the requirement and the code live, and may run `git clone` and
+  `git fetch` (network access) for a repository you name, writing the clone only to a destination you confirm. Its bundled script, `requirements.py`, is standard library only, reads
+  only the files it is given, makes no network call and writes nothing. `write-plan` creates a local branch, writes one file, and commits it. It pushes only
   after you confirm, unless you already asked it to push. `coder-handoff` pushes the approval commit, starts a
   subagent, and opens the pull request after a passing review; it merges only when you ask. Neither installs anything or runs scripts.
   `design-solution` writes nothing except a design file you ask for.

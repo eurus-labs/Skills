@@ -7,6 +7,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **`analyze-requirements`** (`reasoning` 0.4.0): compare a new requirement (`.md`, `.txt` or `.rst`) with its
+  previous version, check each change against the repository's code, and write `analysis.md` with a change
+  table, findings and the open points for the Product Owner. From the user's notes of a PO discussion it drafts
+  a `dou-NNN.md` (or reads one), records only what the PO said, and updates the analysis, keeping superseded
+  rows. It writes `epics.md` only when no blocking open point is open. A bundled stdlib script,
+  `requirements.py`, lists the changed units between two versions (`diff`) and checks the files agree
+  (`check`). `design-solution` and `write-plan` now hand requirement analysis to it. Trigger cases, a behavior
+  case and fixture 17 (`17-requirement-change`) measure it.
+  Its trigger and behavior cases pass on Claude Code (behavior Δ +0.67).
+  It asks where the requirement and the code live, and clones a named repository only after you confirm the
+  destination.
+
 ## [0.4.0] — 2026-11-25
 
 Renames `code-review` to **`review`** and adds **`review-ui`**; takes `document-codebase` from a draft pipeline to a
