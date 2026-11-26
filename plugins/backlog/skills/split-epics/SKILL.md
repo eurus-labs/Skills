@@ -43,7 +43,6 @@ written by hand in the same format works.
    epics anyway, head the file `Provisional` (`# Epics — <topic> — Provisional`) and name the open point on
    each epic that depends on it.
 2. **Every in-scope requirement is in exactly one epic**, or in the "Not in any epic" list with the reason.
-   An out-of-scope or `superseded` row is placed nowhere.
 3. **Each epic has** a goal, the R- IDs it covers, acceptance criteria that state observable behavior (at
    least one a negative case), dependencies on other epics, risks and code areas.
 4. **Write a traceability table** that maps every in-scope requirement to its epic or to "not in any epic".

@@ -370,6 +370,47 @@ difference between `.md` and `.rst`); a claim about the code with no line; an in
 
 ---
 
+## 18 — settled-analysis → `split-epics`
+
+Two complete workspaces, `settled/` and `blocked/`, each holding `requirements/export/analysis.md` and
+`dou-001.md` in the format `analyze-requirements` writes, the two requirement versions they cite
+(`requirements/v1.md`, `requirements/v2.rst`) and the module they describe (`src/exporter.py`, the same file as
+in fixture 17). The topic is the report export of fixture 17, after one PO discussion. Both pass
+`scripts/requirements.py check` as they stand. The two workspaces differ only in `analysis.md` and `dou-001.md`.
+
+**`settled/`.** Four blocking open points (OP-001 to OP-004) are resolved by `dou-001`, and OP-005, the time zone
+and failure handling of the nightly export, stays open with `Blocks: no`.
+
+| Requirement | State | Where it belongs |
+| ----------- | ----- | ---------------- |
+| R-001 limit of 100 reports | in scope, changes existing behavior (`src/exporter.py:8`) | an epic |
+| R-003 owner-only export | in scope, changes existing behavior (`src/exporter.py:17-19`) | an epic |
+| R-004 nightly export | in scope, new; depends on OP-005 | an epic that names OP-005 |
+| R-007 10,000 rows in 30 seconds | in scope, new (`src/exporter.py:22-27`) | an epic |
+| R-006 audit log kept | in scope, already met (`src/exporter.py:42`) | "Not in any epic", with that reason |
+| R-002, R-005 | superseded by R-006 and R-007 | no epic |
+| R-008 CSV export | unchanged, out of scope | no epic |
+
+**Pass:** `epics.md` is written without `Provisional`; each of R-001, R-003, R-004 and R-007 is in exactly one
+epic; R-006 is in "Not in any epic" with a reason that names the code; every epic has a goal, its R- IDs,
+acceptance criteria with a negative case, dependencies, risks and code areas; the traceability table covers every
+in-scope requirement; the epic for R-004 names OP-005 and invents no time zone; `check` was run on the folder;
+`analysis.md` and `dou-001.md` are not edited.
+
+**Fail:** an in-scope requirement in no epic or in two; a superseded row in an epic; `Provisional` on a settled
+analysis; an invented answer to OP-005; an edit to `analysis.md`.
+
+**`blocked/`.** The same workspace, except that OP-003, what "finish quickly" means (R-005), is `open` with
+`Blocks: yes`: `dou-001` records "not given" for it, R-005 is still in scope and R-007 does not exist.
+
+**Pass:** the skill names OP-003 and says the epics wait for the PO's answer; `epics.md` is not written; no epic
+is described in the reply; no answer to OP-003 is invented; nothing is edited.
+
+**Fail:** `epics.md` written (provisional or not) without the user asking for provisional epics; a number given
+for "quickly"; the blocking point not named.
+
+---
+
 ## Scoring
 
 Rough guide, per scenario:

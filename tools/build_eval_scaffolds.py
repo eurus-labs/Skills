@@ -45,6 +45,13 @@ SCAFFOLDS = {
         ("fixtures/16-flawed-skill", ("README.md",)),
     "plugins/reasoning/evals/behavior/analyze-requirements-flags-planted-changes":
         ("fixtures/17-requirement-change", ("README.md",)),
+    # Fixture 18 holds two complete variants of one workspace, `settled/` and `blocked/`, which differ
+    # only in analysis.md and dou-001.md. Each scaffold is one variant, so the scenario README, which
+    # sits above them, is never copied.
+    "plugins/backlog/evals/behavior/split-epics-from-settled-analysis":
+        ("fixtures/18-settled-analysis/settled", ()),
+    "plugins/backlog/evals/behavior/split-epics-refuses-while-blocked":
+        ("fixtures/18-settled-analysis/blocked", ()),
 }
 
 # eval case directory -> a git repository built from two snapshots, for skills that work on a change.

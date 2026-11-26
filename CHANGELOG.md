@@ -7,6 +7,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Breaking changes
+
+- **`reasoning` 0.5.0 no longer splits epics.** `analyze-requirements` stops after the analysis and the DoU
+  updates, never writes `epics.md`, and says when the analysis is ready for `split-epics`. Install
+  `backlog@eurus-labs` to keep splitting epics.
+
+### Added
+
+- **`backlog`** plugin 0.1.0 with **`split-epics`**: reads the `analysis.md` that `analyze-requirements` writes
+  and writes `epics.md` under the rules the epic step had in `reasoning`: epics only when no blocking open
+  point is open, every in-scope requirement in exactly one epic or in "Not in any epic", acceptance criteria
+  with a negative case, and a traceability table. It never edits the analysis or a DoU. `requirements.py` is now
+  authored once in `shared/` and bundled in both skills. Trigger cases, two behavior cases and fixture 18
+  (`18-settled-analysis`) measure it, and `reasoning` gains a quiet case for "split into epics".
+
 ## [0.5.0] — 2026-11-26
 
 Adds **`analyze-requirements`** to the `reasoning` plugin (0.4.0): compare a requirement with its previous version,
