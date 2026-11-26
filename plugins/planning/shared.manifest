@@ -8,3 +8,4 @@
 
 scripts/requirements/requirements.py -> skills/analyze-requirements/scripts/requirements.py
 scripts/requirements/requirements.py -> skills/derive-software-requirements/scripts/requirements.py
+scripts/requirements/requirements.py -> skills/group-epics/scripts/requirements.py

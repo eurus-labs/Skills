@@ -520,13 +520,38 @@ def test_check_cli(tmp):
     check("the CLI exits 2 on an unknown subcommand", proc.returncode == 2 and "usage" in proc.stderr)
 
 
+def test_templates_are_checkable(tmp):
+    """The four shipped templates, copied as they are, must be one consistent folder for `check`."""
+    skills = os.path.join(REPO, "plugins", "planning", "skills")
+    sources = (("analysis.md", "analyze-requirements", "analysis-template.md"),
+               ("dou.md", "analyze-requirements", "dou-template.md"),
+               ("software-requirements.md", "derive-software-requirements", "software-requirements-template.md"),
+               ("epics.md", "group-epics", "epics-template.md"))
+    root = os.path.join(tmp, "templates")
+    for name, skill, template in sources:
+        with open(os.path.join(skills, skill, "references", template), encoding="utf-8") as fh:
+            write(root, name, fh.read())
+    found = problems(root)
+    check("the four templates together pass check", found == [], str(found))
+    counts = req.check(root)[1]
+    check("the templates declare system requirements, points, software requirements and epics",
+          counts == {"system_requirements": 4, "dou_points": 2, "software_requirements": 2, "epics": 2},
+          str(counts))
+    with open(os.path.join(root, "epics.md"), encoding="utf-8") as fh:
+        text = fh.read()
+    write(root, "epics.md", text.replace("Covers: SWR-002", "Covers: SWR-001"))
+    check("a template epic that drops a software requirement is reported",
+          has(problems(root), "software-requirements.md", "SWR-002 is in no epic"), str(problems(root)))
+
+
 def main():
     with tempfile.TemporaryDirectory() as tmp:
         for test in (test_diff_markdown_and_rst, test_diff_changes_only, test_diff_text,
                      test_diff_first_analysis_and_moves, test_diff_move_survives_changes_only,
                      test_diff_literal_changes_survive_normalization, test_diff_formatting_only_is_unchanged,
                      test_diff_ids_and_failures, test_check_consistent, test_check_ids, test_check_dou,
-                     test_check_status, test_check_traceability, test_check_cli):
+                     test_check_status, test_check_traceability, test_check_cli,
+                     test_templates_are_checkable):
             sub = os.path.join(tmp, test.__name__)
             os.makedirs(sub)
             test(sub)

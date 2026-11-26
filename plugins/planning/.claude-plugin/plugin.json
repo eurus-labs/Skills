@@ -17,6 +17,7 @@
   "license": "MIT",
   "skills": [
     "./skills/analyze-requirements/",
-    "./skills/derive-software-requirements/"
+    "./skills/derive-software-requirements/",
+    "./skills/group-epics/"
   ]
 }
