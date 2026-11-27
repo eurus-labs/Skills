@@ -7,6 +7,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-11-27
+
+Adds the **`planning`** plugin (0.1.0), which takes a requirement from analysis with a DoD and one living DoU, through
+software requirements, to epics. `analyze-requirements` moves there from `reasoning` (0.5.0).
+
 ### Breaking changes
 
 - **`analyze-requirements` moved from `reasoning` to the new `planning` plugin.** `reasoning` 0.5.0 no longer

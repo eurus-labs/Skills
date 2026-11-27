@@ -2,7 +2,7 @@
   "name": "eurus-labs",
   "metadata": {
     "description": "A collection of Agent Skills for GitHub Copilot and other skills-compatible agents, grouped into installable plugins.",
-    "version": "0.5.0"
+    "version": "0.6.0"
   },
   "owner": {
     "name": "eurus-labs"
