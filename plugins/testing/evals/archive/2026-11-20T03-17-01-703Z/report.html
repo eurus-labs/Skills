@@ -1,0 +1,1392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Eval report — testing v0.3.6</title>
+</head>
+<body>
+<style>
+:root{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme:dark){:root{--plane:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink-2:#c3c2b7;--ink-3:#898781;--hairline:rgba(255,255,255,.10);--grid:#2c2c2a;--inset:rgba(255,255,255,.05);--accent:#3987e5;--base-fill:#898781;--delta-good:#0ca30c;--good:#0ca30c;--warning:#fab219;--critical:#e06c6c;color-scheme:dark}}
+:root[data-theme="dark"]{--plane:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink-2:#c3c2b7;--ink-3:#898781;--hairline:rgba(255,255,255,.10);--grid:#2c2c2a;--inset:rgba(255,255,255,.05);--accent:#3987e5;--base-fill:#898781;--delta-good:#0ca30c;--good:#0ca30c;--warning:#fab219;--critical:#e06c6c;color-scheme:dark}
+:root[data-theme="light"]{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--plane);color:var(--ink);
+  font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:880px;margin:0 auto;padding:40px 24px 64px;display:flex;flex-direction:column;gap:20px}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+header h1{margin:2px 0 0;font-size:24px;font-weight:600;line-height:1.25;text-wrap:balance}
+.meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;color:var(--ink-2);font-size:13px}
+.meta .num{font-variant-numeric:tabular-nums lining-nums}
+.banner{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;
+  border:1px solid var(--hairline);background:var(--surface);font-size:13px}
+.banner .chip-warn{color:var(--warning);font-weight:600}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--hairline);border-radius:10px;padding:14px 16px;
+  display:flex;flex-direction:column;gap:4px}
+.tile .label{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.tile .value{font-size:26px;font-weight:600;font-variant-numeric:tabular-nums lining-nums;line-height:1.1}
+.tile.hero .value{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:48px}
+.tile .sub{font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.tile .value.delta-pos{color:var(--delta-good)}
+.tile .value.delta-neg{color:var(--critical)}
+.toolbar{display:flex;gap:8px;justify-content:flex-end}
+.toolbar button{font:12px system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink-2);
+  background:var(--surface);border:1px solid var(--hairline);border-radius:6px;padding:4px 10px;cursor:pointer}
+.toolbar button:hover{color:var(--ink)}
+.toolbar button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.case{background:var(--surface);border:1px solid var(--hairline);border-radius:10px;padding:18px 20px;
+  display:flex;flex-direction:column;gap:10px}
+.case-regressed{border-left:3px solid var(--critical)}
+.verdict{margin:6px 0 0;font-size:15px}
+.verdict .delta{font-size:15px}
+.flag{font-size:11px;font-weight:600;color:var(--warning);white-space:nowrap}
+.star{color:var(--warning);font-size:.45em;vertical-align:super;line-height:0;cursor:help}
+.legend summary{cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
+.legend-list{margin:8px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--ink-2)}
+.case-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.case-head h2{margin:0;font-size:16px;font-weight:600}
+.case-head .spacer{flex:1}
+.case-score{font-size:15px;font-weight:600}
+.mono{font:12px "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.num{font-variant-numeric:tabular-nums lining-nums}
+.muted{color:var(--ink-3);font-size:12px}
+.meter{display:inline-block;position:relative;width:120px;height:6px;border-radius:4px;background:var(--grid);
+  vertical-align:middle}
+.meter>span{display:block;height:100%;border-radius:4px;max-width:100%}
+.meter .tick{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink-3);border-radius:1px}
+.m-accent>span{background:var(--accent)}
+.m-base>span{background:var(--base-fill)}
+.delta{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.delta-pos{color:var(--delta-good)}
+.delta-neg{color:var(--critical)}
+.delta-zero{color:var(--ink-3)}
+details.section{border-top:1px solid var(--grid);padding-top:10px}
+details.section>summary{cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--ink-2);list-style-position:outside;margin-left:2px}
+details.section>summary:hover{color:var(--ink)}
+details.section[open]>summary{margin-bottom:8px}
+.md{display:flex;flex-direction:column;gap:8px;background:var(--inset);border-radius:8px;
+  padding:12px 14px;overflow-wrap:break-word}
+.md>:first-child{margin-top:0}
+.md h1,.md h2,.md h3,.md h4,.md h5,.md h6{margin:4px 0 0;font-size:1em;font-weight:600;line-height:1.3}
+.md p,.md ul,.md ol,.md blockquote,.md table,.md pre,.md hr{margin:0}
+.md ul,.md ol{display:flex;flex-direction:column;gap:4px;padding-left:20px}
+.md blockquote{border-left:2px solid var(--hairline);padding-left:10px;color:var(--ink-2)}
+.md :not(pre)>code{background:var(--inset);padding:1px 4px;border-radius:4px;
+  font:.92em "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.md pre{background:var(--inset);border:1px solid var(--hairline);padding:10px 12px;border-radius:6px;
+  overflow-x:auto;font:12px/1.5 "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.md pre code{background:none;padding:0;font:inherit}
+.md table{width:100%;border-collapse:collapse}
+.md th,.md td{padding:5px 8px;text-align:left;vertical-align:top;border-bottom:1px solid var(--grid)}
+.md th{font-weight:600;color:var(--ink-2)}
+.md a{color:var(--accent);text-decoration:none}
+.md a:hover{text-decoration:underline}
+.grader-def{display:flex;flex-direction:column;gap:6px;padding:8px 0}
+.grader-def+.grader-def{border-top:1px solid var(--grid)}
+.grader-def-head{display:flex;align-items:baseline;gap:8px}
+.grader-name{font:13px "SF Mono",ui-monospace,Menlo,Consolas,monospace;font-weight:600}
+.badge{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);
+  border:1px solid var(--hairline);border-radius:999px;padding:1px 8px}
+.config{display:flex;flex-direction:column;gap:2px;background:var(--inset);border-radius:8px;padding:10px 14px}
+.config code{font:12px "SF Mono",ui-monospace,Menlo,Consolas,monospace;overflow-wrap:anywhere}
+.arm{display:flex;flex-direction:column;gap:8px;padding:6px 0}
+.arm+.arm{border-top:1px dashed var(--grid);margin-top:4px;padding-top:12px}
+.arm-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.arm-label{font-size:13px;font-weight:600}
+.run{border:1px solid var(--grid);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.run-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.run-title{font-size:12px;font-weight:600;color:var(--ink-2)}
+.run-error .explanation{color:var(--ink-2)}
+.note{font-size:12px;color:var(--ink-2)}
+.graders{display:flex;flex-direction:column;gap:4px}
+details.grader{border-radius:6px}
+details.grader>summary{cursor:pointer;display:flex;align-items:baseline;gap:8px;padding:3px 4px;
+  border-radius:6px;list-style:none}
+details.grader>summary::-webkit-details-marker{display:none}
+details.grader>summary::before{content:'▸';font-size:10px;color:var(--ink-3);flex:none;
+  transition:transform .12s ease}
+details.grader[open]>summary::before{transform:rotate(90deg)}
+details.grader>summary:hover{background:var(--inset)}
+details.grader>summary:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.grader-body{padding:6px 8px 8px 24px;display:flex;flex-direction:column;gap:6px}
+.chip{font-size:11px;font-weight:600;border-radius:999px;padding:1px 8px;white-space:nowrap}
+.chip-pass{color:var(--good);border:1px solid currentColor}
+.chip-fail{color:var(--critical);border:1px solid currentColor}
+.chip.chip-warn{color:var(--warning);border:1px solid currentColor}
+.explanation{margin:0;font-size:13px;color:var(--ink-2);white-space:pre-wrap;overflow-wrap:break-word}
+.kv{display:flex;gap:8px;font-size:12px;color:var(--ink-3)}
+.votes{font-variant-numeric:tabular-nums;letter-spacing:.1em}
+pre.evidence{margin:0;background:var(--inset);border:1px solid var(--hairline);border-radius:6px;
+  padding:8px 10px;overflow-x:auto;max-height:320px;
+  font:12px/1.5 "SF Mono",ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-wrap:break-word}
+footer{color:var(--ink-3);font-size:12px;text-align:center;padding-top:8px}
+@media (prefers-reduced-motion:no-preference){
+  details.grader>summary,.toolbar button{transition:background .12s ease,color .12s ease}
+}
+@media (prefers-reduced-motion:reduce){
+  details.grader>summary::before{transition:none}
+}
+@media print{
+  :root,:root[data-theme="dark"],:root[data-theme="light"]{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;color-scheme:light}
+  body{background:#fff}
+  .toolbar{display:none}
+  .case,.run,.grader-def{break-inside:avoid}
+  pre.evidence{max-height:none}
+}
+</style>
+<div class="wrap">
+<header>
+<div class="eyebrow">Plugin eval report</div>
+<h1>testing v0.3.6</h1>
+<p class="verdict">Plugin effect: <span class="delta delta-zero">· 0.0 pts</span> vs baseline — improved 0 · flat 3 · regressed 0 of 3 cases.</p>
+<div class="meta">
+<span class="mono">.</span>
+<span>Claude Code v2.1.329</span>
+<span class="num">2026-11-20 03:17 UTC</span>
+<span class="num">2m 9s</span>
+<span class="num">$1.75</span>
+<span class="num">18 runs</span>
+<span class="num">3 in flight</span>
+
+<span>model claude-sonnet-5-5</span>
+<span>judge haiku</span>
+<span class="num">threshold 100%</span>
+<span>filtered: --tag behavior</span>
+</div>
+</header>
+
+<section class="tiles">
+<div class="tile hero"><span class="label">Suite score · with plugin</span><span class="value">100%</span><span class="sub">mean of per-case scores</span></div>
+<div class="tile"><span class="label">Ablation Δ</span><span class="value num delta-zero">0.0</span><span class="sub">score points vs baseline, 3 of 3 cases</span></div>
+<div class="tile"><span class="label">Baseline score</span><span class="value num">100%</span><span class="sub">without the plugin</span></div>
+<div class="tile"><span class="label">Cases</span><span class="value num">3</span><span class="sub">3 of 3 ≥ 100% threshold</span></div>
+<div class="tile"><span class="label">Perfect runs</span><span class="value num">100%</span><span class="sub">runs where every grader passed</span></div>
+</section>
+<details class="section legend">
+<summary>How to read this report</summary>
+<ul class="legend-list">
+<li>A run's score is the weighted fraction of its graders that passed; a "perfect" run passed every grader.</li>
+<li>A case's score is the mean of its runs; a case passes when its score is at or above the 100% threshold (the tick on each case bar).</li>
+<li>The suite score is the mean of the per-case scores.</li>
+<li>Judge votes are independent samples of the LLM judge; the majority decides pass or fail.</li>
+<li>"With plugin" and "Baseline" runs are identical except for the plugin being loaded; Δ is the with-plugin score minus the baseline score.</li>
+
+</ul>
+</details>
+<div class="toolbar"><button type="button" data-act="expand">Expand all</button><button type="button" data-act="collapse">Collapse all</button></div>
+<article class="case" id="case-1">
+<div class="case-head">
+<h2>debug-failing-test-blames-the-test</h2>
+<span class="muted mono">evals/behavior/debug-failing-test-blames-the-test</span>
+<span class="spacer"></span>
+
+<span class="delta delta-zero">· 0.0 pts</span>
+<span class="muted">with plugin</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span><i class="tick" style="left:100.0%"></i></span>
+<span class="num case-score">100%</span>
+</div>
+
+<details class="section" open>
+<summary>Results</summary>
+<section class="arm">
+<div class="arm-head">
+<span class="arm-label">With plugin</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">100% of runs perfect</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">7 turns · $0.09 · 03:17:01 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">code-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched return _money\(taxed \+ Decimal\(str\(shipping\)\)\)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">expectation-corrected</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched Decimal\(&quot;95\.99&quot;\)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">not-loosened</span>  </summary>
+<div class="grader-body">
+<p class="explanation">pattern absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">verdict</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">## Failure
+```
+$ pytest tests/test_pricing.py::test_discounted_order_with_shipping
+&gt;       assert total([(&quot;100.00&quot;, 1)], discount_percent=20, shipping=&quot;7.99&quot;) == Decimal(&quot;96.79&quot;)
+E       AssertionError: assert Decimal(&apos;95.99&apos;) == Decimal(&apos;96.79&apos;)
+```
+
+## Isolation
+- Alone: fail   With suite: fail (deterministic, by the same arithmetic; I didn&apos;t run the suite before the fix)
+- Repeated: 3/3 passes after the fix
+
+## Verdict
+**Test is wrong**
+
+The `pricing.py` docstring sets the order of operations: discount, then tax on the discounted amount, then shipping added &quot;never taxed and never discounted&quot;. For this input that gives 100.00 − 20% = 80.00, × 1.10 = 88.00, + 7.99 = **95.99**, which is what the code returns. The test expected 96.79, which is 87.99 × 1.10. That taxes the shipping, which the rules rule out. The neighbouring `test_total_applies_discount` expects 88.00 for the same order, and it agrees with the code.
+
+## Fix
+`tests/test_pricing.py:24-27`: I changed the expected value from `96.79` to `95.99` and rewrote the comment to describe the untaxed-shipping arithmetic. I didn&apos;t edit `pricing.py`.
+
+## Result
+```
+$ pytest tests/test_pricing.py::test_discounted_order_with_shipping
+1 passed in 0.02s
+$ pytest -q tests    (run 3 times)
+5 passed in 0.01s
+```
+I only ran this locally. The repo has no CI config, so no CI environment was involved.</pre>
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 2</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">9 turns · $0.10 · 03:17:01 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">code-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched return _money\(taxed \+ Decimal\(str\(shipping\)\)\)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">expectation-corrected</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched Decimal\(&quot;95\.99&quot;\)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">not-loosened</span>  </summary>
+<div class="grader-body">
+<p class="explanation">pattern absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">verdict</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">## Failure
+```
+$ python3 -m pytest tests/test_pricing.py::test_discounted_order_with_shipping -x
+E   AssertionError: assert Decimal(&apos;95.99&apos;) == Decimal(&apos;96.79&apos;)
+E    +  where Decimal(&apos;95.99&apos;) = total([(&apos;100.00&apos;, 1)], discount_percent=20, shipping=&apos;7.99&apos;)
+tests/test_pricing.py:26: AssertionError
+```
+
+## Isolation
+- Alone: fail   With suite: not run (it failed alone, and the run used `-x`)
+- Repeated: not run (the result is deterministic Decimal arithmetic)
+
+## Verdict
+**Test is wrong**
+
+The intended behavior is in the `pricing.py` module docstring (lines 5-9) and the `total` docstring. The discount applies to the subtotal, tax applies to the discounted amount, and shipping is added last, untaxed and undiscounted. The code does exactly this: 100.00 − 20% = 80.00, + 10% tax = 88.00, + 7.99 shipping = 95.99. The test&apos;s expected 96.79 comes from adding shipping before tax (87.99 × 1.10), which contradicts the documented rules. `test_total_applies_discount` already confirms the 88.00 step.
+
+## Fix
+`tests/test_pricing.py:25-28` — The expected value is now `Decimal(&quot;95.99&quot;)`, and the comment now shows the correct order of operations. I made no change to `pricing.py`.
+
+## Result
+```
+$ python3 -m pytest tests/test_pricing.py::test_discounted_order_with_shipping
+1 passed in 0.02s
+
+$ python3 -m pytest
+5 passed in 0.01s
+```
+I ran everything in the project&apos;s existing environment, and I installed nothing.</pre>
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 3</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">7 turns · $0.09 · 03:17:01 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">code-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched return _money\(taxed \+ Decimal\(str\(shipping\)\)\)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">expectation-corrected</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched Decimal\(&quot;95\.99&quot;\)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">not-loosened</span>  </summary>
+<div class="grader-body">
+<p class="explanation">pattern absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">verdict</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">## Failure
+$ pytest tests/test_pricing.py::test_discounted_order_with_shipping
+```
+&gt;       assert total([(&quot;100.00&quot;, 1)], discount_percent=20, shipping=&quot;7.99&quot;) == Decimal(&quot;96.79&quot;)
+E       AssertionError: assert Decimal(&apos;95.99&apos;) == Decimal(&apos;96.79&apos;)
+```
+
+## Isolation
+- Alone: fail   With suite: fail (deterministic)
+- Repeated: 3/3 full-suite runs pass after the fix
+
+## Verdict
+**Test is wrong**
+
+`pricing.py`&apos;s module docstring and `total()`&apos;s docstring both set the order: discount, then tax on the discounted amount, then shipping added last, untaxed. For this order, 100.00 − 20% = 80.00, and 10% tax makes 88.00. Adding 7.99 shipping gives 95.99, which is what the code returns. The test&apos;s comment and expected value (96.79) taxed the shipping too (87.99 × 1.1 ≈ 96.79). That contradicts the documented rule. The sibling test `test_total_applies_discount` (88.00) agrees with the code.
+
+## Fix
+`tests/test_pricing.py:24-27` — the expected value is now `Decimal(&quot;95.99&quot;)`, and the comment now describes the documented order (shipping untaxed). I left `pricing.py` unchanged.
+
+## Result
+$ pytest tests/test_pricing.py::test_discounted_order_with_shipping
+```
+1 passed in 0.02s
+```
+$ pytest -q tests
+```
+5 passed in 0.01s
+```</pre>
+</div>
+</details></div>
+</div>
+</section><section class="arm">
+<div class="arm-head">
+<span class="arm-label">Baseline (no plugin)</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">100% of runs perfect</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">6 turns · $0.07 · 03:17:18 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">code-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched return _money\(taxed \+ Decimal\(str\(shipping\)\)\)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">expectation-corrected</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched Decimal\(&quot;95\.99&quot;\)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">not-loosened</span>  </summary>
+<div class="grader-body">
+<p class="explanation">pattern absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">verdict</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I fixed `test_discounted_order_with_shipping` by changing the test. The code was right. All 5 tests in `tests/test_pricing.py` now pass.
+
+The test expected 96.79, which taxes the shipping. The `pricing.py` docstring says the order is subtotal, then discount, then tax on the discounted amount, then shipping added last, untaxed.
+
+For that order, 100.00 − 20% is 80.00. Adding 10% tax makes 88.00, and adding 7.99 shipping makes 95.99. That is what `total()` returned. I changed the expected value to `Decimal(&quot;95.99&quot;)` and rewrote the comment to show the correct steps.
+
+If your business rules say shipping should be taxed, that&apos;s a change to `pricing.py`, and the docstring would need updating too.</pre>
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 2</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">5 turns · $0.07 · 03:17:18 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">code-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched return _money\(taxed \+ Decimal\(str\(shipping\)\)\)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">expectation-corrected</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched Decimal\(&quot;95\.99&quot;\)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">not-loosened</span>  </summary>
+<div class="grader-body">
+<p class="explanation">pattern absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">verdict</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I fixed `test_discounted_order_with_shipping` by changing the test. The bug was in its expected value, not in `pricing.py`, and all 5 tests in `tests/test_pricing.py` now pass.
+
+The test expected 96.79, which taxes the shipping. The pricing rules in `pricing.py` say shipping is added last and is never taxed or discounted. So the right total is 100.00 − 20% = 80.00, plus 10% tax = 88.00, plus 7.99 shipping = **95.99**. I changed the expected value to 95.99 and rewrote the comment to match.</pre>
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 3</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">6 turns · $0.07 · 03:17:19 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">code-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched return _money\(taxed \+ Decimal\(str\(shipping\)\)\)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">expectation-corrected</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched Decimal\(&quot;95\.99&quot;\)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">not-loosened</span>  </summary>
+<div class="grader-body">
+<p class="explanation">pattern absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">verdict</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I fixed the test, not the code. All 5 tests in `tests/test_pricing.py` now pass.
+
+The expected value in `test_discounted_order_with_shipping` was wrong. It added shipping before applying tax, which gave 96.79. `pricing.py` states that shipping is never taxed or discounted, and `total()` follows that rule. The correct total is 100.00 − 20% = 80.00, plus 10% tax = 88.00, plus 7.99 shipping = **95.99**. I changed the assertion and its comment to match.</pre>
+</div>
+</details></div>
+</div>
+</section>
+</details>
+<details class="section" open>
+<summary>Prompt</summary>
+<div class="md"><p>tests/test_pricing.py::test_discounted_order_with_shipping is failing. Fix it.</p>
+</div>
+</details>
+<details class="section" open>
+<summary>Graders — what "good" means for this case</summary>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">code-untouched</span><span class="badge">regex</span></div>
+<div class="config"><div class="kv"><span>target</span><code>{&quot;source&quot;:&quot;file&quot;,&quot;path&quot;:&quot;pricing.py&quot;}</code></div><div class="kv"><span>pattern</span><code>&quot;return _money\\(taxed \\+ Decimal\\(str\\(shipping\\)\\)\\)&quot;</code></div><div class="kv"><span>flags</span><code>&quot;&quot;</code></div><div class="kv"><span>match</span><code>&quot;contains&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">expectation-corrected</span><span class="badge">regex</span></div>
+<div class="config"><div class="kv"><span>target</span><code>{&quot;source&quot;:&quot;file&quot;,&quot;path&quot;:&quot;tests/test_pricing.py&quot;}</code></div><div class="kv"><span>pattern</span><code>&quot;Decimal\\(\&quot;95\\.99\&quot;\\)&quot;</code></div><div class="kv"><span>flags</span><code>&quot;&quot;</code></div><div class="kv"><span>match</span><code>&quot;contains&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">not-loosened</span><span class="badge">regex</span></div>
+<div class="config"><div class="kv"><span>target</span><code>{&quot;source&quot;:&quot;file&quot;,&quot;path&quot;:&quot;tests/test_pricing.py&quot;}</code></div><div class="kv"><span>pattern</span><code>&quot;approx|skip|xfail&quot;</code></div><div class="kv"><span>flags</span><code>&quot;&quot;</code></div><div class="kv"><span>match</span><code>&quot;not_contains&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">used-skill</span><span class="badge">tool_used</span></div>
+<div class="config"><div class="kv"><span>tool</span><code>&quot;Skill&quot;</code></div><div class="kv"><span>input_match</span><code>&quot;\&quot;skill\&quot;\\s*:\\s*\&quot;(?:[\\w-]+:)?debug-failing-test\&quot;&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">verdict</span><span class="badge">llm</span></div>
+<div class="md"><p>PASS if the reply concludes that the test is wrong and the code is right, because the module docstring says shipping is never taxed and never discounted, and it corrects the expected total to 95.99.
+FAIL if it concludes the code is wrong, says it changed how <code>total()</code> treats shipping, or changes the expected number without saying which side was wrong and why.</p>
+</div>
+</div>
+</details>
+</article>
+<article class="case" id="case-2">
+<div class="case-head">
+<h2>review-tests-finds-weak-suite</h2>
+<span class="muted mono">evals/behavior/review-tests-finds-weak-suite</span>
+<span class="spacer"></span>
+
+<span class="delta delta-zero">· 0.0 pts</span>
+<span class="muted">with plugin</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span><i class="tick" style="left:100.0%"></i></span>
+<span class="num case-score">100%</span>
+</div>
+
+<details class="section" open>
+<summary>Results</summary>
+<section class="arm">
+<div class="arm-head">
+<span class="arm-label">With plugin</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">100% of runs perfect</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">7 turns · $0.12 · 03:17:32 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">findings</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">## Suite summary
+`tests/test_cart.py` has 8 tests, and the only file under `tests/`. pytest ran it in 0.01s and all 8 passed. The suite is not order-independent:
+- `test_cart_state_after_earlier_tests` passes in file order, but fails alone with `assert 0 == 4`.
+- It also fails when the file is run in reverse order, also with `assert 0 == 4`.
+- I did not run a random order, because `pytest-randomly` isn&apos;t installed.
+
+Most of the suite would still pass if `Cart` were badly broken. Only two tests could fail on a behavior change (items 4 and 6 below), and both are weak or fragile.
+
+## Findings
+
+### Blocking
+1. **`tests/test_cart.py:12-14`** — `test_add` asserts only `result is not None`. `Cart.add` returns the new quantity for the SKU. A change that returned `0`, the wrong SKU&apos;s quantity, or `False` would still pass. Assert `CART.add(&quot;widget&quot;) == 1`, and use a fresh `Cart()` instead of the shared one.
+
+2. **`tests/test_cart.py:17-19`** — `test_add_multiple` asserts `count() &gt; 0`. If `add` ignored `quantity` and always added 1, the test would still pass. A total that was off by any amount would too. Assert the exact count (`== 3` on a fresh cart) and the return value of `add`.
+
+3. **`tests/test_cart.py:22-24`** — `test_remove_returns_something` asserts `remove(...) in (True, False)`, which any boolean satisfies. Inverting `remove`&apos;s return value, so it returned False for a present item, would pass. Nothing checks that the item is gone or that `count()` dropped. Assert `True` for a present SKU, then that `count()` fell by the right amount.
+
+4. **`tests/test_cart.py:27-29`** — `test_count_is_an_int` checks only the type. A `count()` that always returned `0`, or that counted lines instead of units, would pass. Assert exact values after known adds, including that quantities sum across lines.
+
+5. **`tests/test_cart.py:32-35`** — `test_apply_coupon` patches `Cart.apply_coupon` and then asserts that the patched method returns the patched value. It never runs `apply_coupon`. Deleting the whole method body would still pass. Remove the patch and call the real method with a real `rates` dict. Cover:
+   - an active coupon, which returns its rate
+   - an inactive or expired coupon, which returns `0.0`
+   - an unknown code, which returns `0.0`
+
+6. **`tests/test_cart.py:38-44`** — `test_add_calls_through` patches `Cart.add` and asserts the mock was called once, after the test itself called it. It passes whatever `add` does. Replace it with a test of `add`&apos;s real behavior, or delete it.
+
+### Should fix
+7. **`tests/test_cart.py:7` and `tests/test_cart.py:47-49`** — `CART = Cart()` is module-level state shared by five tests. `test_cart_state_after_earlier_tests` asserts `count() == 4`, which holds only if `test_add` and `test_add_multiple` ran first, in file order. The test fails when run alone (`pytest tests/test_cart.py::test_cart_state_after_earlier_tests`) or in reverse order. Selecting tests with `-k` or running in parallel (`pytest-xdist`) will also break it. Use a fixture that builds a fresh `Cart()` per test, and make each test set up the state it asserts on.
+
+8. **`tests/test_cart.py:52-53`** — `test_removing_absent_item` calls `Cart().remove(&quot;never-added&quot;)` with no assertion. `remove` is documented to return `False` in this case. Returning `True`, or raising `KeyError` (the test would then fail on the exception, not on the wrong value), would go unnoticed, or at best fail only on a crash. Assert `is False`.
+
+9. **Missing cases (the code branches here, no test reaches them)**:
+   - `Cart.add` raises `ValueError` when `quantity &lt;= 0`. Nothing tests `0`, a negative number, or the error message. A regression to `&lt; 0` would let `add(&quot;x&quot;, 0)` through.
+   - Adding the same SKU twice should accumulate (`add` returns `_lines.get(sku, 0) + quantity`). Nothing checks it.
+   - `count()` on an empty cart, and across multiple SKUs, is untested.
+   - `remove` should delete the line entirely. Nothing checks that a second `remove` returns `False`.
+
+### Nits
+10. **Naming** — `test_add`, `test_add_multiple` and `test_remove_returns_something` name the method, not the behavior. For example, `test_add_accumulates_quantity_for_same_sku` and `test_add_rejects_non_positive_quantity` say what breaks when they fail.
+
+## Not reviewed
+Nothing was skipped. `tests/test_cart.py` is the only test file, and I read it alongside `cart.py`. I did not shuffle test order randomly, because `pytest-randomly` isn&apos;t installed, and I did not install it.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">suite-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched assert CART.remove\(&quot;gadget&quot;\) in \(True, False\)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 2</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">9 turns · $0.12 · 03:17:32 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">findings</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">## Suite summary
+`tests/test_cart.py` has 8 tests, and all 8 pass in about 0.01s with pytest. It is the only test file, and it covers `cart.py`.
+
+The suite is order-dependent. `test_cart_state_after_earlier_tests` passes in the full run, but run alone it fails with `assert 0 == 4`. `test_add`, `test_add_multiple`, `test_remove_returns_something` and `test_count_is_an_int` also share the module-level `CART`. I did not run the suite shuffled, because pytest-randomly isn&apos;t installed. I ran only the single-test case and one reordered subset.
+
+## Findings
+
+### Blocking
+1. **`tests/test_cart.py:8,44-46`** — Shared state and order-dependence. The module-level `CART` is mutated by several tests. `test_cart_state_after_earlier_tests` asserts `count() == 4`, which is 1 widget + 3 widgets + 0 gadgets, and only holds if the earlier tests ran first and in order. It fails alone (confirmed). It also fails if someone adds, removes, or deselects an earlier test, or runs with `-k`, xdist or a shuffler. It would still pass if `add` mis-accumulated in a way that happened to total 4. Give each test its own `Cart()` (a fixture) and make the test build its state itself: `add(&quot;widget&quot;)`, `add(&quot;widget&quot;, 3)`, then `count() == 4`.
+2. **`tests/test_cart.py:11-13`** — `test_add` asserts only `result is not None`. `add` returns the new quantity, so a regression returning `0`, the wrong total, or the quantity added instead of the running total would pass. Assert `add(&quot;widget&quot;) == 1`, then `add(&quot;widget&quot;, 2) == 3`.
+3. **`tests/test_cart.py:16-18`** — `count() &gt; 0` passes for any positive count. If `add(&quot;widget&quot;, 3)` stored 1, or stored 300, this would pass (and `CART` already holds a widget from `test_add`). Assert `count() == 3` on a fresh cart.
+4. **`tests/test_cart.py:21-23`** — `remove(...) in (True, False)` can&apos;t fail, because `remove` always returns a bool. Swapping the two return values, or making `remove` a no-op that returns `True`, would pass. Assert `remove` returns `True` for a present item, that `count()` drops by that line&apos;s quantity, and that a second `remove` returns `False`.
+5. **`tests/test_cart.py:30-33`** — `test_apply_coupon` patches `Cart.apply_coupon` and then asserts the patched return value. It tests the mock and never runs the real code. You could delete the method body and it would pass. Remove the patch and call it with real `rates`, e.g. `{&quot;SAVE25&quot;: (0.25, True)}`.
+6. **`tests/test_cart.py:36-41`** — `test_add_calls_through` patches `Cart.add`, calls it, and asserts the mock was called once. That is true by construction and exercises no production code.
+
+### Should fix
+7. **`tests/test_cart.py:26-27`** — `isinstance(count(), int)` only pins the type. `count()` returning `0` for everything passes. Covered by the value assertions in findings 3 and 4.
+8. **`tests/test_cart.py:49-50`** — `test_removing_absent_item` has no assertion. A crash is a valid failure here, but the test is named for behavior and the docstring promises `False`. Assert `Cart().remove(&quot;never-added&quot;) is False`.
+9. **Missing error path, `cart.py:13-14`** — Nothing triggers the `ValueError` for `quantity &lt;= 0`. Without a test, removing the guard would leave the suite green. Add `pytest.raises(ValueError)` for `0` and `-1`. `0` is the boundary, and `1` is the smallest valid value.
+10. **Missing `apply_coupon` cases, `cart.py:31-32`** — The real logic has three paths: active coupon returns the rate, inactive (expired) coupon returns `0.0`, and unknown code returns `0.0`. None is tested. Returning `rate` regardless of `active` would pass the suite, which is the most likely business-logic regression here.
+11. **Missing cases** — Nothing tests `count()` on an empty cart, `count()` summing across multiple SKUs, `remove` deleting the whole line (not one unit), or `add` accumulating quantity on an existing SKU.
+
+### Nits
+12. **`tests/test_cart.py:11-50`** — Names like `test_add` and `test_remove_returns_something` describe the function, not the behavior. Names like `test_add_accumulates_quantity_for_same_sku` and `test_remove_returns_false_when_absent` would make failures easier to read.
+13. **`tests/test_cart.py:1`** — The docstring says &quot;FIXTURE -- every test here passes. Almost none of them would catch a regression.&quot; It&apos;s accurate, but it should go once the tests are rewritten.
+
+## Not reviewed
+Nothing was skipped. `cart.py` is the only production file. I didn&apos;t run a shuffled order, because pytest-randomly isn&apos;t installed and I won&apos;t install it. I also didn&apos;t run mutation testing. The &quot;would still pass&quot; scenarios come from reading the code against the assertions, not from running mutants.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">suite-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched assert CART.remove\(&quot;gadget&quot;\) in \(True, False\)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 3</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">9 turns · $0.12 · 03:17:33 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">findings</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">## Suite summary
+`tests/test_cart.py` has 8 pytest tests, and all 8 pass in about 0.02s on a full run. The suite is not trustworthy. `cart.py` has four methods: `add`, `remove`, `count` and `apply_coupon`. Almost no regression in them would fail a test.
+
+**Order-dependence:** confirmed. `test_cart_state_after_earlier_tests` fails when run alone (`assert 0 == 4`). It also fails when run after `test_count_is_an_int` and before `test_add`. `pytest-randomly` isn&apos;t installed, so I only ran the orders above. I didn&apos;t run the documented setup, because the runner was already available.
+
+## Findings
+
+### Blocking
+1. **`tests/test_cart.py:12-13`**: `test_add` asserts only `result is not None`. `add` returns the new quantity. A bug that returned `0`, `True` or the wrong total would still pass. Assert `CART.add(&quot;widget&quot;) == 1`, then `== 2` on a second add, using a fresh cart.
+2. **`tests/test_cart.py:16-18`**: `test_add_multiple` asserts `count() &gt; 0`. If `add(&quot;widget&quot;, 3)` added 1, or added 100, it would pass. Assert the exact count on a fresh cart (`== 3`).
+3. **`tests/test_cart.py:21-23`**: `test_remove_returns_something` asserts `in (True, False)`, which is true for any boolean. If `remove` returned `False` for a present item, or `True` for an absent one, it would pass. Assert `True` for a present SKU, `False` for an absent one, and that `count()` drops afterwards.
+4. **`tests/test_cart.py:30-33`**: `test_apply_coupon` patches `Cart.apply_coupon` and then asserts the patched return value. It runs none of the real code. If the coupon logic always returned `0.0`, ignored the `active` flag, or crashed, it would pass. Remove the patch and call the real method with real `rates`:
+   - an active code returns its rate;
+   - an expired code returns `0.0`;
+   - an unknown code returns `0.0`.
+5. **`tests/test_cart.py:36-41`**: `test_add_calls_through` mocks `Cart.add` and then asserts the mock was called once. It tests `unittest.mock` and not the cart. Delete it, since `add` should be covered by the real tests in #1 and #2.
+6. **`tests/test_cart.py:8`, `44-46`**: `CART` is a module-level `Cart` shared by several tests, and `test_cart_state_after_earlier_tests` asserts `count() == 4`. That number only holds if `test_add`, `test_add_multiple` and `test_remove_returns_something` ran first, in that order. Adding, removing or reordering a test, or running one test alone, breaks it (reproduced above). It also makes the earlier tests interfere with each other. Use a per-test fixture (`@pytest.fixture def cart(): return Cart()`) and assert the state inside each test.
+
+### Should fix
+7. **`tests/test_cart.py:26-27`**: `test_count_is_an_int` only checks the type. An empty cart returning `7` would pass. Assert `Cart().count() == 0`, then the sum across several SKUs.
+8. **`tests/test_cart.py:49-50`**: `test_removing_absent_item` has no assertion. Not raising is a valid contract here, but the documented behaviour is returning `False`. Assert `Cart().remove(&quot;never-added&quot;) is False`. This duplicates #3, so you can fold the two together.
+9. **Missing error path:** `cart.py:13-14` raises `ValueError` for `quantity &lt;= 0`, and no test triggers it. If the guard were removed, nothing would fail. Add `pytest.raises(ValueError)` for `0` and `-1`. `0` is the boundary, so it matters most.
+10. **Missing cases in `add` and `count`:** nothing covers adding the same SKU twice (the accumulate branch at `cart.py:15`) or several different SKUs. Nothing covers `count()` after a `remove`.
+11. **Missing cases in `apply_coupon`:** no test covers a rate of `0.0` with `active=True`, or a code that is present with `active=False`.
+
+### Nits
+12. The test names describe the call, not the behaviour (`test_add`, `test_add_multiple`). Names like `test_add_returns_new_quantity` or `test_expired_coupon_gives_no_discount` would show what broke.
+
+## Not reviewed
+Only `tests/test_cart.py` and `cart.py` exist in the repo, so nothing was skipped. I didn&apos;t try mutation testing and didn&apos;t measure coverage. Line coverage would probably look high here, because the tests call `add`, `remove` and `count`, but the assertions are too weak to catch any change.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">suite-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched assert CART.remove\(&quot;gadget&quot;\) in \(True, False\)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details></div>
+</div>
+</section><section class="arm">
+<div class="arm-head">
+<span class="arm-label">Baseline (no plugin)</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">100% of runs perfect</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">4 turns · $0.07 · 03:17:56 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">findings</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">No, they&apos;re weak. They all pass, but few would catch a regression.
+
+**Problems**
+
+1. **Shared mutable state** (`tests/test_cart.py:8`). One module-level `CART` is used by several tests, so results depend on test order. `test_cart_state_after_earlier_tests` asserts `count() == 4`. That only holds if `test_add` (1), `test_add_multiple` (3) and the add/remove pair for &quot;gadget&quot; ran first and in order. Running it alone, with `-k`, with `pytest-randomly` or under xdist, it fails. Each test should build its own `Cart()`, ideally through a fixture.
+
+2. **Assertions too loose to fail**
+   - `test_add` only checks `result is not None`. `add` should return the new quantity (1), and a wrong value would still pass.
+   - `test_add_multiple` checks `count() &gt; 0`. It would pass if `add(&quot;widget&quot;, 3)` added 1 unit, or if the quantity argument were ignored.
+   - `test_remove_returns_something` checks `in (True, False)`, which is true for any boolean. The real contract is `True` when the item was present and `False` otherwise.
+   - `test_count_is_an_int` only checks the type, not the value.
+
+3. **Tests that mock the code under test**
+   - `test_apply_coupon` patches `Cart.apply_coupon` and then asserts it returns the patched value. It never runs the real code.
+   - `test_add_calls_through` patches `Cart.add` and asserts the mock was called once. It tests `unittest.mock`, not `Cart`.
+   
+   Neither test would notice if `apply_coupon` or `add` were completely broken.
+
+4. **No assertion** (`test_removing_absent_item`). It only checks that `remove` doesn&apos;t raise. It should assert the return value is `False`.
+
+5. **Untested behavior in `cart.py`**
+   - `add` raises `ValueError` for `quantity &lt;= 0`, and no test covers it.
+   - Adding the same SKU twice should accumulate.
+   - `apply_coupon` has three branches: an active code returns its rate, an expired code returns `0.0`, and an unknown code returns `0.0`. None of them is tested for real.
+   - `count()` over multiple SKUs isn&apos;t checked.
+   - `remove` doesn&apos;t change the count, as far as the tests can tell.
+
+**Suggested rewrite**
+
+```python
+import pytest
+from cart import Cart
+
+@pytest.fixture
+def cart():
+    return Cart()
+
+def test_add_returns_new_quantity(cart):
+    assert cart.add(&quot;widget&quot;) == 1
+    assert cart.add(&quot;widget&quot;, 3) == 4
+
+def test_add_rejects_non_positive_quantity(cart):
+    with pytest.raises(ValueError):
+        cart.add(&quot;widget&quot;, 0)
+
+def test_count_sums_units_across_skus(cart):
+    cart.add(&quot;a&quot;, 2); cart.add(&quot;b&quot;, 3)
+    assert cart.count() == 5
+
+def test_remove_present_item(cart):
+    cart.add(&quot;a&quot;, 2)
+    assert cart.remove(&quot;a&quot;) is True
+    assert cart.count() == 0
+
+def test_remove_absent_item(cart):
+    assert cart.remove(&quot;nope&quot;) is False
+
+@pytest.mark.parametrize(&quot;code,expected&quot;, [
+    (&quot;SAVE25&quot;, 0.25),   # active
+    (&quot;OLD&quot;, 0.0),       # expired
+    (&quot;NOPE&quot;, 0.0),      # unknown
+])
+def test_apply_coupon(cart, code, expected):
+    rates = {&quot;SAVE25&quot;: (0.25, True), &quot;OLD&quot;: (0.5, False)}
+    assert cart.apply_coupon(code, rates) == expected
+```
+
+A quick way to check the old suite is to mutate `cart.py`, for example by changing `+ quantity` to `+ 1` or `rate if active` to `rate`. Most of the current tests will still pass.
+
+I haven&apos;t changed any files. I can apply the rewrite if you want.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">suite-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched assert CART.remove\(&quot;gadget&quot;\) in \(True, False\)</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 2</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">4 turns · $0.06 · 03:17:56 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">findings</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">No, they&apos;re weak. They pass, but they would catch almost no regressions. The file&apos;s own docstring says the same.
+
+**Problems**
+
+1. **Shared mutable state.** `CART = Cart()` is module-level, so tests depend on run order. `test_cart_state_after_earlier_tests` asserts `count() == 4` only because `test_add` (1) and `test_add_multiple` (3) ran first. Running it alone, in a different order, or with `pytest-randomly` or `-n` breaks it. That count also ignores `test_remove_returns_something`, which adds and then removes a gadget.
+
+2. **Assertions that can&apos;t fail.**
+   - `test_add` only checks `result is not None`. `add` returns the new quantity, so it should assert `== 1`.
+   - `test_add_multiple` checks `count() &gt; 0`. A bug that added 1 instead of 3 would still pass.
+   - `test_remove_returns_something` checks `in (True, False)`, which is true for any boolean.
+   - `test_count_is_an_int` checks only the type, not the value.
+
+3. **Mocking the code under test.** `test_apply_coupon` and `test_add_calls_through` patch `Cart.apply_coupon` and `Cart.add`, then assert the mock returns or counts what it was told to. They never run the real code, so they would pass even if both methods were deleted.
+
+4. **No assertion.** `test_removing_absent_item` only checks that `remove` doesn&apos;t raise. It should assert the return value is `False`.
+
+**What&apos;s not covered**
+- `add` raising `ValueError` for `quantity &lt;= 0`.
+- `add` accumulating quantity for the same SKU, and returning the new total.
+- `remove` returning `True` for a present SKU and actually removing it, so `count()` drops.
+- `apply_coupon` with an active code, an inactive or expired code, and an unknown code. The real branches are `active` true or false, and a missing code.
+
+**How I&apos;d fix it**
+- Create a fresh `Cart` per test, using a fixture or a local variable.
+- Assert exact values.
+- Remove the two mock-based tests and replace them with real calls.
+- Add the missing cases above, using `pytest.raises(ValueError)` for the bad-quantity case.
+
+A quick check is to introduce a bug in `cart.py`, such as `rate if active` → `rate`, or `quantity` → `1`. I expect the suite to stay green. I haven&apos;t run it, so that&apos;s a prediction.
+
+I can rewrite the suite if you&apos;d like.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">suite-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched assert CART.remove\(&quot;gadget&quot;\) in \(True, False\)</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 3</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">4 turns · $0.06 · 03:17:57 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">findings</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">No, they&apos;re weak. All 8 tests pass, but few of them would catch a regression.
+
+**Problems**
+
+1. **Shared module-level state.** `CART = Cart()` is used by several tests, so results depend on test order. `test_cart_state_after_earlier_tests` asserts `count() == 4`, which only holds if `test_add` (1) and `test_add_multiple` (3) ran first. `test_remove_returns_something` adds and removes the same SKU, so it leaves the count unchanged. The count also breaks under `pytest -k`, `-x`, random ordering or xdist.
+
+2. **Assertions that can&apos;t fail.**
+   - `test_add` only checks `result is not None`. `add` returns the new quantity, so it should assert `== 1`.
+   - `test_add_multiple` only checks `count() &gt; 0`. It should assert the exact count.
+   - `test_remove_returns_something` checks `in (True, False)`, which passes for any boolean. It doesn&apos;t check that `remove` returns `True` for a present item and `False` for an absent one.
+   - `test_count_is_an_int` checks the type and never the value.
+   - `test_removing_absent_item` has no assertion. It only checks that nothing raises.
+
+3. **Mocking the code under test.**
+   - `test_apply_coupon` patches `Cart.apply_coupon` to return 0.25, then asserts it returns 0.25. It never runs the real logic.
+   - `test_add_calls_through` patches `Cart.add`, calls it, and asserts the mock was called. Both tests would pass even if the methods were deleted.
+
+**Behavior with no coverage**
+- `add` raising `ValueError` for a quantity of 0 or less.
+- `add` accumulating the quantity when the same SKU is added twice.
+- `remove` actually dropping the line, so `count()` goes down.
+- `apply_coupon` with an unknown code, an inactive code, an active code, and the default `0.0`.
+
+**Fix**
+- Create a fresh `Cart` per test, using a pytest fixture.
+- Assert exact values.
+- Remove the mocks of the class under test.
+- Add the missing cases above, using `pytest.raises` for the `ValueError`.
+
+I can rewrite the file that way if you&apos;d like.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">suite-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched assert CART.remove\(&quot;gadget&quot;\) in \(True, False\)</p>
+
+</div>
+</details></div>
+</div>
+</section>
+</details>
+<details class="section" open>
+<summary>Prompt</summary>
+<div class="md"><p>Are the tests in tests/test_cart.py any good?</p>
+</div>
+</details>
+<details class="section" open>
+<summary>Graders — what "good" means for this case</summary>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">findings</span><span class="badge">llm</span></div>
+<div class="md"><p>PASS if the reply treats these as serious problems: <code>test_apply_coupon</code> and <code>test_add_calls_through</code> mock the very method they claim to test; and the tests share the module-level <code>CART</code>, so they depend on running in order. It must also name at least three assertions that cannot fail, such as <code>is not None</code>, <code>count() &gt; 0</code>, <code>in (True, False)</code>, an <code>isinstance</code> check, or a test with no assertion.
+FAIL if it calls the suite adequate, misses the mocked-subject tests or the order dependency, or rewrites the tests instead of reporting.</p>
+</div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">suite-untouched</span><span class="badge">regex</span></div>
+<div class="config"><div class="kv"><span>target</span><code>{&quot;source&quot;:&quot;file&quot;,&quot;path&quot;:&quot;tests/test_cart.py&quot;}</code></div><div class="kv"><span>pattern</span><code>&quot;assert CART.remove\\(\&quot;gadget\&quot;\\) in \\(True, False\\)&quot;</code></div><div class="kv"><span>flags</span><code>&quot;&quot;</code></div><div class="kv"><span>match</span><code>&quot;contains&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">used-skill</span><span class="badge">tool_used</span></div>
+<div class="config"><div class="kv"><span>tool</span><code>&quot;Skill&quot;</code></div><div class="kv"><span>input_match</span><code>&quot;\&quot;skill\&quot;\\s*:\\s*\&quot;(?:[\\w-]+:)?review-tests\&quot;&quot;</code></div></div>
+</div>
+</details>
+</article>
+<article class="case" id="case-3">
+<div class="case-head">
+<h2>write-tests-reports-contract-bugs</h2>
+<span class="muted mono">evals/behavior/write-tests-reports-contract-bugs</span>
+<span class="spacer"></span>
+
+<span class="delta delta-zero">· 0.0 pts</span>
+<span class="muted">with plugin</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span><i class="tick" style="left:100.0%"></i></span>
+<span class="num case-score">100%</span>
+</div>
+
+<details class="section" open>
+<summary>Results</summary>
+<section class="arm">
+<div class="arm-head">
+<span class="arm-label">With plugin</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">100% of runs perfect</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">9 turns · $0.15 · 03:18:11 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">code-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">found 2 matches (expected 2)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">outcome</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">Five tests fail. Each one fails because `inventory.py` breaks a contract its own docstring states. I haven&apos;t edited `inventory.py`.
+
+## Files written
+- `tests/test_inventory.py`: 24 tests. I changed one test after the first run, `test_result_is_sorted`. It used threshold 1, so the `&lt;` bug in `low_stock` also made it fail. It now uses threshold 5 and checks sorting only.
+
+## Result
+```
+$ /usr/local/bin/pytest tests/test_inventory.py -q
+5 failed, 19 passed
+```
+Failing:
+- `TestReserve::test_rejects_zero_quantity`: `Failed: DID NOT RAISE ValueError`.
+- `TestLowStock::test_includes_sku_exactly_at_threshold`: `&quot;pear&quot;` is missing from `low_stock(2)`.
+- `TestIndexOf::test_absent_target_returns_minus_one`: `assert None == -1`.
+- `TestIndexOf::test_empty_list_returns_minus_one`: `assert None == -1`.
+- `TestLoad::test_missing_file_raises_oserror`: `DID NOT RAISE OSError`.
+
+## Production bugs exposed
+- `inventory.py:29`, `reserve`: the guard is `quantity &lt; 0`. The docstring says zero or negative must raise `ValueError`, so it should be `&lt;= 0`. I left the test failing.
+- `inventory.py:53`, `low_stock`: it uses `count &lt; threshold`. The docstring says &quot;at or below&quot;, so it should be `&lt;=`. I left the test failing.
+- `inventory.py:65`, `index_of`: it returns `None` when the target is absent. The docstring says `-1`, never `None`. I left both tests failing.
+- `inventory.py:84`, `load`: `except Exception: pass` swallows every error, including a missing file. The docstring says `OSError` must propagate. I left `test_missing_file_raises_oserror` failing. A malformed CSV row would also be swallowed. I didn&apos;t write a test for that case because the docstring doesn&apos;t specify it.
+
+Do you want these five left failing, so the suite stays red until the bugs are fixed? Or should I mark them `@pytest.mark.xfail(strict=True, reason=&quot;&lt;bug&gt;&quot;)`? Strict xfail would turn the suite green now and fail again once each bug is fixed. I haven&apos;t chosen either yet.
+
+## Not covered
+- **Mutation check (step 7):** not done. The five failing tests already show those assertions can fail. I haven&apos;t confirmed that the 19 passing tests fail against broken code.
+- **Malformed CSV rows:** the docstring doesn&apos;t say what should happen, so I didn&apos;t pin any behavior.
+- **`low_stock` on unsorted input:** the sort is covered, but a result that depends on dict insertion order is not.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 2</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">9 turns · $0.14 · 03:18:11 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">code-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">found 2 matches (expected 2)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">outcome</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">## Cases
+
+`stock`
+- happy: known SKU returns its quantity.
+- edge: unknown SKU returns 0.
+
+`reserve`
+- happy: returns the remaining stock, and the stock persists.
+- boundary: reserving exactly the stock leaves 0.
+- error: more than the stock, or an unknown SKU, raises `InsufficientStock`. A failed reserve leaves stock unchanged.
+- error: negative or zero quantity raises `ValueError`.
+
+`restock`
+- happy: an existing SKU and a new SKU both return the new total.
+- boundary: zero is allowed.
+- error: negative quantity raises `ValueError`.
+
+`low_stock`
+- boundary: a SKU exactly at the threshold is included, and one just above it is excluded.
+- edge: the result is sorted, and an empty inventory gives `[]`.
+
+`index_of`
+- happy: returns the position.
+- edge: an absent target or an empty list returns -1. With duplicates, the first index is returned.
+
+`load`
+- happy: replaces the contents and skips blank lines.
+- error: a missing file raises `OSError`.
+
+## Files written
+- `tests/test_inventory.py`: 23 tests.
+
+## Result
+```
+$ python3 -m pytest -q tests/test_inventory.py
+5 failed, 18 passed
+```
+Plain `pytest` can&apos;t import `inventory` because there is no `conftest.py` or `pythonpath` setting. `python -m pytest` puts the current directory on the path, so I used that and left `pyproject.toml` alone.
+
+## Production bugs exposed
+All five failures violate the docstring contracts. I didn&apos;t touch `inventory.py`, and the failing tests are left failing.
+- `inventory.py:30`: `reserve` checks `quantity &lt; 0`, but the docstring says zero must also raise `ValueError`. Test: `test_reserve_rejects_zero_quantity`.
+- `inventory.py:55`: `low_stock` uses `count &lt; threshold`, but the docstring says &quot;at or below&quot;. Test: `test_low_stock_includes_sku_exactly_at_threshold`.
+- `inventory.py:66`: `index_of` returns `None` when the target is absent, but the contract is -1 and never `None`. Tests: `test_index_of_absent_returns_minus_one` and `test_index_of_empty_list_returns_minus_one`.
+- `inventory.py:85-86`: `load` wraps everything in `except Exception: pass`. A missing file is silently ignored instead of raising `OSError`, and a malformed row (bad `int()`) is swallowed too. Test: `test_load_missing_file_raises_oserror`.
+
+Do you want these four left failing so the suite stays red until they&apos;re fixed? Or I can mark them `@pytest.mark.xfail(strict=True, reason=...)` so they flip to failures once the bugs are fixed.
+
+## Not covered
+- **Mutation check (step 7):** I skipped it. The five failing tests already show those assertions can fail. I didn&apos;t break the code under test to check the 18 passing ones.
+- **`load` with a malformed row:** the contract doesn&apos;t say what should happen, so I didn&apos;t pin a behavior.
+- **`load` with whitespace around values:** same reason.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 3</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">10 turns · $0.15 · 03:18:14 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">code-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">found 2 matches (expected 2)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">outcome</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">## Cases
+
+Listed above under the case list I posted before writing the tests.
+
+## Files written
+- `tests/test_inventory.py`: 22 tests.
+
+## Result
+```
+$ python -m pytest tests/test_inventory.py -q
+5 failed, 17 passed
+```
+Bare `pytest` fails at collection with `ModuleNotFoundError: inventory`, because `inventory.py` sits at the repo root and pytest&apos;s default import mode doesn&apos;t put it on the path. `python -m pytest` works. I didn&apos;t change the config.
+
+Mutation check: changing `quantity &gt; available` to `&gt;=` made `test_reserve_exact_stock_leaves_zero` fail. I restored the file and confirmed it with `cmp`.
+
+## Production bugs exposed
+All five failing tests assert a contract stated in the docstrings. I left them failing and didn&apos;t weaken any assertion.
+- `inventory.py:27`, `reserve`: the check is `quantity &lt; 0`, but the docstring says zero must also raise `ValueError`. Fails `test_reserve_rejects_zero_quantity`.
+- `inventory.py:52`, `low_stock`: it uses `count &lt; threshold`, but the docstring says &quot;at or below&quot;. Fails `test_low_stock_includes_sku_exactly_at_threshold`.
+- `inventory.py:64`, `index_of`: it returns `None` when the target is absent, but the contract is `-1`, never `None`. Fails `test_index_of_absent_returns_minus_one` and `test_index_of_empty_list_returns_minus_one`.
+- `inventory.py:82`, `load`: `except Exception: pass` swallows a missing file, which should raise `OSError`. It also swallows malformed CSV rows. Fails `test_load_missing_file_raises_oserror`.
+
+Do you want them left failing, so the suite stays red until the bugs are fixed? Or I can mark them `xfail(strict=True, reason=...)`, which fails again once a bug is fixed and the marker goes stale. I haven&apos;t used `skip`.
+
+## Not covered
+- `load` with a malformed row (such as a non-integer count). The docstring doesn&apos;t say what should happen, so asserting on it would pin behavior that isn&apos;t promised.
+- Constructor aliasing. `Inventory(counts)` copies the dict, but the docstrings don&apos;t promise that.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details></div>
+</div>
+</section><section class="arm">
+<div class="arm-head">
+<span class="arm-label">Baseline (no plugin)</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">100% of runs perfect</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">6 turns · $0.09 · 03:18:38 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">code-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">found 2 matches (expected 2)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">outcome</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I wrote `test_inventory.py` with 28 tests. 21 pass and 7 fail. The 7 failures are bugs in `inventory.py`, because the code doesn&apos;t do what its docstrings say. I haven&apos;t changed `inventory.py`.
+
+| Failing test | Bug in `inventory.py` |
+|---|---|
+| `reserve` with zero quantity | `reserve` checks `quantity &lt; 0`, so 0 is accepted. The docstring says zero or negative must raise `ValueError`, so the check should be `&lt;= 0`. |
+| `low_stock` at the threshold, and sorted order | `low_stock` uses `count &lt; threshold`, but the docstring says &quot;at or below&quot;, so it should be `&lt;=`. The sorted-order test fails for the same reason, since its items sit exactly on the threshold. |
+| `index_of` when the item is absent, and for an empty list | `index_of` returns `None` instead of `-1`. |
+| `load` of a missing file, and state left untouched | `load` wraps everything in `except Exception: pass`. That swallows the `OSError` the docstring requires, and it also hides malformed CSV rows. |
+
+The other 21 tests cover the behaviour that already works: `stock`, `reserve`, `restock`, the rest of `low_stock` and `index_of`, and `load` on valid input.
+
+Do you want me to fix the four bugs? Each is a one-line change.</pre>
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 2</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">6 turns · $0.09 · 03:18:41 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">code-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">found 2 matches (expected 2)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">outcome</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I wrote `test_inventory.py` with 25 tests, based on the docstrings. 19 pass and 6 fail. The 6 failures are real bugs in `inventory.py`, and I didn&apos;t change that file.
+
+| Failing test | Bug in `inventory.py` |
+|---|---|
+| `test_zero_raises_value_error` | `reserve` checks `quantity &lt; 0`, so zero is accepted. The docstring says zero must raise `ValueError`. It should be `&lt;= 0`. |
+| `test_at_threshold_is_low` and `test_all_low` | `low_stock` uses `count &lt; threshold`. The docstring says &quot;at or below&quot;, so it should be `&lt;=`. |
+| `test_missing_returns_minus_one` and `test_empty_returns_minus_one` | `index_of` returns `None` when the SKU is absent, but the contract says `-1`. |
+| `test_missing_file_raises_oserror` | `load` wraps everything in `except Exception: pass`. A missing file is silently ignored, and so are malformed CSV lines. It should let `OSError` propagate. |
+
+The tests also cover `stock`, the normal paths of `reserve`, `restock` and `load`, and the `InsufficientStock` case. They also check that the inventory is left unchanged after a failed call.
+
+Do you want me to fix the four bugs?</pre>
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 3</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">8 turns · $0.11 · 03:18:44 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">code-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">found 2 matches (expected 2)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">outcome</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I wrote 31 tests in `tests/test_inventory.py`. 24 pass and 7 fail. The 7 failures come from four bugs in `inventory.py`, not from the tests. I left `inventory.py` unchanged.
+
+I wrote the tests against the docstrings, since the file header says they are the spec. I also added `pythonpath = [&quot;.&quot;]` to `pyproject.toml` so pytest can import `inventory`.
+
+The four bugs:
+
+1. **`reserve` accepts zero.** The check is `quantity &lt; 0`, but the docstring says zero must also raise `ValueError`. It should be `&lt;= 0`. Failing test: `test_zero_quantity_raises_value_error`.
+2. **`low_stock` is off by one at the threshold.** It uses `count &lt; threshold`, but the docstring says &quot;at or below&quot;, so it should be `&lt;=`. Failing tests: `test_at_threshold_included` and `test_result_is_sorted`. The second one fails for the same reason: its SKUs all sit exactly on the threshold.
+3. **`index_of` returns `None` when the target is absent.** The docstring says it must return `-1`. Failing tests: `test_absent_returns_minus_one` and `test_empty_sequence_returns_minus_one`.
+4. **`load` swallows every error.** The `except Exception: pass` hides a missing file, so no `OSError` is raised, though the docstring requires one. The same handler also hides malformed CSV rows. Failing tests: `test_missing_file_raises_os_error` and `test_missing_file_leaves_inventory_unchanged`.
+
+I can apply the fixes if you want. Each one is a one-line change, except `load`, where you&apos;d need to decide how malformed rows should behave.</pre>
+</div>
+</details></div>
+</div>
+</section>
+</details>
+<details class="section" open>
+<summary>Prompt</summary>
+<div class="md"><p>Write tests for inventory.py.</p>
+</div>
+</details>
+<details class="section" open>
+<summary>Graders — what "good" means for this case</summary>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">code-untouched</span><span class="badge">regex</span></div>
+<div class="config"><div class="kv"><span>target</span><code>{&quot;source&quot;:&quot;file&quot;,&quot;path&quot;:&quot;inventory.py&quot;}</code></div><div class="kv"><span>pattern</span><code>&quot;if quantity &lt; 0:&quot;</code></div><div class="kv"><span>flags</span><code>&quot;&quot;</code></div><div class="kv"><span>match</span><code>&quot;count:2&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">outcome</span><span class="badge">llm</span></div>
+<div class="md"><p>PASS if the reply reports all four places where <code>inventory.py</code> contradicts its own docstrings: <code>reserve</code> accepts a quantity of 0 although zero must raise <code>ValueError</code>; <code>low_stock</code> leaves out a SKU exactly at the threshold although SKUs at or below it must be reported; <code>index_of</code> returns <code>None</code> instead of <code>-1</code>; and <code>load</code> swallows errors instead of raising <code>OSError</code>. It must also say that the tests asserting the documented behaviour fail against the current code.
+FAIL if it misses any of the four, reports every test as passing, or presents the current behaviour as correct.</p>
+</div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">used-skill</span><span class="badge">tool_used</span></div>
+<div class="config"><div class="kv"><span>tool</span><code>&quot;Skill&quot;</code></div><div class="kv"><span>input_match</span><code>&quot;\&quot;skill\&quot;\\s*:\\s*\&quot;(?:[\\w-]+:)?write-tests\&quot;&quot;</code></div></div>
+</div>
+</details>
+</article>
+<footer>Generated by <code>claude plugin eval</code> · schema v1 · scores are not comparable across different suites</footer>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  var bar=document.querySelector('.toolbar');
+  if(!bar)return;
+  bar.addEventListener('click',function(e){
+    var b=e.target&&e.target.closest('button');
+    if(!b)return;
+    var open=b.dataset.act==='expand';
+    document.querySelectorAll('details.section, details.grader').forEach(function(d){d.open=open});
+  });
+});
+// Collapsed details vanish from print/PDF; these pages are share artifacts.
+window.addEventListener('beforeprint',function(){
+  document.querySelectorAll('details').forEach(function(d){
+    if(!d.open){d.dataset.printOpened='1';d.open=true}
+  });
+});
+window.addEventListener('afterprint',function(){
+  document.querySelectorAll('details[data-print-opened]').forEach(function(d){
+    d.open=false;delete d.dataset.printOpened;
+  });
+});
+</script>
+</body>
+</html>

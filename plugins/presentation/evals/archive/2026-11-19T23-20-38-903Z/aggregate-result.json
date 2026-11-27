@@ -1,0 +1,895 @@
+{
+  "schemaVersion": 1,
+  "claudeVersion": "2.1.329",
+  "startedAt": "2026-11-19T23:20:38.903Z",
+  "durationSeconds": 70,
+  "costUsd": 1.3095192,
+  "partial": false,
+  "suite": {
+    "root": "<local>",
+    "ablation": "none",
+    "modelOverride": "claude-sonnet-5-5",
+    "judgeModel": "haiku",
+    "tagFilters": [
+      "trigger"
+    ],
+    "threshold": 1,
+    "concurrency": 4,
+    "plugins": [
+      {
+        "name": "presentation",
+        "version": "0.1.1",
+        "path": "<local>"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "fires-process-from-description",
+      "dir": "evals/trigger/fires-process-from-description",
+      "source": "prose",
+      "promptMarkdown": "I need one slide for tomorrow showing our incident process: alert, triage, fix, postmortem, and back to monitoring. Put it in my deck, ops-review.pptx.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 300,
+      "maxTurns": 6,
+      "graders": [
+        {
+          "name": "fires-workflow-slides-blocks",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?workflow-slides-blocks\""
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 6,
+            "costUsd": 0.058515899999999996,
+            "judgeCostUsd": 0,
+            "durationSeconds": 10,
+            "startedAt": "2026-11-19T23:20:38.960Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fires-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 6,
+            "costUsd": 0.0573353,
+            "judgeCostUsd": 0,
+            "durationSeconds": 10,
+            "startedAt": "2026-11-19T23:20:38.960Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fires-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 7,
+            "costUsd": 0.0636138,
+            "judgeCostUsd": 0,
+            "durationSeconds": 12,
+            "startedAt": "2026-11-19T23:20:38.960Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fires-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1
+      }
+    },
+    {
+      "name": "fires-refine-wordy-slide",
+      "dir": "evals/trigger/fires-refine-wordy-slide",
+      "source": "prose",
+      "promptMarkdown": "Slide 4 of onboarding.pptx is just paragraphs about how a new hire gets set up. Can you make it visual, with fewer words?",
+      "runsPerCase": 3,
+      "timeoutSeconds": 300,
+      "maxTurns": 6,
+      "graders": [
+        {
+          "name": "fires-workflow-slides-blocks",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?workflow-slides-blocks\""
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 6,
+            "costUsd": 0.058523200000000004,
+            "judgeCostUsd": 0,
+            "durationSeconds": 10,
+            "startedAt": "2026-11-19T23:20:38.960Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fires-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 6,
+            "costUsd": 0.05878540000000001,
+            "judgeCostUsd": 0,
+            "durationSeconds": 13,
+            "startedAt": "2026-11-19T23:20:48.516Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fires-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 7,
+            "costUsd": 0.0593181,
+            "judgeCostUsd": 0,
+            "durationSeconds": 12,
+            "startedAt": "2026-11-19T23:20:48.751Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fires-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1
+      }
+    },
+    {
+      "name": "fires-smartart-redraw",
+      "dir": "evals/trigger/fires-smartart-redraw",
+      "source": "prose",
+      "promptMarkdown": "The SmartArt cycle on slide 2 of strategy.pptx looks dated. Redraw it in a cleaner, simpler style that matches the rest of the deck.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 300,
+      "maxTurns": 6,
+      "graders": [
+        {
+          "name": "fires-workflow-slides-blocks",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?workflow-slides-blocks\""
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 6,
+            "costUsd": 0.056678,
+            "judgeCostUsd": 0,
+            "durationSeconds": 11,
+            "startedAt": "2026-11-19T23:20:48.833Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fires-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 6,
+            "costUsd": 0.056827800000000005,
+            "judgeCostUsd": 0,
+            "durationSeconds": 12,
+            "startedAt": "2026-11-19T23:20:51.284Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fires-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 6,
+            "costUsd": 0.057051500000000005,
+            "judgeCostUsd": 0,
+            "durationSeconds": 8,
+            "startedAt": "2026-11-19T23:21:00.324Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fires-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1
+      }
+    },
+    {
+      "name": "fires-vietnamese-template",
+      "dir": "evals/trigger/fires-vietnamese-template",
+      "source": "prose",
+      "promptMarkdown": "Vẽ lại slide quy trình duyệt hợp đồng trong file contracts.pptx theo template của team, ít chữ thôi.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 300,
+      "maxTurns": 6,
+      "graders": [
+        {
+          "name": "fires-workflow-slides-blocks",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?workflow-slides-blocks\""
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 6,
+            "costUsd": 0.05983340000000001,
+            "judgeCostUsd": 0,
+            "durationSeconds": 10,
+            "startedAt": "2026-11-19T23:21:00.807Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fires-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 6,
+            "costUsd": 0.06056279999999999,
+            "judgeCostUsd": 0,
+            "durationSeconds": 11,
+            "startedAt": "2026-11-19T23:21:01.315Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fires-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 6,
+            "costUsd": 0.0585527,
+            "judgeCostUsd": 0,
+            "durationSeconds": 10,
+            "startedAt": "2026-11-19T23:21:02.961Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fires-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1
+      }
+    },
+    {
+      "name": "none-architecture-docs",
+      "dir": "evals/trigger/none-architecture-docs",
+      "source": "prose",
+      "promptMarkdown": "Write an architecture overview of this repository, with a diagram of its components.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 300,
+      "maxTurns": 6,
+      "graders": [
+        {
+          "name": "quiet-workflow-slides-blocks",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?workflow-slides-blocks\"",
+            "min": 0,
+            "max": 0,
+            "arm": "both"
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 4,
+            "costUsd": 0.0334841,
+            "judgeCostUsd": 0,
+            "durationSeconds": 7,
+            "startedAt": "2026-11-19T23:21:08.735Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quiet-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 4,
+            "costUsd": 0.0333041,
+            "judgeCostUsd": 0,
+            "durationSeconds": 7,
+            "startedAt": "2026-11-19T23:21:10.997Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quiet-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 4,
+            "costUsd": 0.0338855,
+            "judgeCostUsd": 0,
+            "durationSeconds": 7,
+            "startedAt": "2026-11-19T23:21:12.161Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quiet-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1
+      }
+    },
+    {
+      "name": "none-fix-typo",
+      "dir": "evals/trigger/none-fix-typo",
+      "source": "prose",
+      "promptMarkdown": "There's a typo on slide 3 of budget.pptx, 'recieve' should be 'receive'. Fix it, please.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 300,
+      "maxTurns": 6,
+      "graders": [
+        {
+          "name": "quiet-workflow-slides-blocks",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?workflow-slides-blocks\"",
+            "min": 0,
+            "max": 0,
+            "arm": "both"
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 3,
+            "costUsd": 0.031789399999999995,
+            "judgeCostUsd": 0,
+            "durationSeconds": 7,
+            "startedAt": "2026-11-19T23:21:13.423Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quiet-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 3,
+            "costUsd": 0.0321194,
+            "judgeCostUsd": 0,
+            "durationSeconds": 6,
+            "startedAt": "2026-11-19T23:21:15.739Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quiet-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 3,
+            "costUsd": 0.0310034,
+            "judgeCostUsd": 0,
+            "durationSeconds": 7,
+            "startedAt": "2026-11-19T23:21:18.274Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quiet-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1
+      }
+    },
+    {
+      "name": "none-revenue-chart",
+      "dir": "evals/trigger/none-revenue-chart",
+      "source": "prose",
+      "promptMarkdown": "Make a bar chart of monthly revenue from revenue.csv and add it as a new slide.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 300,
+      "maxTurns": 6,
+      "graders": [
+        {
+          "name": "quiet-workflow-slides-blocks",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?workflow-slides-blocks\"",
+            "min": 0,
+            "max": 0,
+            "arm": "both"
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 7,
+            "costUsd": 0.0526869,
+            "judgeCostUsd": 0,
+            "durationSeconds": 9,
+            "startedAt": "2026-11-19T23:21:19.183Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quiet-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 7,
+            "costUsd": 0.049120300000000006,
+            "judgeCostUsd": 0,
+            "durationSeconds": 8,
+            "startedAt": "2026-11-19T23:21:20.261Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quiet-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 6,
+            "costUsd": 0.045577900000000005,
+            "judgeCostUsd": 0,
+            "durationSeconds": 7,
+            "startedAt": "2026-11-19T23:21:21.476Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quiet-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1
+      }
+    },
+    {
+      "name": "none-whole-pitch-deck",
+      "dir": "evals/trigger/none-whole-pitch-deck",
+      "source": "prose",
+      "promptMarkdown": "Write a 12-slide pitch deck for our product launch: problem, market, product, pricing, team, ask.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 300,
+      "maxTurns": 6,
+      "graders": [
+        {
+          "name": "quiet-workflow-slides-blocks",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?workflow-slides-blocks\"",
+            "min": 0,
+            "max": 0,
+            "arm": "both"
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 3,
+            "costUsd": 0.0638161,
+            "judgeCostUsd": 0,
+            "durationSeconds": 22,
+            "startedAt": "2026-11-19T23:21:24.925Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quiet-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 2,
+            "costUsd": 0.0376116,
+            "judgeCostUsd": 0,
+            "durationSeconds": 11,
+            "startedAt": "2026-11-19T23:21:28.306Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quiet-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 2,
+            "costUsd": 0.062003600000000006,
+            "judgeCostUsd": 0,
+            "durationSeconds": 21,
+            "startedAt": "2026-11-19T23:21:28.647Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quiet-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1
+      }
+    },
+    {
+      "name": "none-word-to-pdf",
+      "dir": "evals/trigger/none-word-to-pdf",
+      "source": "prose",
+      "promptMarkdown": "Convert report.docx to PDF.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 300,
+      "maxTurns": 6,
+      "graders": [
+        {
+          "name": "quiet-workflow-slides-blocks",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?workflow-slides-blocks\"",
+            "min": 0,
+            "max": 0,
+            "arm": "both"
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 4,
+            "costUsd": 0.034161000000000004,
+            "judgeCostUsd": 0,
+            "durationSeconds": 7,
+            "startedAt": "2026-11-19T23:21:28.804Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quiet-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 3,
+            "costUsd": 0.029849,
+            "judgeCostUsd": 0,
+            "durationSeconds": 5,
+            "startedAt": "2026-11-19T23:21:35.305Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quiet-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 4,
+            "costUsd": 0.033509000000000004,
+            "judgeCostUsd": 0,
+            "durationSeconds": 7,
+            "startedAt": "2026-11-19T23:21:39.231Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quiet-workflow-slides-blocks",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1
+      }
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 9,
+    "casesPassed": 9,
+    "overallScore": 1,
+    "overallPassRate": 1
+  }
+}

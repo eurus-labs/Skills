@@ -1,0 +1,607 @@
+{
+  "schemaVersion": 1,
+  "claudeVersion": "2.1.329",
+  "startedAt": "2026-11-19T23:16:48.336Z",
+  "durationSeconds": 40,
+  "costUsd": 0.829053,
+  "partial": false,
+  "suite": {
+    "root": "<local>",
+    "ablation": "none",
+    "modelOverride": "claude-sonnet-5-5",
+    "judgeModel": "haiku",
+    "tagFilters": [
+      "trigger"
+    ],
+    "threshold": 1,
+    "concurrency": 4,
+    "plugins": [
+      {
+        "name": "docs",
+        "version": "1.7.0",
+        "path": "<local>"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "document-codebase-architecture-docs",
+      "dir": "evals/trigger/document-codebase-architecture-docs",
+      "source": "prose",
+      "promptMarkdown": "Document this repo. Write proper architecture documentation for it.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 300,
+      "maxTurns": 6,
+      "graders": [
+        {
+          "name": "fires-document-codebase",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?document-codebase\""
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 5,
+            "costUsd": 0.0589916,
+            "judgeCostUsd": 0,
+            "durationSeconds": 9,
+            "startedAt": "2026-11-19T23:16:48.394Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fires-document-codebase",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 5,
+            "costUsd": 0.0587814,
+            "judgeCostUsd": 0,
+            "durationSeconds": 10,
+            "startedAt": "2026-11-19T23:16:48.394Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fires-document-codebase",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 5,
+            "costUsd": 0.060568699999999996,
+            "judgeCostUsd": 0,
+            "durationSeconds": 11,
+            "startedAt": "2026-11-19T23:16:48.394Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fires-document-codebase",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1
+      }
+    },
+    {
+      "name": "document-codebase-fill-template",
+      "dir": "evals/trigger/document-codebase-fill-template",
+      "source": "prose",
+      "promptMarkdown": "We have a documentation template in docs/template.md. Fill it in for this codebase.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 300,
+      "maxTurns": 6,
+      "graders": [
+        {
+          "name": "fires-document-codebase",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?document-codebase\""
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 8,
+            "costUsd": 0.0656215,
+            "judgeCostUsd": 0,
+            "durationSeconds": 11,
+            "startedAt": "2026-11-19T23:16:48.394Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fires-document-codebase",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 7,
+            "costUsd": 0.060584200000000005,
+            "judgeCostUsd": 0,
+            "durationSeconds": 13,
+            "startedAt": "2026-11-19T23:16:57.823Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fires-document-codebase",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 6,
+            "costUsd": 0.0593909,
+            "judgeCostUsd": 0,
+            "durationSeconds": 9,
+            "startedAt": "2026-11-19T23:16:57.940Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fires-document-codebase",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1
+      }
+    },
+    {
+      "name": "document-codebase-user-manual",
+      "dir": "evals/trigger/document-codebase-user-manual",
+      "source": "prose",
+      "promptMarkdown": "Write a user manual for this project: how to install it, configure it and run it.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 300,
+      "maxTurns": 6,
+      "graders": [
+        {
+          "name": "fires-document-codebase",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?document-codebase\""
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 5,
+            "costUsd": 0.0573471,
+            "judgeCostUsd": 0,
+            "durationSeconds": 9,
+            "startedAt": "2026-11-19T23:16:59.106Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fires-document-codebase",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 7,
+            "costUsd": 0.0607318,
+            "judgeCostUsd": 0,
+            "durationSeconds": 10,
+            "startedAt": "2026-11-19T23:16:59.867Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fires-document-codebase",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 6,
+            "costUsd": 0.058844600000000004,
+            "judgeCostUsd": 0,
+            "durationSeconds": 9,
+            "startedAt": "2026-11-19T23:17:07.211Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fires-document-codebase",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1
+      }
+    },
+    {
+      "name": "none-api-reference",
+      "dir": "evals/trigger/none-api-reference",
+      "source": "prose",
+      "promptMarkdown": "Generate an API reference from the docstrings in this package.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 300,
+      "maxTurns": 6,
+      "graders": [
+        {
+          "name": "quiet-document-codebase",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?document-codebase\"",
+            "min": 0,
+            "max": 0,
+            "arm": "both"
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 4,
+            "costUsd": 0.0319864,
+            "judgeCostUsd": 0,
+            "durationSeconds": 7,
+            "startedAt": "2026-11-19T23:17:07.872Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quiet-document-codebase",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 5,
+            "costUsd": 0.0334764,
+            "judgeCostUsd": 0,
+            "durationSeconds": 7,
+            "startedAt": "2026-11-19T23:17:09.466Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quiet-document-codebase",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 4,
+            "costUsd": 0.032016,
+            "judgeCostUsd": 0,
+            "durationSeconds": 6,
+            "startedAt": "2026-11-19T23:17:10.797Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quiet-document-codebase",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1
+      }
+    },
+    {
+      "name": "none-chat-question",
+      "dir": "evals/trigger/none-chat-question",
+      "source": "prose",
+      "promptMarkdown": "Quick question: what calls OrderService.record in this codebase?",
+      "runsPerCase": 3,
+      "timeoutSeconds": 300,
+      "maxTurns": 6,
+      "graders": [
+        {
+          "name": "quiet-document-codebase",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?document-codebase\"",
+            "min": 0,
+            "max": 0,
+            "arm": "both"
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 2,
+            "costUsd": 0.028305499999999997,
+            "judgeCostUsd": 0,
+            "durationSeconds": 4,
+            "startedAt": "2026-11-19T23:17:14.596Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quiet-document-codebase",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 3,
+            "costUsd": 0.0317627,
+            "judgeCostUsd": 0,
+            "durationSeconds": 7,
+            "startedAt": "2026-11-19T23:17:16.066Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quiet-document-codebase",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 3,
+            "costUsd": 0.032941700000000004,
+            "judgeCostUsd": 0,
+            "durationSeconds": 7,
+            "startedAt": "2026-11-19T23:17:16.123Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quiet-document-codebase",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1
+      }
+    },
+    {
+      "name": "none-one-docstring",
+      "dir": "evals/trigger/none-one-docstring",
+      "source": "prose",
+      "promptMarkdown": "Add a docstring to the parse() function in utils.py.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 300,
+      "maxTurns": 6,
+      "graders": [
+        {
+          "name": "quiet-document-codebase",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?document-codebase\"",
+            "min": 0,
+            "max": 0,
+            "arm": "both"
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 4,
+            "costUsd": 0.0326329,
+            "judgeCostUsd": 0,
+            "durationSeconds": 6,
+            "startedAt": "2026-11-19T23:17:16.712Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quiet-document-codebase",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 4,
+            "costUsd": 0.0324761,
+            "judgeCostUsd": 0,
+            "durationSeconds": 6,
+            "startedAt": "2026-11-19T23:17:18.993Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quiet-document-codebase",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 4,
+            "costUsd": 0.0325935,
+            "judgeCostUsd": 0,
+            "durationSeconds": 6,
+            "startedAt": "2026-11-19T23:17:22.417Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quiet-document-codebase",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1
+      }
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 6,
+    "casesPassed": 6,
+    "overallScore": 1,
+    "overallPassRate": 1
+  }
+}

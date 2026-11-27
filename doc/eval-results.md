@@ -5,6 +5,8 @@ section names its date, host, models and commit. A score depends on the model th
 compare runs with the same `--model` and `--judge-model`. How to run the suites is in
 [`running-evals.md`](running-evals.md).
 
+The raw files of these runs are under `plugins/*/evals/archive/`, with local paths scrubbed.
+
 Behavior cases run three times with the plugin and three times without it. **Δ** is the score with the plugin
 minus the score without it. A pass needs every scored grader to pass in a run.
 

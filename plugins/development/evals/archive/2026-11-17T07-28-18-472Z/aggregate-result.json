@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "claudeVersion": "2.1.326",
+  "startedAt": "2026-11-17T07:28:18.472Z",
+  "durationSeconds": 10,
+  "costUsd": 0.13257380000000002,
+  "partial": false,
+  "suite": {
+    "root": "<local>",
+    "ablation": "none",
+    "modelOverride": "claude-sonnet-5-5",
+    "tagFilters": [
+      "trigger"
+    ],
+    "threshold": 1,
+    "concurrency": 4,
+    "plugins": [
+      {
+        "name": "development",
+        "version": "0.5.2",
+        "path": "<local>"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "implement-approved-plan",
+      "dir": "evals/trigger/implement-approved-plan",
+      "source": "prose",
+      "promptMarkdown": "Implement the plan in doc/plan-1-add-logging.md. It is approved.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 300,
+      "maxTurns": 6,
+      "graders": [
+        {
+          "name": "fires-implement",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?implement\""
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 7,
+            "costUsd": 0.0709932,
+            "judgeCostUsd": 0,
+            "durationSeconds": 10,
+            "startedAt": "2026-11-17T07:28:18.503Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fires-implement",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 3,
+            "costUsd": 0.0308403,
+            "judgeCostUsd": 0,
+            "durationSeconds": 6,
+            "startedAt": "2026-11-17T07:28:18.504Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fires-implement",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 3,
+            "costUsd": 0.0307403,
+            "judgeCostUsd": 0,
+            "durationSeconds": 6,
+            "startedAt": "2026-11-17T07:28:18.504Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fires-implement",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 0.3333333333333333,
+        "passRate": 0.3333333333333333
+      }
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 1,
+    "casesPassed": 0,
+    "overallScore": 0.3333333333333333,
+    "overallPassRate": 0.3333333333333333
+  }
+}

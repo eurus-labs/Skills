@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Eval report — reasoning v0.4.0</title>
+</head>
+<body>
+<style>
+:root{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme:dark){:root{--plane:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink-2:#c3c2b7;--ink-3:#898781;--hairline:rgba(255,255,255,.10);--grid:#2c2c2a;--inset:rgba(255,255,255,.05);--accent:#3987e5;--base-fill:#898781;--delta-good:#0ca30c;--good:#0ca30c;--warning:#fab219;--critical:#e06c6c;color-scheme:dark}}
+:root[data-theme="dark"]{--plane:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink-2:#c3c2b7;--ink-3:#898781;--hairline:rgba(255,255,255,.10);--grid:#2c2c2a;--inset:rgba(255,255,255,.05);--accent:#3987e5;--base-fill:#898781;--delta-good:#0ca30c;--good:#0ca30c;--warning:#fab219;--critical:#e06c6c;color-scheme:dark}
+:root[data-theme="light"]{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--plane);color:var(--ink);
+  font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:880px;margin:0 auto;padding:40px 24px 64px;display:flex;flex-direction:column;gap:20px}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+header h1{margin:2px 0 0;font-size:24px;font-weight:600;line-height:1.25;text-wrap:balance}
+.meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;color:var(--ink-2);font-size:13px}
+.meta .num{font-variant-numeric:tabular-nums lining-nums}
+.banner{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;
+  border:1px solid var(--hairline);background:var(--surface);font-size:13px}
+.banner .chip-warn{color:var(--warning);font-weight:600}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--hairline);border-radius:10px;padding:14px 16px;
+  display:flex;flex-direction:column;gap:4px}
+.tile .label{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.tile .value{font-size:26px;font-weight:600;font-variant-numeric:tabular-nums lining-nums;line-height:1.1}
+.tile.hero .value{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:48px}
+.tile .sub{font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.tile .value.delta-pos{color:var(--delta-good)}
+.tile .value.delta-neg{color:var(--critical)}
+.toolbar{display:flex;gap:8px;justify-content:flex-end}
+.toolbar button{font:12px system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink-2);
+  background:var(--surface);border:1px solid var(--hairline);border-radius:6px;padding:4px 10px;cursor:pointer}
+.toolbar button:hover{color:var(--ink)}
+.toolbar button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.case{background:var(--surface);border:1px solid var(--hairline);border-radius:10px;padding:18px 20px;
+  display:flex;flex-direction:column;gap:10px}
+.case-regressed{border-left:3px solid var(--critical)}
+.verdict{margin:6px 0 0;font-size:15px}
+.verdict .delta{font-size:15px}
+.flag{font-size:11px;font-weight:600;color:var(--warning);white-space:nowrap}
+.star{color:var(--warning);font-size:.45em;vertical-align:super;line-height:0;cursor:help}
+.legend summary{cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
+.legend-list{margin:8px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--ink-2)}
+.case-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.case-head h2{margin:0;font-size:16px;font-weight:600}
+.case-head .spacer{flex:1}
+.case-score{font-size:15px;font-weight:600}
+.mono{font:12px "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.num{font-variant-numeric:tabular-nums lining-nums}
+.muted{color:var(--ink-3);font-size:12px}
+.meter{display:inline-block;position:relative;width:120px;height:6px;border-radius:4px;background:var(--grid);
+  vertical-align:middle}
+.meter>span{display:block;height:100%;border-radius:4px;max-width:100%}
+.meter .tick{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink-3);border-radius:1px}
+.m-accent>span{background:var(--accent)}
+.m-base>span{background:var(--base-fill)}
+.delta{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.delta-pos{color:var(--delta-good)}
+.delta-neg{color:var(--critical)}
+.delta-zero{color:var(--ink-3)}
+details.section{border-top:1px solid var(--grid);padding-top:10px}
+details.section>summary{cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--ink-2);list-style-position:outside;margin-left:2px}
+details.section>summary:hover{color:var(--ink)}
+details.section[open]>summary{margin-bottom:8px}
+.md{display:flex;flex-direction:column;gap:8px;background:var(--inset);border-radius:8px;
+  padding:12px 14px;overflow-wrap:break-word}
+.md>:first-child{margin-top:0}
+.md h1,.md h2,.md h3,.md h4,.md h5,.md h6{margin:4px 0 0;font-size:1em;font-weight:600;line-height:1.3}
+.md p,.md ul,.md ol,.md blockquote,.md table,.md pre,.md hr{margin:0}
+.md ul,.md ol{display:flex;flex-direction:column;gap:4px;padding-left:20px}
+.md blockquote{border-left:2px solid var(--hairline);padding-left:10px;color:var(--ink-2)}
+.md :not(pre)>code{background:var(--inset);padding:1px 4px;border-radius:4px;
+  font:.92em "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.md pre{background:var(--inset);border:1px solid var(--hairline);padding:10px 12px;border-radius:6px;
+  overflow-x:auto;font:12px/1.5 "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.md pre code{background:none;padding:0;font:inherit}
+.md table{width:100%;border-collapse:collapse}
+.md th,.md td{padding:5px 8px;text-align:left;vertical-align:top;border-bottom:1px solid var(--grid)}
+.md th{font-weight:600;color:var(--ink-2)}
+.md a{color:var(--accent);text-decoration:none}
+.md a:hover{text-decoration:underline}
+.grader-def{display:flex;flex-direction:column;gap:6px;padding:8px 0}
+.grader-def+.grader-def{border-top:1px solid var(--grid)}
+.grader-def-head{display:flex;align-items:baseline;gap:8px}
+.grader-name{font:13px "SF Mono",ui-monospace,Menlo,Consolas,monospace;font-weight:600}
+.badge{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);
+  border:1px solid var(--hairline);border-radius:999px;padding:1px 8px}
+.config{display:flex;flex-direction:column;gap:2px;background:var(--inset);border-radius:8px;padding:10px 14px}
+.config code{font:12px "SF Mono",ui-monospace,Menlo,Consolas,monospace;overflow-wrap:anywhere}
+.arm{display:flex;flex-direction:column;gap:8px;padding:6px 0}
+.arm+.arm{border-top:1px dashed var(--grid);margin-top:4px;padding-top:12px}
+.arm-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.arm-label{font-size:13px;font-weight:600}
+.run{border:1px solid var(--grid);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.run-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.run-title{font-size:12px;font-weight:600;color:var(--ink-2)}
+.run-error .explanation{color:var(--ink-2)}
+.note{font-size:12px;color:var(--ink-2)}
+.graders{display:flex;flex-direction:column;gap:4px}
+details.grader{border-radius:6px}
+details.grader>summary{cursor:pointer;display:flex;align-items:baseline;gap:8px;padding:3px 4px;
+  border-radius:6px;list-style:none}
+details.grader>summary::-webkit-details-marker{display:none}
+details.grader>summary::before{content:'▸';font-size:10px;color:var(--ink-3);flex:none;
+  transition:transform .12s ease}
+details.grader[open]>summary::before{transform:rotate(90deg)}
+details.grader>summary:hover{background:var(--inset)}
+details.grader>summary:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.grader-body{padding:6px 8px 8px 24px;display:flex;flex-direction:column;gap:6px}
+.chip{font-size:11px;font-weight:600;border-radius:999px;padding:1px 8px;white-space:nowrap}
+.chip-pass{color:var(--good);border:1px solid currentColor}
+.chip-fail{color:var(--critical);border:1px solid currentColor}
+.chip.chip-warn{color:var(--warning);border:1px solid currentColor}
+.explanation{margin:0;font-size:13px;color:var(--ink-2);white-space:pre-wrap;overflow-wrap:break-word}
+.kv{display:flex;gap:8px;font-size:12px;color:var(--ink-3)}
+.votes{font-variant-numeric:tabular-nums;letter-spacing:.1em}
+pre.evidence{margin:0;background:var(--inset);border:1px solid var(--hairline);border-radius:6px;
+  padding:8px 10px;overflow-x:auto;max-height:320px;
+  font:12px/1.5 "SF Mono",ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-wrap:break-word}
+footer{color:var(--ink-3);font-size:12px;text-align:center;padding-top:8px}
+@media (prefers-reduced-motion:no-preference){
+  details.grader>summary,.toolbar button{transition:background .12s ease,color .12s ease}
+}
+@media (prefers-reduced-motion:reduce){
+  details.grader>summary::before{transition:none}
+}
+@media print{
+  :root,:root[data-theme="dark"],:root[data-theme="light"]{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;color-scheme:light}
+  body{background:#fff}
+  .toolbar{display:none}
+  .case,.run,.grader-def{break-inside:avoid}
+  pre.evidence{max-height:none}
+}
+</style>
+<div class="wrap">
+<header>
+<div class="eyebrow">Plugin eval report</div>
+<h1>reasoning v0.4.0</h1>
+<p class="verdict">Plugin effect: <span class="delta delta-pos">↑ +66.7 pts</span> vs baseline — improved 1 · flat 0 · regressed 0 of 1 case.</p>
+<div class="meta">
+<span class="mono">.</span>
+<span>Claude Code v2.1.332</span>
+<span class="num">2026-11-25 23:42 UTC</span>
+<span class="num">1m 16s</span>
+<span class="num">$0.75</span>
+<span class="num">6 runs</span>
+<span class="num">3 in flight</span>
+
+<span>model claude-sonnet-5-5</span>
+<span>judge haiku</span>
+<span class="num">threshold 100%</span>
+<span>filtered: --tag behavior</span>
+</div>
+</header>
+
+<section class="tiles">
+<div class="tile hero"><span class="label">Suite score · with plugin</span><span class="value">100%</span><span class="sub">mean of per-case scores</span></div>
+<div class="tile"><span class="label">Ablation Δ</span><span class="value num delta-pos">↑ +66.7</span><span class="sub">score points vs baseline, 1 of 1 case</span></div>
+<div class="tile"><span class="label">Baseline score</span><span class="value num">33.3%</span><span class="sub">without the plugin</span></div>
+<div class="tile"><span class="label">Cases</span><span class="value num">1</span><span class="sub">1 of 1 ≥ 100% threshold</span></div>
+<div class="tile"><span class="label">Perfect runs</span><span class="value num">100%</span><span class="sub">runs where every grader passed</span></div>
+</section>
+<details class="section legend">
+<summary>How to read this report</summary>
+<ul class="legend-list">
+<li>A run's score is the weighted fraction of its graders that passed; a "perfect" run passed every grader.</li>
+<li>A case's score is the mean of its runs; a case passes when its score is at or above the 100% threshold (the tick on each case bar).</li>
+<li>The suite score is the mean of the per-case scores.</li>
+<li>Judge votes are independent samples of the LLM judge; the majority decides pass or fail.</li>
+<li>"With plugin" and "Baseline" runs are identical except for the plugin being loaded; Δ is the with-plugin score minus the baseline score.</li>
+
+</ul>
+</details>
+<div class="toolbar"><button type="button" data-act="expand">Expand all</button><button type="button" data-act="collapse">Collapse all</button></div>
+<article class="case" id="case-1">
+<div class="case-head">
+<h2>analyze-requirements-flags-planted-changes</h2>
+<span class="muted mono">evals/behavior/analyze-requirements-flags-planted-changes</span>
+<span class="spacer"></span>
+
+<span class="delta delta-pos">↑ +66.7 pts</span>
+<span class="muted">with plugin</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span><i class="tick" style="left:100.0%"></i></span>
+<span class="num case-score">100%</span>
+</div>
+
+<details class="section" open>
+<summary>Results</summary>
+<section class="arm">
+<div class="arm-head">
+<span class="arm-label">With plugin</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">100% of runs perfect</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">8 turns · $0.16 · 23:42:32 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">findings</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence"># Requirement analysis — export
+
+## Sources
+
+Unattended run (hard rule 10): the user could not be asked, so the workspace is used for all three roles. The workspace git repository has no commits, so no commit sha exists.
+
+| Role | Repository | Ref | Commit | Local path | Path in repository |
+| ---- | ---------- | --- | ------ | ---------- | ------------------ |
+| Current requirement | workspace | `main` | none: repository has no commits (uncommitted file) | `.` | `requirements/v2.rst` |
+| Previous requirement | workspace | `main` | none: repository has no commits (uncommitted file) | `.` | `requirements/v1.md` |
+| Code | workspace | `main` | none: repository has no commits (uncommitted file) | `.` | `src/exporter.py` |
+
+## Changes
+
+| ID | Status | Scope | Previous (path:line) | Current (path:line) | Code impact | Note |
+| -- | ------ | ----- | -------------------- | ------------------- | ----------- | ---- |
+| R-001 | unchanged | out (no change) | &quot;The system exports a saved report as CSV.&quot; `requirements/v1.md:5` | &quot;The system exports a saved report as CSV.&quot; `requirements/v2.rst:7` | already met: `src/exporter.py:9` | |
+| R-002 | unchanged | out (no change) | &quot;The system exports a saved report as PDF.&quot; `requirements/v1.md:6` | &quot;The system exports a saved report as PDF.&quot; `requirements/v2.rst:8` | not met in practice: `src/exporter.py:22` | `_write` always writes CSV text, whatever `fmt` is. Existing defect, see OP-007. |
+| R-003 | changed | in | &quot;A user can export at most 50 reports in one request.&quot; `requirements/v1.md:10` | &quot;A user can export at most 100 reports in one request.&quot; `requirements/v2.rst:13` | changes existing behavior: `src/exporter.py:8` | limit 50 to 100 |
+| R-004 | unchanged | out (no change) | &quot;An export request is rejected when the report has no rows.&quot; `requirements/v1.md:11` | &quot;An export request is rejected when the report has no rows.&quot; `requirements/v2.rst:14` | already met: `src/exporter.py:37` | |
+| R-005 | changed | in | &quot;Only the owner of a report can export it.&quot; `requirements/v1.md:15` | &quot;Only the owner of a report can export it; a request from anyone else is rejected with an error.&quot; `requirements/v2.rst:19` | changes existing behavior: `src/exporter.py:17` | The code also lets teammates export (`src/exporter.py:19`). Rejection with an error already exists (`src/exporter.py:40`). similarity 0.6 |
+| R-006 | removed | out (dropped by the new version; to be confirmed, OP-003) | &quot;Every export is recorded in the audit log.&quot; `requirements/v1.md:16` | — | already met: `src/exporter.py:42` | The code still writes the audit log. |
+| R-007 | added | in | — | &quot;A user can schedule an export to run every night.&quot; `requirements/v2.rst:20` | new: no scheduling code in `src/exporter.py` (only source file in the workspace) | |
+| R-008 | added | in | — | &quot;Exports of large reports should finish quickly.&quot; `requirements/v2.rst:21` | new: `src/exporter.py:22-27` writes rows synchronously, no timing control | |
+
+## Findings
+
+- **R-002** — non-functional gap in the code, not in the text: PDF is listed but `_write` writes comma-separated text for every format (`src/exporter.py:22-27`). Not a change in v2; see OP-007.
+- **R-003** — conflicting: the code rejects more than 50 (`src/exporter.py:8`, `src/exporter.py:33`). &quot;A user&quot; is ambiguous: every user or some roles? Also ambiguous whether the limit is per request only. See OP-001.
+- **R-005** — conflicting: &quot;Only the owner of a report can export it&quot; against the code&apos;s team rule, &quot;Teammates may export each other&apos;s reports.&quot; (`src/exporter.py:18-19`). See OP-002. &quot;rejected with an error&quot; is untestable as written, because the error type or message is not specified; the code raises `ExportError` (`src/exporter.py:40`).
+- **R-005 / R-004** — ambiguous: the code checks &quot;no rows&quot; before ownership (`src/exporter.py:37-40`), so a non-owner exporting an empty report gets the &quot;no rows&quot; error, which tells them nothing about ownership. The order is unspecified. See OP-008.
+- **R-006** — ambiguous: v2 drops the audit-log line without a stated reason. It can be deliberate or an omission. See OP-003.
+- **R-007** — missing: no time or timezone for &quot;every night&quot;, no format, no recipient or destination, no way to cancel or list schedules, no failure behaviour, no statement of whether the owner-only rule and the 100-report limit apply to scheduled runs, and no audit expectation. See OP-004. The requirement sits under &quot;Access&quot;, which does not fit its subject. That is a structural note only.
+- **R-008** — untestable: &quot;large&quot; and &quot;quickly&quot; have no numbers. See OP-005.
+- **Whole requirement** — export is all-or-nothing in intent but not in the code: files for earlier reports in a request are already written when a later report fails (`src/exporter.py:36-41`). The requirement doesn&apos;t say what a partial failure should do. See OP-006.
+
+## Open points
+
+| ID | Question for the PO | Affects | Blocks | Status | Resolved by |
+| -- | ------------------- | ------- | ------ | ------ | ----------- |
+| OP-001 | Is 100 the new limit for every user, or only for some roles? Is it per request only, with no daily or total cap? | R-003 | no | open | — |
+| OP-002 | v2 says only the owner can export, but the code today also lets teammates (same team) export. Is the team rule now unwanted, so teammates must be rejected, or should it stay and the text change? | R-005 | yes | open | — |
+| OP-003 | v2 no longer says every export is recorded in the audit log. Is the audit requirement dropped on purpose (the code would then stop logging), or still required and just missing from the text? | R-006 | yes | open | — |
+| OP-004 | For nightly scheduled exports: at what time and in which timezone? Which formats and which report (fixed report or the latest version)? Where does the output go and who is notified on failure? Can a schedule be cancelled or listed? Do the owner-only rule, the 100-report limit and the audit log apply to scheduled runs? Whose permissions are used if report ownership changes? | R-007 | yes | open | — |
+| OP-005 | What are &quot;large reports&quot; (rows or size) and what is &quot;quickly&quot; (seconds at what load)? Is it a hard acceptance threshold or a goal? | R-008 | no | open | — |
+| OP-006 | If one report in a request fails (no rows, not allowed), should the whole request fail with nothing written, or should the other reports still be exported? | R-003, R-004, R-005 | no | open | — |
+| OP-007 | The code writes CSV text even for PDF requests. Is a real PDF output in scope for this release? | R-002 | no | open | — |
+| OP-008 | When a non-owner exports an empty report, which error must they see: &quot;no rows&quot; or &quot;not allowed&quot;? | R-004, R-005 | no | open | — |
+| OP-009 | Unattended run: the user was not available to name the repositories for the current requirement, the previous version and the code, so the workspace was used for all three. Is that right, and is a code repository elsewhere authoritative? | R-001, R-002, R-003, R-004, R-005, R-006, R-007, R-008 | no | open | — |
+
+## Assumptions
+
+| Assumption | Owner | Risk if wrong |
+| ---------- | ----- | ------------- |
+| `requirements/v1.md` is the previous version and `requirements/v2.rst` the current one, as the user said. | User | The whole comparison is wrong. |
+| `src/exporter.py` is the current production behaviour. | User | Code impact is mis-stated. |
+| The 100-report limit applies per request, as v1&apos;s wording does. | PO | The limit check is built in the wrong place. |
+| Rewording-free lines (CSV, PDF, no-rows rejection) are unchanged requirements. | PO | None expected; the text is identical. |
+
+## Revision history
+
+- 2026-11-25 — first analysis of `requirements/v2.rst` against `requirements/v1.md`; unattended, workspace used for all sources; no PO contact, so all questions are open.
+</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/epics.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">wrote-analysis</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/analysis.md exists as expected</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 2</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">6 turns · $0.16 · 23:42:32 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">findings</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS — note: long file (8070 chars); llm judges are noisy on long inputs, prefer a regex grader for large artifacts</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence"># Requirement analysis — report export
+
+## Sources
+
+Unattended run (hard rule 10): the user could not be asked, so the workspace is used for all three roles and nothing was cloned. See OP-001. The repository has no commits yet (`git rev-parse HEAD` fails), so there is no commit sha.
+
+| Role | Repository | Ref | Commit | Local path | Path in repository |
+| ---- | ---------- | --- | ------ | ---------- | ------------------ |
+| Current requirement | workspace | `main` | none: repository has no commits | `.` | `requirements/v2.rst` |
+| Previous requirement | workspace | `main` | none: repository has no commits | `.` | `requirements/v1.md` |
+| Code | workspace | `main` | none: repository has no commits | `.` | `src/` (listed: `src/exporter.py` only) |
+
+## Changes
+
+`diff` result: 2 added, 1 removed, 2 changed, 7 unchanged units (the title and section headings are among the unchanged units; they are not requirements).
+
+| ID | Status | Scope | Previous (path:line) | Current (path:line) | Code impact | Note |
+| -- | ------ | ----- | -------------------- | ------------------- | ----------- | ---- |
+| R-001 | unchanged | out (no change, already met) | &quot;The system exports a saved report as CSV.&quot; `requirements/v1.md:5` | &quot;The system exports a saved report as CSV.&quot; `requirements/v2.rst:7` | already met: `src/exporter.py:9`, `src/exporter.py:22-27` | |
+| R-002 | unchanged | in (code does not meet it) | &quot;The system exports a saved report as PDF.&quot; `requirements/v1.md:6` | &quot;The system exports a saved report as PDF.&quot; `requirements/v2.rst:8` | new: `src/exporter.py:9` accepts &quot;pdf&quot;, but `src/exporter.py:22-27` writes comma-separated text to `&lt;id&gt;.pdf` | Not changed by v2; the gap already existed. See OP-002. |
+| R-003 | changed | in | &quot;A user can export at most 50 reports in one request.&quot; `requirements/v1.md:10` | &quot;A user can export at most 100 reports in one request.&quot; `requirements/v2.rst:13` | changes existing behavior: `src/exporter.py:8`, `src/exporter.py:33-34` | limit 50 to 100 (similarity 0.97) |
+| R-004 | unchanged | out (no change, already met) | &quot;An export request is rejected when the report has no rows.&quot; `requirements/v1.md:11` | &quot;An export request is rejected when the report has no rows.&quot; `requirements/v2.rst:14` | already met: `src/exporter.py:37-38` | |
+| R-005 | changed | in | &quot;Only the owner of a report can export it.&quot; `requirements/v1.md:15` | &quot;Only the owner of a report can export it; a request from anyone else is rejected with an error.&quot; `requirements/v2.rst:19` | changes existing behavior: `src/exporter.py:19` also allows teammates (`report.team == user.team`); the comment at `src/exporter.py:18` says this is deliberate; rejection with `ExportError` exists at `src/exporter.py:39-40` | similarity 0.6; v2 adds the rejection clause. Contradicts the code. See OP-003. |
+| R-006 | removed | out (dropped by the new version; PO to confirm) | &quot;Every export is recorded in the audit log.&quot; `requirements/v1.md:16` | — | already met: `src/exporter.py:42` | Code still writes the audit log. See OP-004. |
+| R-007 | added | in | — | &quot;A user can schedule an export to run every night.&quot; `requirements/v2.rst:20` | new: no scheduling code in `src/exporter.py` (the only source file) | See OP-005. |
+| R-008 | added | in | — | &quot;Exports of large reports should finish quickly.&quot; `requirements/v2.rst:21` | new: not checked against performance; `src/exporter.py:25-26` writes the rows one at a time | See OP-006. |
+
+## Findings
+
+- **R-002** — conflicting with the code: `src/exporter.py:22-27` writes CSV text whatever `fmt` is, so a &quot;PDF&quot; is not a PDF. Unchanged in v2, so not a new change. See OP-002.
+- **R-003** — ambiguous: &quot;at most 100 reports in one request&quot; does not say whether it applies to every user or role. The code compares `len(reports)` per request (`src/exporter.py:33`), which matches the wording. See OP-007. The constant `MAX_REPORTS_PER_REQUEST = 50` (`src/exporter.py:8`) must change.
+- **R-005** — conflicting: &quot;Only the owner of a report can export it&quot; against `report.owner == user.name or report.team == user.team` (`src/exporter.py:19`). Either the requirement tightens the rule and the team access goes away, or the requirement is incomplete. See OP-003. Also ambiguous: &quot;an error&quot; does not say which error or message.
+- **R-006** — missing: the audit rule disappears with no sign that it was dropped on purpose. The code still audits at `src/exporter.py:42`. Dropping it may have compliance consequences. See OP-004.
+- **R-007** — missing: no schedule time or time zone, no owner of the job, no output location, no behavior on failure or on a deleted or emptied report, no notification, and no word on whether R-003, R-004, R-005 and R-006 apply to scheduled runs. It also does not say whether a user can cancel or list their schedules. See OP-005.
+- **R-008** — untestable and a non-functional gap: &quot;large&quot; and &quot;quickly&quot; have no number. See OP-006.
+- **R-004** — &quot;rejected when the report has no rows&quot;: in the code the check runs inside the loop (`src/exporter.py:36-38`), so earlier reports in the same request are already written and audited when a later one is rejected. The requirement does not say whether a request is all-or-nothing. See OP-008. This is not a change in v2.
+
+## Open points
+
+| ID | Question for the PO | Affects | Blocks | Status | Resolved by |
+| -- | ------------------- | ------- | ------ | ------ | ----------- |
+| OP-001 | Sources: which repository and paths hold the current requirement, the previous version and the code? This run assumed the workspace for all three because nobody could be asked. Is that right? | R-001, R-002, R-003, R-004, R-005, R-006, R-007, R-008 | no | open | — |
+| OP-002 | The PDF format is in both versions, but the code writes CSV text into a `.pdf` file. Is real PDF output expected in this release? What should a PDF contain (layout, columns, branding)? | R-002 | no | open | — |
+| OP-003 | v2 says only the owner can export, but the code lets teammates export each other&apos;s reports on purpose. Is the team access to be removed, or should v2 keep it? | R-005 | yes | open | — |
+| OP-004 | v2 no longer says every export is recorded in the audit log. Was this removal intended? If yes, may the audit logging be removed from the code, or stay as it is? | R-006 | yes | open | — |
+| OP-005 | For nightly scheduled exports: at what time and in which time zone? Who owns the job and where does the output go? What happens when it fails, or when a report is empty or no longer owned by the user? Do the limit, owner and audit rules apply to scheduled runs? Can a user list and cancel schedules? | R-007 | yes | open | — |
+| OP-006 | What does &quot;large&quot; mean (rows or size) and what is &quot;quickly&quot; (a target time, at which percentile)? Is there a size above which the export may run in the background? | R-008 | no | open | — |
+| OP-007 | Is the limit of 100 reports per request the same for every user and role? Does the limit also apply to scheduled exports? | R-003 | no | open | — |
+| OP-008 | When one report in a request is rejected (no rows, or not owned), should the whole request fail with nothing exported, or may the earlier reports stay exported? | R-004, R-005 | no | open | — |
+
+## Assumptions
+
+| Assumption | Owner | Risk if wrong |
+| ---------- | ----- | ------------- |
+| The workspace holds the right current requirement (`v2.rst`), previous requirement (`v1.md`) and code (`src/exporter.py`). | PO | The analysis compares the wrong files; see OP-001. |
+| The 100-report limit stays per request, not per day or per user. | PO | The limit check is built in the wrong place. |
+| R-006 is treated as `removed` (out of scope) only for this analysis; the code is left as it is. | PO | A compliance duty is dropped by mistake; see OP-004. |
+| Unchanged requirements R-001 and R-004 need no work; R-002 is in scope only because the code does not meet it. | PO | Work is missed or scoped wrongly. |
+
+## Revision history
+
+- 2026-11-25 — first analysis of `requirements/v2.rst` against `requirements/v1.md`; unattended run, nothing answered for the PO.
+</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/epics.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">wrote-analysis</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/analysis.md exists as expected</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 3</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">7 turns · $0.17 · 23:42:32 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">findings</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS — note: long file (8538 chars); llm judges are noisy on long inputs, prefer a regex grader for large artifacts</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence"># Requirement analysis — export
+
+## Sources
+
+Unattended run (hard rule 10): the user could not be asked, so the workspace is used for all three roles and nothing was cloned. The repository has no commits yet, so there is no exact sha (see OP-007).
+
+| Role | Repository | Ref | Commit | Local path | Path in repository |
+| ---- | ---------- | --- | ------ | ---------- | ------------------ |
+| Current requirement | workspace | `main` | none: no commits yet | `.` | `requirements/v2.rst` |
+| Previous requirement | workspace | `main` | none: no commits yet | `.` | `requirements/v1.md` |
+| Code | workspace | `main` | none: no commits yet | `.` | `src/exporter.py` (the only source file listed) |
+
+## Changes
+
+Diff summary: 2 added, 1 removed, 2 changed, 0 moved, 7 unchanged units (the 7 include the title and 3 section headings).
+
+| ID | Status | Scope | Previous (path:line) | Current (path:line) | Code impact | Note |
+| -- | ------ | ----- | -------------------- | ------------------- | ----------- | ---- |
+| R-001 | unchanged | out (no change in v2) | &quot;The system exports a saved report as CSV.&quot; `requirements/v1.md:5` | &quot;The system exports a saved report as CSV.&quot; `requirements/v2.rst:7` | already met: `src/exporter.py:9`, `src/exporter.py:22` | |
+| R-002 | unchanged | out (no change in v2) | &quot;The system exports a saved report as PDF.&quot; `requirements/v1.md:6` | &quot;The system exports a saved report as PDF.&quot; `requirements/v2.rst:8` | not met: `src/exporter.py:22-27` | `_write` writes comma-separated text for every format, including `pdf`. See OP-008. |
+| R-003 | changed | in | &quot;A user can export at most 50 reports in one request.&quot; `requirements/v1.md:10` | &quot;A user can export at most 100 reports in one request.&quot; `requirements/v2.rst:13` | changes existing behavior: `src/exporter.py:8`, `src/exporter.py:33` | limit 50 to 100 (similarity 0.97) |
+| R-004 | unchanged | out (no change in v2) | &quot;An export request is rejected when the report has no rows.&quot; `requirements/v1.md:11` | &quot;An export request is rejected when the report has no rows.&quot; `requirements/v2.rst:14` | already met: `src/exporter.py:37-38` | |
+| R-005 | changed | in | &quot;Only the owner of a report can export it.&quot; `requirements/v1.md:15` | &quot;Only the owner of a report can export it; a request from anyone else is rejected with an error.&quot; `requirements/v2.rst:19` | changes existing behavior: `src/exporter.py:17-19` | similarity 0.6: the rejection clause is new. The code already raises `ExportError` at `src/exporter.py:39-40`, but `_may_export` also lets teammates export. |
+| R-006 | removed | out (dropped by the new version) | &quot;Every export is recorded in the audit log.&quot; `requirements/v1.md:16` | — | already met: `src/exporter.py:42` | Removed in v2 with no stated reason. See OP-004. |
+| R-007 | added | in | — | &quot;A user can schedule an export to run every night.&quot; `requirements/v2.rst:20` | new: no scheduler or job code in the workspace | |
+| R-008 | added | in | — | &quot;Exports of large reports should finish quickly.&quot; `requirements/v2.rst:21` | new: no performance handling. `_write` is a synchronous row loop (`src/exporter.py:25-26`). | |
+
+## Findings
+
+- **R-003** — ambiguous: &quot;at most 100 reports in one request&quot; does not say whether the limit is the same for every user or role. The code uses a single constant, `MAX_REPORTS_PER_REQUEST = 50` (`src/exporter.py:8`). Whether this is a per-request or per-day limit is an assumption. See OP-001.
+- **R-005** — conflicting: the code contradicts both versions. `report.owner == user.name or report.team == user.team` (`src/exporter.py:19`) lets teammates export, and the comment at line 18 says that is intended. v1 and v2 both say &quot;Only the owner&quot;. Neither version mentions teams. See OP-002.
+- **R-005** — ambiguous: &quot;rejected with an error&quot; does not say what kind of error (message, code, whether it reveals that the report exists). The code raises `ExportError(&quot;not allowed to export report %s&quot;)` (`src/exporter.py:40`). See OP-003.
+- **R-005** — the reject-or-export order matters in a batch. In the code the owner check runs inside the loop, so reports before the first rejected one have already been written and logged (`src/exporter.py:36-42`) when `ExportError` is raised. Neither version says whether a partly allowed request exports nothing or exports what it can. See OP-009.
+- **R-006** — missing rationale: a removal with no reason can mean the audit log is no longer required, or that it is out of this document&apos;s scope. The code still writes the log (`src/exporter.py:42`). See OP-004.
+- **R-007** — missing: no schedule definition. The text does not say who can schedule, which time zone &quot;every night&quot; means or what time, which report and format, how often a user can change or cancel it, what happens when a run fails, or whether a scheduled run counts toward the 100-report limit. It also does not say whether the owner-only rule (R-005) and the audit log apply to scheduled runs. See OP-005.
+- **R-008** — untestable: &quot;finish quickly&quot; and &quot;large reports&quot; have no number. This is a non-functional gap. See OP-006.
+- **R-002** — code gap not caused by v2: `_write` produces CSV text even when `fmt` is `pdf` (`src/exporter.py:22-27`). See OP-008.
+- **R-001..R-004 other** — `requirements/v1.md` and `requirements/v2.rst` have no requirement on the format of an error, on concurrency, or on retention of exported files in `/srv/exports` (`src/exporter.py:10`). These are not recorded as open points because the versions do not claim them.
+
+## Open points
+
+These are the questions I would ask the PO. None is answered here.
+
+| ID | Question for the PO | Affects | Blocks | Status | Resolved by |
+| -- | ------------------- | ------- | ------ | ------ | ----------- |
+| OP-001 | Is 100 the limit for every user and role? Does it count reports per request (as written) or per day or per schedule? | R-003 | no | open | — |
+| OP-002 | The code lets teammates (same team) export each other&apos;s reports. Is that wanted? If not, is &quot;only the owner&quot; a deliberate tightening that we should treat as a behavior change, and do admins or other roles get exceptions? | R-005 | yes | open | — |
+| OP-003 | What should &quot;rejected with an error&quot; look like for a non-owner (message, error code)? Should it reveal that the report exists? | R-005 | no | open | — |
+| OP-004 | Why was &quot;Every export is recorded in the audit log&quot; removed? Is audit logging no longer required (so the code at `src/exporter.py:42` should go), or is it covered by another document and must stay? | R-006 | yes | open | — |
+| OP-005 | For scheduled nightly exports: who can schedule one, at what time and in which time zone, for which report and format, how is it cancelled or edited, what happens when a run fails, and do the owner-only rule, the audit log and the report limit apply to scheduled runs? | R-007 | yes | open | — |
+| OP-006 | What does &quot;finish quickly&quot; mean in numbers: a time limit, for what report size (rows or MB), and under what load? | R-008 | no | open | — |
+| OP-007 | Unattended-run question: which repository, ref and commit hold the current requirement, the previous requirement and the code? This run used the workspace for all three, and the workspace has no commits. Is that right? | R-001..R-008 | no | open | — |
+| OP-008 | PDF export (unchanged text) is not met by the code, which writes CSV text for `pdf`. Is PDF delivery in scope for this release, and is there a layout to follow? | R-002 | no | open | — |
+| OP-009 | When one request contains reports the user may not export, should the whole request be rejected (nothing exported) or should the allowed reports still be exported? | R-005 | no | open | — |
+
+## Assumptions
+
+| Assumption | Owner | Risk if wrong |
+| ---------- | ----- | ------------- |
+| The 100-report limit applies per request, as the text says, for all users. | PO | The limit check is built in the wrong place or too loose for some roles. |
+| The workspace is the right requirement and code source (no other repository was provided or could be asked about). | User | Findings and code citations describe the wrong code. |
+| `v1.md` is the previous version and `v2.rst` is the current version. | User | Every row in the change table is wrong. |
+| The empty-report rejection (R-004) and the format list (R-001, R-002) are unchanged in meaning; the diff found no change in wording. | Analyst | Missing changes. |
+
+## Revision history
+
+- 2026-11-25 — first analysis of `requirements/v2.rst` against `requirements/v1.md` (unattended; workspace used for all sources; no DoU yet).
+</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/epics.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">wrote-analysis</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/analysis.md exists as expected</p>
+
+</div>
+</details></div>
+</div>
+</section><section class="arm">
+<div class="arm-head">
+<span class="arm-label">Baseline (no plugin)</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:33.3%"></span></span>
+<span class="num">33.3%</span>
+<span class="muted num">0% of runs perfect</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:33.3%"></span></span>
+<span class="num">33.3%</span>
+<span class="muted num">5 turns · $0.08 · 23:43:18 UTC</span>
+</div>
+
+<div class="graders"><details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">findings</span>  </summary>
+<div class="grader-body">
+<p class="explanation">grader threw: case &quot;analyze-requirements-flags-planted-changes&quot; grader focus file &quot;requirements/export/analysis.md&quot;: path &quot;requirements/export/analysis.md&quot; does not exist</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/epics.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">wrote-analysis</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/analysis.md missing (expected present)</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 2</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:33.3%"></span></span>
+<span class="num">33.3%</span>
+<span class="muted num">5 turns · $0.09 · 23:43:23 UTC</span>
+</div>
+
+<div class="graders"><details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">findings</span>  </summary>
+<div class="grader-body">
+<p class="explanation">grader threw: case &quot;analyze-requirements-flags-planted-changes&quot; grader focus file &quot;requirements/export/analysis.md&quot;: path &quot;requirements/export/analysis.md&quot; does not exist</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/epics.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">wrote-analysis</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/analysis.md missing (expected present)</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 3</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:33.3%"></span></span>
+<span class="num">33.3%</span>
+<span class="muted num">5 turns · $0.09 · 23:43:25 UTC</span>
+</div>
+
+<div class="graders"><details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">findings</span>  </summary>
+<div class="grader-body">
+<p class="explanation">grader threw: case &quot;analyze-requirements-flags-planted-changes&quot; grader focus file &quot;requirements/export/analysis.md&quot;: path &quot;requirements/export/analysis.md&quot; does not exist</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/epics.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">wrote-analysis</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/analysis.md missing (expected present)</p>
+
+</div>
+</details></div>
+</div>
+</section>
+</details>
+<details class="section" open>
+<summary>Prompt</summary>
+<div class="md"><p>Analyze requirements/v2.rst against requirements/v1.md, and keep the analysis in requirements/export/. I won't be around to answer questions, and the Product Owner is not reachable, so write down what you would ask instead of answering it yourself.</p>
+</div>
+</details>
+<details class="section" open>
+<summary>Graders — what "good" means for this case</summary>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">findings</span><span class="badge">llm</span></div>
+<div class="md"><p>The text is the <code>analysis.md</code> the run wrote for a report-export requirement, comparing <code>requirements/v2.rst</code> with <code>requirements/v1.md</code> and the code in <code>src/exporter.py</code>.</p>
+<p>PASS if it reports all five differences between the versions: the added requirement to schedule an export every night, with nothing in the code implementing it; the removed requirement that every export is recorded in the audit log; the limit changed from 50 to 100 reports per request; the new sentence that exports of large reports "should finish quickly", flagged as ambiguous or untestable, with a question for the Product Owner and no number invented for it; and the ownership requirement, which says a request from anyone but the owner is rejected, shown to contradict <code>src/exporter.py</code>, with a <code>path:line</code> citation of the code that lets a teammate export. Every open point is left open, and no answer is attributed to the Product Owner.
+FAIL if any of the five is missing, if the contradiction is claimed without a <code>src/exporter.py</code> line, if a requirement that did not change is reported as changed, if an open point is marked resolved or answered, or if a number or time is given for "quickly".</p>
+</div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">no-epics</span><span class="badge">file_exists</span></div>
+<div class="config"><div class="kv"><span>path</span><code>&quot;requirements/export/epics.md&quot;</code></div><div class="kv"><span>exists</span><code>false</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">used-skill</span><span class="badge">tool_used</span></div>
+<div class="config"><div class="kv"><span>tool</span><code>&quot;Skill&quot;</code></div><div class="kv"><span>input_match</span><code>&quot;\&quot;skill\&quot;\\s*:\\s*\&quot;(?:[\\w-]+:)?analyze-requirements\&quot;&quot;</code></div><div class="kv"><span>arm</span><code>&quot;with-only&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">wrote-analysis</span><span class="badge">file_exists</span></div>
+<div class="config"><div class="kv"><span>path</span><code>&quot;requirements/export/analysis.md&quot;</code></div><div class="kv"><span>exists</span><code>true</code></div></div>
+</div>
+</details>
+</article>
+<footer>Generated by <code>claude plugin eval</code> · schema v1 · scores are not comparable across different suites</footer>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  var bar=document.querySelector('.toolbar');
+  if(!bar)return;
+  bar.addEventListener('click',function(e){
+    var b=e.target&&e.target.closest('button');
+    if(!b)return;
+    var open=b.dataset.act==='expand';
+    document.querySelectorAll('details.section, details.grader').forEach(function(d){d.open=open});
+  });
+});
+// Collapsed details vanish from print/PDF; these pages are share artifacts.
+window.addEventListener('beforeprint',function(){
+  document.querySelectorAll('details').forEach(function(d){
+    if(!d.open){d.dataset.printOpened='1';d.open=true}
+  });
+});
+window.addEventListener('afterprint',function(){
+  document.querySelectorAll('details[data-print-opened]').forEach(function(d){
+    d.open=false;delete d.dataset.printOpened;
+  });
+});
+</script>
+</body>
+</html>

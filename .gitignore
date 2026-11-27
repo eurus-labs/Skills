@@ -224,4 +224,5 @@ __marimo__/
 
 # claude plugin eval run output
 plugins/*/evals/results/
+# plugins/*/evals/archive/ is tracked: tools/archive_eval_results.py writes the scrubbed copies there.
 eval-board.html

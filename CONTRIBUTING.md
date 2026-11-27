@@ -349,6 +349,11 @@ an author from a subject, so any rule placed there contaminates the measurement 
   `eval-board.html` (git-ignored): one card per skill with the cases that must fire it, keep it quiet, or
   grade its behavior, and each case's latest score from the local `plugins/*/evals/results/`. A score from
   a partial suite or an errored run is shown but never counted as trusted.
+- **Keep a run in the repository** with `python3 tools/archive_eval_results.py <results folder or bundle>`. It
+  copies `aggregate-result.json` and `report.html` to the tracked `plugins/<plugin>/evals/archive/<timestamp>/`
+  with every absolute local path replaced by `<local>`, and refuses a secret pattern or a file over 5 MB.
+  Only the tool writes `archive/`; `--check` verifies it, and the board and skill manager read it with
+  `results/`.
 - **Run the same cases on GitHub Copilot CLI** with `python3 tools/copilot_eval.py plugins/<plugin>`. Each
   case runs in a fresh workspace from its `scaffold.sh`, with the plugin (`--plugin-dir`) and without it.
   Add `--run` to have the script start `copilot -p` for each arm. Without it, you start Copilot yourself.

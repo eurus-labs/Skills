@@ -453,9 +453,9 @@ __BODY__
 
 
 def results_signature(repo=None):
-    """(signature, count) of the eval result files: SHA-1 over each file's repository-relative path, mtime
-    and size. It reads no file contents, so the page can ask every few seconds. A file that vanishes
-    between the listing and its stat is left out."""
+    """(signature, count) of the eval result files under results/ and archive/: SHA-1 over each file's
+    repository-relative path, mtime and size. It reads no file contents, so the page can ask every few
+    seconds. A file that vanishes between the listing and its stat is left out."""
     repo = repo or REPO
     entries = []
     for path in board.result_files(repo):

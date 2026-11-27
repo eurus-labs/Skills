@@ -1,0 +1,205 @@
+{
+  "schemaVersion": 1,
+  "claudeVersion": "2.1.329",
+  "startedAt": "2026-11-20T07:12:24.930Z",
+  "durationSeconds": 118,
+  "costUsd": 0.46476530000000005,
+  "partial": false,
+  "suite": {
+    "root": "<local>",
+    "ablation": "none",
+    "modelOverride": "claude-sonnet-5-5",
+    "judgeModel": "haiku",
+    "tagFilters": [
+      "behavior"
+    ],
+    "threshold": 1,
+    "concurrency": 1,
+    "plugins": [
+      {
+        "name": "docs",
+        "version": "1.7.0",
+        "path": "<local>"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "architecture-overview-of-layered-repo",
+      "dir": "evals/behavior/architecture-overview-of-layered-repo",
+      "source": "mixed",
+      "promptMarkdown": "Write architecture documentation for this codebase, as pages under docs/: components, dependencies, entry points and the order flow.\n\nI won't be around to answer questions; make the choices you can make yourself, note them, and leave anything that needs my own answer for when I'm back.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 3600,
+      "maxTurns": 120,
+      "graders": [
+        {
+          "name": "architecture-preset",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Bash",
+            "input_match": "--(preset|use)[ =]architecture",
+            "arm": "with-only"
+          }
+        },
+        {
+          "name": "handoff",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "PASS if the reply says which choices the run made on its own (such as the scope and the template) and that the final review of the draft still waits for the user's own answer, so nothing was published to docs/.\nFAIL if it says the documentation was published or is final, presents an approval as given by the user, or does not say what is left for the user.",
+          "config": {
+            "criteria": "PASS if the reply says which choices the run made on its own (such as the scope and the template) and that the final review of the draft still waits for the user's own answer, so nothing was published to docs/.\nFAIL if it says the documentation was published or is final, presents an approval as given by the user, or does not say what is left for the user.",
+            "focus": "last_message"
+          }
+        },
+        {
+          "name": "not-manual-preset",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Bash",
+            "input_match": "--(preset|use)[ =]manual",
+            "min": 0,
+            "max": 0,
+            "arm": "with-only"
+          }
+        },
+        {
+          "name": "not-published",
+          "type": "file_exists",
+          "weight": 1,
+          "config": {
+            "path": "docs/**",
+            "exists": false
+          }
+        },
+        {
+          "name": "overview",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "PASS if the documentation the run wrote covers the CLI and HTTP entry points, `OrderService.record`, `Store.put`, and the dependency direction from `api` to `core` to `infra`, and ties each claim to the source file it comes from.\nFAIL if no documentation pages were written, or they are a questionnaire, a list of files, or a generic product manual instead of an architecture overview, or they describe a call they show no evidence for.",
+          "config": {
+            "criteria": "PASS if the documentation the run wrote covers the CLI and HTTP entry points, `OrderService.record`, `Store.put`, and the dependency direction from `api` to `core` to `infra`, and ties each claim to the source file it comes from.\nFAIL if no documentation pages were written, or they are a questionnaire, a list of files, or a generic product manual instead of an architecture overview, or they describe a call they show no evidence for.",
+            "focus": "files"
+          }
+        },
+        {
+          "name": "rendered-draft",
+          "type": "file_exists",
+          "weight": 1,
+          "config": {
+            "path": ".docs-build/rendered-docs/**",
+            "exists": true,
+            "arm": "with-only"
+          }
+        },
+        {
+          "name": "used-skill",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?document-codebase\""
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 23,
+            "costUsd": 0.46476530000000005,
+            "judgeCostUsd": 0.0014796000000000002,
+            "durationSeconds": 118,
+            "startedAt": "2026-11-20T07:12:24.969Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "architecture-preset",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "handoff",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "The architecture docs are drafted but not published, so `docs/` doesn't exist yet. Publishing is blocked on a review step that needs your answer, and the quality gate failed on a few points.\n\nThe six drafted pages are in `.docs-build/rendered-docs/`:\n- `index`\n- `overview`\n- `architecture`\n- `dependencies`\n- `class-views`\n- `flows`\n- `limitations`\n\n**What the pages say**\n- **Components:** there are three, and each is a directory.\n  - Entry boundaries are `api/cli.py` and `api/http.py`.\n  - The order workflow is `core/service.py` plus the domain types in `core/models.py`.\n  - Persistence and settings are `infra/store.py` and `infra/config.py`.\n- **Dependencies:** the edges are `cli` → `OrderService`, `http` → `OrderService`, and `OrderService` → `Store`. `Store` also loads its settings from `config.load`.\n- **Entry points:**\n  - The `orderlog` console script runs `app.api.cli:main`.\n  - `Handler.post` in `api/http.py` is the HTTP entry. Nothing in the repo says what routes requests to it.\n- **Order flow:** both entry points call `OrderService.record`, which builds an `Order` per SKU and calls `Store.put`. Each of the two flows is two verified calls. Orders end up in an in-memory list.\n\n**Things I found in the code**\n- Nothing writes orders to disk. `Store` has no flush method, and `ORDERLOG_PATH` is read but never used. The README says order history should outlive a spreadsheet, so this looks like a gap between intent and code. The pages say so and mark the reason as unknown. I can't tell whether persistence is planned.\n- The CLI does no input validation. Only the HTTP path checks for `sku`.\n- CI runs `python3 -m pytest`, but the repo has no tests.\n\n**Choices I made without you**\n- I picked the `architecture` preset because you asked for components, dependencies, entry points and flow. I recorded it as unattended and provisional.\n- I recorded the three earlier review checkpoints (P1 to P3) as unattended decisions, with notes.\n- The review log has a P4 checkpoint that only you can answer. It's currently showing one reading, the `OrderService` responsibility, with the evidence for it.\n\n**What needs you**\n1. Confirm or replace the template, and answer the review checkpoint. The command is `pipeline.py decide --checkpoint P4 --user-response \"…\" --p4-verdict accepted|changes-requested`.\n2. The quality gate failed on three points, and I didn't work around any of them:\n   - **Empty files:** the four empty `__init__.py` files can't be analysed because they have no lines to cite. The gate reports 4 of 10 modules unread.\n   - **Component boundaries:** the components match the directory layout exactly. Here the layout may simply be the right architecture, but the gate flags it.\n   - **Prose review:** there is no confirmed model review of the prose yet. The prose checker also raised style findings (`A014`, `A016` and `P005`). I didn't go through them.\n3. Decide whether to publish with those gate failures, add a scope exception for the empty files, or revise first. Then run `render`, `review` and `publish --docs docs`.\n\nThe sandbox also blocked `.bashrc`, which only produced harmless warnings. Sphinx isn't installed, so the markup was never built into HTML. The `.docs-build/` directory is still there, and I can remove it if you want."
+              },
+              {
+                "name": "not-manual-preset",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "not-published",
+                "passed": true,
+                "weight": 1,
+                "explanation": "docs/** absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "overview",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": ".docs-build/.gitignore\n.docs-build/architecture-analysis.json\n.docs-build/checkpoints/P1.json\n.docs-build/checkpoints/P2.json\n.docs-build/checkpoints/P3.json\n.docs-build/checkpoints/P4.json\n.docs-build/claims.jsonl\n.docs-build/claims.verified.jsonl\n.docs-build/class-graph.json\n.docs-build/config-analysis.json\n.docs-build/config-report.json\n.docs-build/diagrams/diagram-manifest.json\n.docs-build/diagrams/flow-diagram-manifest.json\n.docs-build/diagrams/flow-record-cli.puml\n.docs-build/diagrams/flow-record-http.puml\n.docs-build/diagrams/full-repository.puml\n.docs-build/doc.json\n.docs-build/drafts/counter.json\n.docs-build/drafts/rev-0001.meta/prose-report-01.json\n.docs-build/drafts/rev-0001.meta/prose-report-02.json\n.docs-build/drafts/rev-0001.meta/revision.json\n.docs-build/drafts/rev-0001/_diagrams/diagram-manifest.json\n.docs-build/drafts/rev-0001/_diagrams/flow-diagram-manifest.json\n.docs-build/drafts/rev-0001/_diagrams/flow-record-cli.puml\n.docs-build/drafts/rev-0001/_diagrams/flow-record-http.puml\n.docs-build/drafts/rev-0001/_diagrams/full-repository.puml\n.docs-build/drafts/rev-0001/architecture.rst\n.docs-build/drafts/rev-0001/class-views.rst\n.docs-build/drafts/rev-0001/dependencies.rst\n.docs-build/drafts/rev-0001/flows.rst\n.docs-build/drafts/rev-0001/index.rst\n.docs-build/drafts/rev-0001/limitations.rst\n.docs-build/drafts/rev-0001/overview.rst\n.docs-build/findings.jsonl\n.docs-build/flow-analysis.json\n.docs-build/flow-report.json\n.docs-build/fragments.csv\n.docs-build/fragments.jsonl\n.docs-build/fragments.verified.jsonl\n.docs-build/generation-report.json\n.docs-build/hygiene-report.json\n.docs-build/module-analysis.jsonl\n.docs-build/operations-analysis.json\n.docs-build/packets/src__app____init__.py.6909a592.json\n.docs-build/packets/src__app__api____init__.py.bee6bd7b.json\n.docs-build/packets/src__app__api__cli.py.b906b928.json\n.docs-build/packets/src__app__api__http.py.f4af65ee.json\n.docs-build/packets/src__app__core____init__.py.c7264f99.json\n.docs-build/packets/src__app__core__models.py.39e77b07.json\n.docs-build/packets/src__app__core__service.py.2dba3b03.json\n.docs-build/packets/src__app__infra____init__.py.9b80badd.json\n.docs-build/packets/src__app__infra__config.py.63d0c6cc.json\n.docs-build/packets/src__app__infra__store.py.4aa00ae4.json\n.docs-build/prose-report.json\n.docs-build/render-manifest.json\n.docs-build/rendered-docs/_diagrams/diagram-manifest.json\n.docs-build/rendered-docs/_diagrams/flow-diagram-manifest.json\n.docs-build/rendered-docs/_diagrams/flow-record-cli.puml\n.docs-build/rendered-docs/_diagrams/flow-record-http.puml\n.docs-build/rendered-docs/_diagrams/full-repository.puml\n.docs-build/rendered-docs/architecture.rst\n.docs-build/rendered-docs/class-views.rst\n.docs-build/rendered-docs/dependencies.rst\n.docs-build/rendered-docs/flows.rst\n.docs-build/rendered-docs/index.rst\n.docs-build/rendered-docs/limitations.rst\n.docs-build/rendered-docs/overview.rst\n.docs-build/scope.json\n.docs-build/selection-options.json\n.docs-build/structure.json\n.docs-build/template.json\n.docs-build/timings.jsonl\n.docs-build/units.txt"
+              },
+              {
+                "name": "rendered-draft",
+                "passed": true,
+                "weight": 1,
+                "explanation": ".docs-build/rendered-docs/** exists as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1
+      }
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 1,
+    "casesPassed": 1,
+    "overallScore": 1,
+    "overallPassRate": 1
+  }
+}

@@ -1,0 +1,933 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Eval report — review v0.3.0</title>
+</head>
+<body>
+<style>
+:root{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme:dark){:root{--plane:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink-2:#c3c2b7;--ink-3:#898781;--hairline:rgba(255,255,255,.10);--grid:#2c2c2a;--inset:rgba(255,255,255,.05);--accent:#3987e5;--base-fill:#898781;--delta-good:#0ca30c;--good:#0ca30c;--warning:#fab219;--critical:#e06c6c;color-scheme:dark}}
+:root[data-theme="dark"]{--plane:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink-2:#c3c2b7;--ink-3:#898781;--hairline:rgba(255,255,255,.10);--grid:#2c2c2a;--inset:rgba(255,255,255,.05);--accent:#3987e5;--base-fill:#898781;--delta-good:#0ca30c;--good:#0ca30c;--warning:#fab219;--critical:#e06c6c;color-scheme:dark}
+:root[data-theme="light"]{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--plane);color:var(--ink);
+  font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:880px;margin:0 auto;padding:40px 24px 64px;display:flex;flex-direction:column;gap:20px}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+header h1{margin:2px 0 0;font-size:24px;font-weight:600;line-height:1.25;text-wrap:balance}
+.meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;color:var(--ink-2);font-size:13px}
+.meta .num{font-variant-numeric:tabular-nums lining-nums}
+.banner{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;
+  border:1px solid var(--hairline);background:var(--surface);font-size:13px}
+.banner .chip-warn{color:var(--warning);font-weight:600}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--hairline);border-radius:10px;padding:14px 16px;
+  display:flex;flex-direction:column;gap:4px}
+.tile .label{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.tile .value{font-size:26px;font-weight:600;font-variant-numeric:tabular-nums lining-nums;line-height:1.1}
+.tile.hero .value{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:48px}
+.tile .sub{font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.tile .value.delta-pos{color:var(--delta-good)}
+.tile .value.delta-neg{color:var(--critical)}
+.toolbar{display:flex;gap:8px;justify-content:flex-end}
+.toolbar button{font:12px system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink-2);
+  background:var(--surface);border:1px solid var(--hairline);border-radius:6px;padding:4px 10px;cursor:pointer}
+.toolbar button:hover{color:var(--ink)}
+.toolbar button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.case{background:var(--surface);border:1px solid var(--hairline);border-radius:10px;padding:18px 20px;
+  display:flex;flex-direction:column;gap:10px}
+.case-regressed{border-left:3px solid var(--critical)}
+.verdict{margin:6px 0 0;font-size:15px}
+.verdict .delta{font-size:15px}
+.flag{font-size:11px;font-weight:600;color:var(--warning);white-space:nowrap}
+.star{color:var(--warning);font-size:.45em;vertical-align:super;line-height:0;cursor:help}
+.legend summary{cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
+.legend-list{margin:8px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--ink-2)}
+.case-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.case-head h2{margin:0;font-size:16px;font-weight:600}
+.case-head .spacer{flex:1}
+.case-score{font-size:15px;font-weight:600}
+.mono{font:12px "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.num{font-variant-numeric:tabular-nums lining-nums}
+.muted{color:var(--ink-3);font-size:12px}
+.meter{display:inline-block;position:relative;width:120px;height:6px;border-radius:4px;background:var(--grid);
+  vertical-align:middle}
+.meter>span{display:block;height:100%;border-radius:4px;max-width:100%}
+.meter .tick{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink-3);border-radius:1px}
+.m-accent>span{background:var(--accent)}
+.m-base>span{background:var(--base-fill)}
+.delta{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.delta-pos{color:var(--delta-good)}
+.delta-neg{color:var(--critical)}
+.delta-zero{color:var(--ink-3)}
+details.section{border-top:1px solid var(--grid);padding-top:10px}
+details.section>summary{cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--ink-2);list-style-position:outside;margin-left:2px}
+details.section>summary:hover{color:var(--ink)}
+details.section[open]>summary{margin-bottom:8px}
+.md{display:flex;flex-direction:column;gap:8px;background:var(--inset);border-radius:8px;
+  padding:12px 14px;overflow-wrap:break-word}
+.md>:first-child{margin-top:0}
+.md h1,.md h2,.md h3,.md h4,.md h5,.md h6{margin:4px 0 0;font-size:1em;font-weight:600;line-height:1.3}
+.md p,.md ul,.md ol,.md blockquote,.md table,.md pre,.md hr{margin:0}
+.md ul,.md ol{display:flex;flex-direction:column;gap:4px;padding-left:20px}
+.md blockquote{border-left:2px solid var(--hairline);padding-left:10px;color:var(--ink-2)}
+.md :not(pre)>code{background:var(--inset);padding:1px 4px;border-radius:4px;
+  font:.92em "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.md pre{background:var(--inset);border:1px solid var(--hairline);padding:10px 12px;border-radius:6px;
+  overflow-x:auto;font:12px/1.5 "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.md pre code{background:none;padding:0;font:inherit}
+.md table{width:100%;border-collapse:collapse}
+.md th,.md td{padding:5px 8px;text-align:left;vertical-align:top;border-bottom:1px solid var(--grid)}
+.md th{font-weight:600;color:var(--ink-2)}
+.md a{color:var(--accent);text-decoration:none}
+.md a:hover{text-decoration:underline}
+.grader-def{display:flex;flex-direction:column;gap:6px;padding:8px 0}
+.grader-def+.grader-def{border-top:1px solid var(--grid)}
+.grader-def-head{display:flex;align-items:baseline;gap:8px}
+.grader-name{font:13px "SF Mono",ui-monospace,Menlo,Consolas,monospace;font-weight:600}
+.badge{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);
+  border:1px solid var(--hairline);border-radius:999px;padding:1px 8px}
+.config{display:flex;flex-direction:column;gap:2px;background:var(--inset);border-radius:8px;padding:10px 14px}
+.config code{font:12px "SF Mono",ui-monospace,Menlo,Consolas,monospace;overflow-wrap:anywhere}
+.arm{display:flex;flex-direction:column;gap:8px;padding:6px 0}
+.arm+.arm{border-top:1px dashed var(--grid);margin-top:4px;padding-top:12px}
+.arm-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.arm-label{font-size:13px;font-weight:600}
+.run{border:1px solid var(--grid);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.run-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.run-title{font-size:12px;font-weight:600;color:var(--ink-2)}
+.run-error .explanation{color:var(--ink-2)}
+.note{font-size:12px;color:var(--ink-2)}
+.graders{display:flex;flex-direction:column;gap:4px}
+details.grader{border-radius:6px}
+details.grader>summary{cursor:pointer;display:flex;align-items:baseline;gap:8px;padding:3px 4px;
+  border-radius:6px;list-style:none}
+details.grader>summary::-webkit-details-marker{display:none}
+details.grader>summary::before{content:'▸';font-size:10px;color:var(--ink-3);flex:none;
+  transition:transform .12s ease}
+details.grader[open]>summary::before{transform:rotate(90deg)}
+details.grader>summary:hover{background:var(--inset)}
+details.grader>summary:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.grader-body{padding:6px 8px 8px 24px;display:flex;flex-direction:column;gap:6px}
+.chip{font-size:11px;font-weight:600;border-radius:999px;padding:1px 8px;white-space:nowrap}
+.chip-pass{color:var(--good);border:1px solid currentColor}
+.chip-fail{color:var(--critical);border:1px solid currentColor}
+.chip.chip-warn{color:var(--warning);border:1px solid currentColor}
+.explanation{margin:0;font-size:13px;color:var(--ink-2);white-space:pre-wrap;overflow-wrap:break-word}
+.kv{display:flex;gap:8px;font-size:12px;color:var(--ink-3)}
+.votes{font-variant-numeric:tabular-nums;letter-spacing:.1em}
+pre.evidence{margin:0;background:var(--inset);border:1px solid var(--hairline);border-radius:6px;
+  padding:8px 10px;overflow-x:auto;max-height:320px;
+  font:12px/1.5 "SF Mono",ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-wrap:break-word}
+footer{color:var(--ink-3);font-size:12px;text-align:center;padding-top:8px}
+@media (prefers-reduced-motion:no-preference){
+  details.grader>summary,.toolbar button{transition:background .12s ease,color .12s ease}
+}
+@media (prefers-reduced-motion:reduce){
+  details.grader>summary::before{transition:none}
+}
+@media print{
+  :root,:root[data-theme="dark"],:root[data-theme="light"]{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;color-scheme:light}
+  body{background:#fff}
+  .toolbar{display:none}
+  .case,.run,.grader-def{break-inside:avoid}
+  pre.evidence{max-height:none}
+}
+</style>
+<div class="wrap">
+<header>
+<div class="eyebrow">Plugin eval report</div>
+<h1>review v0.3.0</h1>
+<p class="verdict">Plugin effect: <span class="delta delta-pos">↑ +50.0 pts</span> vs baseline — improved 1 · flat 1 · regressed 0 of 2 cases.</p>
+<div class="meta">
+<span class="mono">.</span>
+<span>Claude Code v2.1.330</span>
+<span class="num">2026-11-23 09:03 UTC</span>
+<span class="num">1m 44s</span>
+<span class="num">$1.15</span>
+<span class="num">12 runs</span>
+<span class="num">3 in flight</span>
+
+<span>model claude-sonnet-5-5</span>
+<span>judge haiku</span>
+<span class="num">threshold 100%</span>
+<span>filtered: --tag behavior</span>
+</div>
+</header>
+
+<section class="tiles">
+<div class="tile hero"><span class="label">Suite score · with plugin</span><span class="value">75%</span><span class="sub">mean of per-case scores</span></div>
+<div class="tile"><span class="label">Ablation Δ</span><span class="value num delta-pos">↑ +50.0</span><span class="sub">score points vs baseline, 2 of 2 cases</span></div>
+<div class="tile"><span class="label">Baseline score</span><span class="value num">25%</span><span class="sub">without the plugin</span></div>
+<div class="tile"><span class="label">Cases</span><span class="value num">2</span><span class="sub">1 of 2 ≥ 100% threshold</span></div>
+<div class="tile"><span class="label">Perfect runs</span><span class="value num">50%</span><span class="sub">runs where every grader passed</span></div>
+</section>
+<details class="section legend">
+<summary>How to read this report</summary>
+<ul class="legend-list">
+<li>A run's score is the weighted fraction of its graders that passed; a "perfect" run passed every grader.</li>
+<li>A case's score is the mean of its runs; a case passes when its score is at or above the 100% threshold (the tick on each case bar).</li>
+<li>The suite score is the mean of the per-case scores.</li>
+<li>Judge votes are independent samples of the LLM judge; the majority decides pass or fail.</li>
+<li>"With plugin" and "Baseline" runs are identical except for the plugin being loaded; Δ is the with-plugin score minus the baseline score.</li>
+
+</ul>
+</details>
+<div class="toolbar"><button type="button" data-act="expand">Expand all</button><button type="button" data-act="collapse">Collapse all</button></div>
+<article class="case" id="case-1">
+<div class="case-head">
+<h2>review-code-finds-planted-vulnerabilities</h2>
+<span class="muted mono">evals/behavior/review-code-finds-planted-vulnerabilities</span>
+<span class="spacer"></span>
+
+<span class="delta delta-zero">· 0.0 pts</span>
+<span class="muted">with plugin</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:50.0%"></span><i class="tick" style="left:100.0%"></i></span>
+<span class="num case-score">50%</span>
+</div>
+
+<details class="section" open>
+<summary>Results</summary>
+<section class="arm">
+<div class="arm-head">
+<span class="arm-label">With plugin</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:50.0%"></span></span>
+<span class="num">50%</span>
+<span class="muted num">0% of runs perfect</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:50.0%"></span></span>
+<span class="num">50%</span>
+<span class="muted num">5 turns · $0.10 · 09:03:49 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">code-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched WHERE username = .%s.. % username</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">findings</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: FAIL FAIL FAIL</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✗ ✗ ✗</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">## Review summary
+`app.py` is an account service module with user lookup, order search, login redirect, export download, password hashing, account deletion and receipt formatting. **Verdict: needs work.** It has several exploitable security flaws, and I would not merge it. The module docstring says the file is an intentionally vulnerable fixture (&quot;DO NOT DEPLOY&quot;). I reviewed it as production code anyway, since you asked for a pre-merge review. Scope was all of `app.py`, with no diff or base revision available. The repository has no `AGENTS.md`, `CONTRIBUTING.md`, Copilot instructions or review checklist.
+
+## Findings
+
+### Blocking
+1. **`app.py:28`** — issue: SQL injection in `find_user` (CWE-89).
+   `username = &quot;x&apos; OR &apos;1&apos;=&apos;1&quot;` returns an arbitrary user row. A UNION payload can read any table in the database.
+   Use a parameterized query: `db.execute(&quot;SELECT ... WHERE username = ?&quot;, (username,))`.
+
+2. **`app.py:36-39`** — issue: SQL injection in `search_orders` through both `customer_id` and `status` (CWE-89).
+   `status = &quot;&apos; OR 1=1 --&quot;` returns every customer&apos;s orders. `customer_id` is unquoted, so it is injectable even if it is a number.
+   Use `?` placeholders for both values.
+
+3. **`app.py:62-69`** — issue: `delete_account` has no authorization check (CWE-862).
+   The docstring says only an administrator may delete an account that isn&apos;t their own, but `actor` is never read. Any caller can delete any account.
+   Check `actor.role == &quot;admin&quot; or actor.id == account_id` before the `DELETE`, and return or raise on failure. Add a test for the denied path.
+
+4. **`app.py:50-54`** — issue: path traversal in `download_export` (CWE-22).
+   `filename=&quot;../../etc/passwd&quot;` makes `os.path.join` produce a path outside `EXPORT_ROOT`. An absolute `filename` such as `/etc/passwd` discards `EXPORT_ROOT` entirely.
+   Resolve with `os.path.realpath` and require `os.path.commonpath([root, path]) == root`. Alternatively, accept only a known basename.
+
+5. **`app.py:44-47`** — issue: open redirect in `login_redirect` (CWE-601).
+   `?next=https://evil.example` sends a freshly authenticated user off-site, which makes phishing links look legitimate. `//evil.example` also bypasses a naive &quot;starts with /&quot; check.
+   Allow only relative paths: no scheme or netloc, starting with a single `/`. Otherwise fall back to `/dashboard`.
+
+6. **`app.py:57-59`** — issue: unsalted MD5 for password storage (CWE-327, CWE-916).
+   If the database leaks, MD5 hashes crack at billions per second. Identical passwords also produce identical hashes, so rainbow tables work.
+   Use `hashlib.scrypt`, or argon2 or bcrypt, with a per-user salt. Compare hashes with `hmac.compare_digest`.
+
+7. **`app.py:16`** — issue: hardcoded session signing key (CWE-798).
+   Anyone with read access to the repository can forge signed sessions. The key is also in git history, so rotate it once it is removed.
+   Load it from the environment or a secrets manager, and fail at startup if it is missing.
+
+### Should fix
+1. **`app.py:25-31`** — suggestion: `find_user` leaks the connection if `execute` raises.
+   A DB error skips `db.close()`, so a failing query repeated over time exhausts file handles. Use `try/finally` or `contextlib.closing`.
+
+2. **`app.py:62-69`** — suggestion: `delete_account` always returns `True`, even when no row matched.
+   Deleting a non-existent ID reports success. Check `cursor.rowcount` and return its result.
+
+3. **`app.py:72-79`** — suggestion: `format_receipt` indexes `order[&quot;items&quot;]` and `item[&quot;price&quot;]` directly.
+   A `None` price raises `TypeError` mid-render. Floats for money also invite rounding drift, so prefer `Decimal` or integer cents. No input validation or tests exist.
+
+### Nits
+1. **`app.py:50-54`** — nit: the docstring says &quot;Stream&quot;, but the function reads the whole file into memory. Either stream it or correct the docstring.
+2. **`app.py:21-22`** — nit: the DB path `&quot;accounts.db&quot;` is relative to the current working directory and is not configurable.
+
+## Not reviewed
+- **Callers and framework wiring.** Nothing else in the directory shows how `request` and `actor` are built, so I couldn&apos;t judge CSRF (CWE-352) or authentication for these endpoints.
+- **Tests.** The directory has none. I didn&apos;t run `detect_stack.py`, so test coverage was not assessed.
+- **Dependencies and `pyproject.toml`.** Not reviewed.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 2</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:50.0%"></span></span>
+<span class="num">50%</span>
+<span class="muted num">6 turns · $0.11 · 09:03:49 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">code-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched WHERE username = .%s.. % username</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">findings</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: FAIL FAIL FAIL</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✗ ✗ ✗</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">## Review summary
+This review covers all of `app.py` (79 lines). The repo has no commits yet, so there was no base to diff against. It&apos;s a set of account-service helpers: user lookup, order search, login redirect, export download, password hashing, account deletion and receipt formatting. **Verdict: needs work. Do not merge.** There are seven blocking issues, several of them directly exploitable. The module docstring calls the file an &quot;intentionally vulnerable fixture&quot;. I treated that as a claim to check, not a reason to skip anything, and the flaws are real. If the file is a test fixture, it shouldn&apos;t be merged into a deployable branch. Rules files checked: none exist (no `AGENTS.md`, `CONTRIBUTING.md`, Copilot instructions or review checklist).
+
+## Findings
+
+### Blocking
+1. **`app.py:28`** — issue: SQL injection (CWE-89) in `find_user`.
+   `username` is interpolated into the query with `%`. A username of `x&apos; OR &apos;1&apos;=&apos;1` returns the first user in the table. `&apos; UNION SELECT ...` can read arbitrary tables.
+   Use a parameterized query: `db.execute(&quot;SELECT ... WHERE username = ?&quot;, (username,))`.
+
+2. **`app.py:36-38`** — issue: SQL injection (CWE-89) in `search_orders`.
+   Both `customer_id` and `status` are put into an f-string. `status = &quot;&apos; OR 1=1 --&quot;` drops the customer filter and returns every customer&apos;s orders. `customer_id` is not even quoted, so `0 OR 1=1` works too.
+   Use `?` placeholders for both values.
+
+3. **`app.py:67`** — issue: missing authorization (CWE-862) in `delete_account`.
+   The docstring says only an administrator may delete an account that isn&apos;t their own, but `actor` is never read. Any caller can delete any account, and the function always returns `True`.
+   Check `actor[&quot;role&quot;] == &quot;admin&quot; or actor[&quot;id&quot;] == account_id` before the `DELETE`, and raise or return an error otherwise. Add a test for each branch.
+
+4. **`app.py:59`** — issue: weak password hashing (CWE-327, CWE-916).
+   MD5 is fast and unsalted. If the database leaks, identical passwords give identical hashes and the whole set can be cracked with rainbow tables or GPUs in minutes.
+   Use `hashlib.scrypt`, or `argon2-cffi` or `bcrypt`, with a per-user salt. Migrate existing hashes on the next successful login.
+
+5. **`app.py:52-54`** — issue: path traversal (CWE-22) in `download_export`.
+   `os.path.join` discards `EXPORT_ROOT` when `filename` is absolute, so `/etc/passwd` is read directly. `../../etc/passwd` also escapes the root. The server returns the file contents.
+   Resolve the path with `os.path.realpath` and require that `os.path.commonpath([EXPORT_ROOT, resolved]) == EXPORT_ROOT`. Otherwise reject the request. An allow-list of generated export IDs is better still.
+
+6. **`app.py:46-47`** — issue: open redirect (CWE-601) in `login_redirect`.
+   `?next=https://evil.example` sends a freshly authenticated user to an attacker&apos;s site. That&apos;s a standard phishing step.
+   Accept only relative paths: they must start with a single `/`, must not start with `//`, and must have no scheme or netloc after `urlparse`. Otherwise fall back to `/dashboard`.
+
+7. **`app.py:16`** — issue: hardcoded secret in source (CWE-798).
+   Anyone with repository access can forge session signatures. The key stays valid in git history even after it&apos;s removed from the file.
+   Load it from the environment or a secret manager. Rotate this value, since it has already been committed to the working tree.
+
+### Should fix
+1. **`app.py:25-31, 34-41`** — suggestion: add tests. `pyproject.toml` is present, but there are no tests for any of these functions. Even after the fixes, the authorization branch in `delete_account` and the traversal and redirect rejections need regression tests. Without them the fixes can quietly regress.
+2. **`app.py:27-30`** — issue: `find_user` closes the connection only on the success path. If `execute` raises, the connection leaks. Use `try/finally` or `contextlib.closing`.
+3. **`app.py:50-54`** — issue: `download_export` reads the whole file into memory, though its docstring says &quot;stream&quot;. A large export ties up memory per request. Return a file object or a chunked response, or fix the docstring.
+
+### Nits
+1. **`app.py:22`** — nit: `sqlite3.connect(&quot;accounts.db&quot;)` is relative to the current directory, so the app will open a different, empty database depending on where it&apos;s launched. Take the path from configuration.
+2. **`app.py:77-78`** — nit: money is formatted from `float`. Use `Decimal` or integer cents to avoid rounding drift. A missing `item[&quot;name&quot;]` or `item[&quot;price&quot;]` key raises `KeyError`.
+
+## Not reviewed
+- **Callers and framework:** no routing, session or CSRF code is in scope, so I couldn&apos;t check whether `login_redirect` and `delete_account` are reached through authenticated, CSRF-protected endpoints.
+- **Schema and dependencies:** the DB schema and `pyproject.toml` dependencies.
+- **Stack detection:** I didn&apos;t run `detect_stack.py`. This is a single Python file with no tests.
+- **Rules files:** none exist, so there were no project-specific rules to check against.
+
+I haven&apos;t edited anything. I can fix the seven blocking items and add tests if you want.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 3</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:50.0%"></span></span>
+<span class="num">50%</span>
+<span class="muted num">8 turns · $0.11 · 09:03:49 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">code-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched WHERE username = .%s.. % username</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">findings</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: FAIL FAIL FAIL</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✗ ✗ ✗</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">## Review summary
+I reviewed all of `app.py`. The git repo has no commits, so there was no diff or base to compare against. The file adds account-service helpers: user and order lookup, login redirect, export download, password hashing, account deletion and receipt formatting. Verdict: **needs work**. Seven defects can reach users, including SQL injection, an unauthenticated delete and path traversal. The module docstring says the file is an intentionally vulnerable fixture that must not be deployed. If that&apos;s true, it shouldn&apos;t be merged into anything that ships. I treated the docstring as a claim and still reviewed every function. No rules files were checked, because the repo has no `AGENTS.md`, `CONTRIBUTING.md`, `.github/` instructions or review checklist.
+
+## Findings
+
+### Blocking
+1. **`app.py:62-69`** — issue: `delete_account` never checks `actor`, despite the docstring saying only an administrator may delete an account that isn&apos;t their own (CWE-862 / CWE-863).
+   Any caller, including a regular user, can delete any account by id, and the function returns `True`.
+   Check `actor`&apos;s role and ownership before the `DELETE`. Raise a permission error otherwise.
+
+2. **`app.py:28`** — issue: `find_user` builds SQL by `%` string formatting (CWE-89).
+   `username = &quot;x&apos; OR &apos;1&apos;=&apos;1&quot;` returns an arbitrary row. `x&apos; UNION SELECT ...` can read other tables.
+   Use a parameterized query: `db.execute(&quot;... WHERE username = ?&quot;, (username,))`.
+
+3. **`app.py:36-40`** — issue: `search_orders` interpolates `customer_id` and `status` into an f-string (CWE-89).
+   `status = &quot;&apos; OR &apos;1&apos;=&apos;1&quot;` returns every customer&apos;s orders. `customer_id` is unquoted, so `1 OR 1=1` works without any quote.
+   Use `?` placeholders and pass `(customer_id, status)`.
+
+4. **`app.py:50-54`** — issue: `download_export` joins `filename` onto `EXPORT_ROOT` with no containment check (CWE-22).
+   `filename = &quot;../../etc/passwd&quot;` reads outside the export directory. An absolute path like `/etc/passwd` is worse, because `os.path.join` discards the root entirely.
+   Resolve with `os.path.realpath` and require the result to start with `EXPORT_ROOT + os.sep`. Alternatively, accept only a bare basename or an export id.
+
+5. **`app.py:44-47`** — issue: `login_redirect` redirects to the user-supplied `next` unvalidated (CWE-601).
+   `?next=https://evil.example` sends a freshly authenticated user to an attacker&apos;s site, which makes phishing links look legitimate.
+   Allow only relative paths: require a leading `/`, reject `//` and any scheme. Otherwise fall back to `/dashboard`.
+
+6. **`app.py:57-59`** — issue: `hash_password` uses unsalted MD5 (CWE-327, CWE-916).
+   A leaked database falls to rainbow tables or GPU cracking, and identical passwords produce identical hashes.
+   Use `argon2`, `bcrypt` or `hashlib.scrypt` with a per-user salt.
+
+7. **`app.py:16`** — issue: `SESSION_SIGNING_KEY` is hardcoded in source (CWE-798).
+   Anyone with repo access can forge signed sessions. The key stays valid in git history even after removal.
+   Load it from the environment or a secret store, and rotate this value, since it is already exposed.
+
+### Should fix
+1. **`app.py:25-31`** — issue: `find_user` leaks the connection if `execute` raises.
+   A DB error skips `db.close()`, and repeated failures exhaust file handles.
+   Use `try/finally` or `contextlib.closing`.
+
+2. **`app.py:76-78`** — issue: `format_receipt` indexes `order[&quot;items&quot;]`, `item[&quot;price&quot;]` and `order[&quot;total&quot;]` directly.
+   An order with a missing key, or a `None` price, raises `KeyError` or `TypeError` while rendering a receipt.
+   Validate the order shape upstream or handle the missing fields explicitly.
+
+3. **`app.py` (whole file)** — issue: no tests exist. `detect_stack.py` found no `tests/test_*.py`.
+   Every security fix above needs a regression test, for example injection strings, `../` filenames, an off-site `next` and a non-admin delete.
+
+### Nits
+1. **`app.py:22`** — nit: `get_db()` hardcodes `&quot;accounts.db&quot;` as a relative path, so the database depends on the working directory. Take the path from configuration.
+
+### Questions
+1. **`app.py:3-9`** — question: is this file meant to be merged? The docstring says it&apos;s a deliberately vulnerable fixture for measuring review tooling. If so, it should live in a test-fixtures location, clearly separated from deployable code. If it&apos;s real service code, the banner is wrong and the findings above apply as written.
+
+## Not reviewed
+- `pyproject.toml` got only a glance. It declares no dependencies or tooling.
+- I found no callers, so I couldn&apos;t check how `request` and `actor` are produced. Authentication upstream of `delete_account` is unknown.
+- Nothing was run. There are no tests, and I did only a static read.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details></div>
+</div>
+</section><section class="arm">
+<div class="arm-head">
+<span class="arm-label">Baseline (no plugin)</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:50.0%"></span></span>
+<span class="num">50%</span>
+<span class="muted num">0% of runs perfect</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:50.0%"></span></span>
+<span class="num">50%</span>
+<span class="muted num">4 turns · $0.07 · 09:04:16 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">code-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched WHERE username = .%s.. % username</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">findings</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: FAIL FAIL FAIL</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✗ ✗ ✗</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">**Don&apos;t merge this as it stands.** The file&apos;s docstring says it is an &quot;INTENTIONALLY VULNERABLE FIXTURE -- DO NOT COPY, DO NOT DEPLOY&quot;. If it&apos;s meant to be a test fixture for a review tool, keep it out of any deployable path. If you thought it was real service code, it has serious problems. I reviewed it as if it were real code. There are no commits, so I read the whole file instead of a diff.
+
+## Security issues
+
+| Line | Severity | Issue | Fix |
+|---|---|---|---|
+| 28 | Critical | **SQL injection** in `find_user`. `username` is interpolated with `%`. | Use `db.execute(&quot;... WHERE username = ?&quot;, (username,))`. |
+| 36-38 | Critical | **SQL injection** in `search_orders`. `customer_id` and `status` go into an f-string. `customer_id` isn&apos;t even quoted, so it is trivially injectable. | Use placeholders for both values. |
+| 62-69 | Critical | **Missing authorization** in `delete_account`. The docstring says only admins may delete other accounts, but `actor` is never checked. Anyone who can call it can delete any account. | Check `actor` is an admin or owns `account_id` before the `DELETE`, and raise or return an error otherwise. |
+| 50-54 | High | **Path traversal** in `download_export`. `os.path.join` with `../../etc/passwd` escapes `EXPORT_ROOT`, and an absolute `filename` replaces the root entirely. | Resolve with `os.path.realpath` and confirm it stays under `EXPORT_ROOT`, for example with `os.path.commonpath`. Better, only accept known export IDs. |
+| 57-59 | High | **Weak password hashing.** Unsalted MD5 is fast to brute-force and vulnerable to rainbow tables. | Use `argon2`, `bcrypt`, or `hashlib.scrypt`, with a per-user salt. |
+| 44-47 | Medium | **Open redirect** in `login_redirect`. `next` is used without validation, which enables phishing after login. | Allow only relative paths on the same host. Reject `//`, schemes, and backslashes. |
+| 16 | Medium | **Hardcoded secret** in `SESSION_SIGNING_KEY`. It is in source control and can&apos;t be rotated without a deploy. | Load it from an environment variable or secret manager, and rotate the existing key. |
+
+## Other problems
+
+- **`get_db` and `find_user`:** `db.close()` isn&apos;t in a `finally`, so an exception leaks the connection. `search_orders` and `delete_account` also take `db` from the caller, which is inconsistent.
+- **`delete_account`:** it returns `True` even if no row matched, and it deletes from `accounts`. `find_user` reads from `users`, so one of the table names may be wrong.
+- **`format_receipt`:** it raises `KeyError` on missing fields and uses `%8.2f` on what is probably a currency amount. Use `Decimal`.
+- **Tests:** there are none.
+
+If this is a fixture, no code changes are needed. If you want real fixes, I can write the patched version.</pre>
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 2</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:50.0%"></span></span>
+<span class="num">50%</span>
+<span class="muted num">4 turns · $0.07 · 09:04:19 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">code-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched WHERE username = .%s.. % username</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">findings</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: FAIL FAIL FAIL</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✗ ✗ ✗</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">**Don&apos;t merge this as-is.** The file&apos;s docstring says it&apos;s an intentionally vulnerable test fixture (&quot;DO NOT COPY, DO NOT DEPLOY&quot;). If it&apos;s meant to be a fixture for a review-skill eval, keep it out of any deployable path. If you thought it was real service code, these are the problems.
+
+**Critical**
+
+1. **SQL injection in `find_user`** (`app.py:28`). `username` is interpolated with `%`. Use `db.execute(&quot;... WHERE username = ?&quot;, (username,))`.
+2. **SQL injection in `search_orders`** (`app.py:36-40`). `customer_id` and `status` go into an f-string. Parameterize both.
+3. **Path traversal in `download_export`** (`app.py:52`). `os.path.join` discards `EXPORT_ROOT` if `filename` is absolute. `../../etc/passwd` also escapes it. Resolve with `os.path.realpath` and check that the result is under `EXPORT_ROOT`, or accept only basenames.
+4. **Missing authorization in `delete_account`** (`app.py:62-69`). The docstring says only admins may delete other people&apos;s accounts. `actor` is never checked, so anyone can delete any account. Check `actor`&apos;s role and ownership before the `DELETE`.
+
+**High**
+
+5. **Weak password hashing** (`app.py:59`). Unsalted MD5 is fast to crack. Use `bcrypt`, `argon2`, or `hashlib.scrypt`/`pbkdf2_hmac` with a per-user salt.
+6. **Hardcoded secret** (`app.py:16`). `SESSION_SIGNING_KEY` is committed to source. Load it from the environment or a secrets manager, and rotate it if it was ever real.
+7. **Open redirect in `login_redirect`** (`app.py:46-47`). `next` is used unvalidated, so it enables phishing after login. Allow only relative paths, for example one that starts with a single `/` and not `//`, or check against an allowlist of hosts.
+
+**Minor**
+
+- `find_user` doesn&apos;t close the DB if `execute` raises. Use `with` or `try/finally`.
+- `download_export` reads the whole file into memory, although its docstring says &quot;stream&quot;.
+- `format_receipt` is fine. It will raise `KeyError` on malformed orders, which may be acceptable.
+
+I haven&apos;t run anything or checked callers, since there&apos;s no git history or other code here to compare against.</pre>
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 3</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:50.0%"></span></span>
+<span class="num">50%</span>
+<span class="muted num">4 turns · $0.07 · 09:04:20 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">code-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched WHERE username = .%s.. % username</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">findings</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: FAIL FAIL FAIL</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✗ ✗ ✗</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">**Don&apos;t merge this as production code.** The file&apos;s own docstring says it&apos;s an intentionally vulnerable fixture (&quot;DO NOT COPY, DO NOT DEPLOY&quot;). If it&apos;s meant to be a test fixture, keep it out of any deployable path. The flaws below are real either way.
+
+**Critical**
+1. **SQL injection in `find_user`** (`app.py:28`). `username` is interpolated with `%`. Use `db.execute(&quot;... WHERE username = ?&quot;, (username,))`.
+2. **SQL injection in `search_orders`** (`app.py:36-40`). Both `customer_id` and `status` are put into an f-string. Parameterize both.
+3. **Path traversal in `download_export`** (`app.py:52`). `os.path.join` with `../../etc/passwd` escapes `EXPORT_ROOT`, and an absolute `filename` replaces the root entirely. Resolve with `os.path.realpath` and check that the result stays under `EXPORT_ROOT`, or accept only basenames from a known list.
+4. **Missing authorization in `delete_account`** (`app.py:62-69`). The docstring says only admins may delete other accounts, but `actor` is never checked. Any caller can delete any account. Enforce `actor.role == &quot;admin&quot; or actor.id == account_id` before the delete.
+
+**High**
+5. **Weak password hashing** (`app.py:59`). Unsalted MD5 is trivially crackable. Use `argon2`, `bcrypt`, or `hashlib.scrypt` with a per-user salt.
+6. **Hardcoded secret** (`app.py:16`). `SESSION_SIGNING_KEY` is committed to source. Load it from the environment or a secrets manager, and rotate it, since it&apos;s now in git history.
+7. **Open redirect in `login_redirect`** (`app.py:46-47`). `next` is used unvalidated, so it can be used for phishing. Allow only relative paths (starting with a single `/`, not `//`) or an allowlist of hosts.
+
+**Minor**
+- `find_user` doesn&apos;t close the connection if `execute` raises. Use `try/finally` or `contextlib.closing`.
+- `delete_account` has no existence check or error handling. It always returns `True`, even when no row was deleted.
+- `format_receipt` assumes the keys exist and that `price` and `total` are floats. Use `Decimal` for money.
+- `download_export` reads the whole file into memory despite the &quot;Stream&quot; docstring.
+
+I only read the file. I didn&apos;t run anything, and there are no tests or commits to compare against. I can write the fixed version if you want it.</pre>
+</div>
+</details></div>
+</div>
+</section>
+</details>
+<details class="section" open>
+<summary>Prompt</summary>
+<div class="md"><p>Review app.py before I merge it.</p>
+</div>
+</details>
+<details class="section" open>
+<summary>Graders — what "good" means for this case</summary>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">code-untouched</span><span class="badge">regex</span></div>
+<div class="config"><div class="kv"><span>target</span><code>{&quot;source&quot;:&quot;file&quot;,&quot;path&quot;:&quot;app.py&quot;}</code></div><div class="kv"><span>pattern</span><code>&quot;WHERE username = .%s.. % username&quot;</code></div><div class="kv"><span>flags</span><code>&quot;&quot;</code></div><div class="kv"><span>match</span><code>&quot;contains&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">findings</span><span class="badge">llm</span></div>
+<div class="md"><p>PASS if the reply reports all four blocking findings, each with its CWE and a concrete exploit input: the SQL injection in <code>find_user</code> built with <code>%</code> formatting (CWE-89); the SQL injection in <code>search_orders</code> built with an f-string, through <code>customer_id</code> or <code>status</code> (CWE-89); <code>delete_account</code> never checking <code>actor</code> although its docstring allows only an administrator (CWE-862); and the path traversal in <code>download_export</code>, where <code>os.path.join</code> lets <code>../../etc/passwd</code> escape <code>EXPORT_ROOT</code> (CWE-22). It must also rank these four above the should-fix findings (the open redirect, the hardcoded signing key, the MD5 password hash, the missing tests), and must not flag <code>format_receipt</code>.
+FAIL if any of the four blocking findings is missing (the <code>%</code> injection is the easy one to overlook), one is rated below blocking, one has no CWE or no exploit input, <code>format_receipt</code> is flagged as a vulnerability, or <code>app.py</code> was edited instead of reported on.</p>
+</div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">used-skill</span><span class="badge">tool_used</span></div>
+<div class="config"><div class="kv"><span>tool</span><code>&quot;Skill&quot;</code></div><div class="kv"><span>input_match</span><code>&quot;\&quot;skill\&quot;\\s*:\\s*\&quot;(?:[\\w-]+:)?review-code\&quot;&quot;</code></div><div class="kv"><span>arm</span><code>&quot;with-only&quot;</code></div></div>
+</div>
+</details>
+</article>
+<article class="case" id="case-2">
+<div class="case-head">
+<h2>setup-review-rules-scopes-per-package</h2>
+<span class="muted mono">evals/behavior/setup-review-rules-scopes-per-package</span>
+<span class="spacer"></span>
+
+<span class="delta delta-pos">↑ +100.0 pts</span>
+<span class="muted">with plugin</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span><i class="tick" style="left:100.0%"></i></span>
+<span class="num case-score">100%</span>
+</div>
+
+<details class="section" open>
+<summary>Results</summary>
+<section class="arm">
+<div class="arm-head">
+<span class="arm-label">With plugin</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">100% of runs perfect</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">7 turns · $0.11 · 09:04:35 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">scoped-commands</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence"># AGENTS.md
+
+Parcelboard: a small monorepo with a Python API (`services/api`) and a JavaScript web app (`apps/web`).
+Both currently expose a parcel `status` function.
+
+Review changes against `docs/review-checklist.md`.
+
+## Commands
+
+Run each from its package directory. CI (`.github/workflows/check.yml`) runs exactly these.
+
+| Package | Working dir | Install | Test |
+| ------- | ----------- | ------- | ---- |
+| API (Python 3.11, pytest) | `services/api` | `python -m pip install -e &apos;.[test]&apos;` | `python -m pytest` |
+| Web (Node 22, `node:test`) | `apps/web` | none declared | `npm test` |
+
+- Build: none declared in either package.
+- Lint / format: none declared. Do not assume a linter or formatter exists.
+- Single-test command: none declared in the repo.
+
+## Observations (not rules)
+
+Seen in the current code; confirm with the owner before treating as mandatory.
+
+- API: `snake_case`, type-annotated signatures; tests in `services/api/tests/test_*.py`, named `test_&lt;behavior&gt;`.
+- Web: ES modules, `camelCase`; tests sit beside the source as `*.test.js` and use `node:assert/strict`.
+- No commit-message or branch convention is established (the repository has no commits yet).
+</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">wrote-rules</span>  </summary>
+<div class="grader-body">
+<p class="explanation">AGENTS.md exists as expected</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 2</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">11 turns · $0.14 · 09:04:36 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">scoped-commands</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence"># AGENTS.md
+
+Parcelboard: a parcel-status service (`services/api`, Python) and a web client (`apps/web`, JavaScript).
+Two independent packages, each with its own manifest. Run commands from the package directory.
+
+Review changes against `docs/review-checklist.md`.
+
+## Commands
+
+| Package | Working directory | Install | Test (CI) |
+| ------- | ----------------- | ------- | --------- |
+| API | `services/api` | `python -m pip install -e &apos;.[test]&apos;` | `python -m pytest` |
+| Web | `apps/web` | none declared | `npm test` (runs `node --test`) |
+
+- Single test, API: `python -m pytest tests/test_parcel.py` (pytest file selection; `testpaths = [&quot;tests&quot;]`).
+- Single test, Web: `node --test status.test.js` (the `node --test` runner behind `npm test`).
+- Build, lint, format: none declared in either package or in CI. Do not assume any.
+
+## CI
+
+`.github/workflows/check.yml` runs on every push: the API job (Python 3.11) and the Web job (Node 22)
+each run the test command above. Both must pass.
+
+## Observed conventions (not mandates)
+
+- API: modules at package root (`parcel.py`), tests in `tests/test_&lt;module&gt;.py`, plain `test_*` functions,
+  type-annotated signatures.
+- Web: ES modules (`&quot;type&quot;: &quot;module&quot;`), tests beside source as `&lt;module&gt;.test.js` using `node:test` and
+  `node:assert/strict`.
+- No comment-heavy style, linter or formatter config was found.
+- No commit history exists yet, so there is no commit or branch convention.
+</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">wrote-rules</span>  </summary>
+<div class="grader-body">
+<p class="explanation">AGENTS.md exists as expected</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 3</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">7 turns · $0.11 · 09:04:37 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">scoped-commands</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence"># AGENTS.md
+
+Parcelboard: a parcel-status project with two independent packages, a Python API (`services/api`) and a
+JavaScript web app (`apps/web`). Each has its own manifest and tests; there is no root manifest.
+
+Review changes against `docs/review-checklist.md`.
+
+## Commands
+
+CI (`.github/workflows/check.yml`) is authoritative. Run each from the package directory.
+
+| Package | Install | Test (all) | Single test |
+| ------- | ------- | ---------- | ----------- |
+| `services/api` (Python 3.11 in CI, pytest) | `python -m pip install -e &apos;.[test]&apos;` | `python -m pytest` | `python -m pytest tests/test_parcel.py::test_status_is_queued` |
+| `apps/web` (Node 22 in CI, `node:test`) | none declared | `npm test` | `node --test status.test.js` |
+
+Build, lint and format: none declared in the repo. Do not assume any.
+
+## Observations (not rules)
+
+Seen in the current code; confirm with the owner before treating as binding.
+
+- API: tests live in `services/api/tests/test_*.py`, plain `assert`, type-annotated functions, snake_case keys.
+- Web: ES modules (`&quot;type&quot;: &quot;module&quot;`), tests sit beside source as `*.test.js`, camelCase keys.
+- The repository has no commits yet, so there is no commit or branch convention to follow.
+</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">wrote-rules</span>  </summary>
+<div class="grader-body">
+<p class="explanation">AGENTS.md exists as expected</p>
+
+</div>
+</details></div>
+</div>
+</section><section class="arm">
+<div class="arm-head">
+<span class="arm-label">Baseline (no plugin)</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:0.0%"></span></span>
+<span class="num">0%</span>
+<span class="muted num">0% of runs perfect</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:0.0%"></span></span>
+<span class="num">0%</span>
+<span class="muted num">6 turns · $0.08 · 09:05:00 UTC</span>
+</div>
+
+<div class="graders"><details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">scoped-commands</span>  </summary>
+<div class="grader-body">
+<p class="explanation">grader threw: case &quot;setup-review-rules-scopes-per-package&quot; grader focus file &quot;AGENTS.md&quot;: path &quot;AGENTS.md&quot; does not exist</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">wrote-rules</span>  </summary>
+<div class="grader-body">
+<p class="explanation">AGENTS.md missing (expected present)</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 2</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:0.0%"></span></span>
+<span class="num">0%</span>
+<span class="muted num">8 turns · $0.09 · 09:05:04 UTC</span>
+</div>
+
+<div class="graders"><details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">scoped-commands</span>  </summary>
+<div class="grader-body">
+<p class="explanation">grader threw: case &quot;setup-review-rules-scopes-per-package&quot; grader focus file &quot;AGENTS.md&quot;: path &quot;AGENTS.md&quot; does not exist</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">wrote-rules</span>  </summary>
+<div class="grader-body">
+<p class="explanation">AGENTS.md missing (expected present)</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 3</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:0.0%"></span></span>
+<span class="num">0%</span>
+<span class="muted num">6 turns · $0.09 · 09:05:12 UTC</span>
+</div>
+
+<div class="graders"><details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">scoped-commands</span>  </summary>
+<div class="grader-body">
+<p class="explanation">grader threw: case &quot;setup-review-rules-scopes-per-package&quot; grader focus file &quot;AGENTS.md&quot;: path &quot;AGENTS.md&quot; does not exist</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">wrote-rules</span>  </summary>
+<div class="grader-body">
+<p class="explanation">AGENTS.md missing (expected present)</p>
+
+</div>
+</details></div>
+</div>
+</section>
+</details>
+<details class="section" open>
+<summary>Prompt</summary>
+<div class="md"><p>Set up agent and review rules for this repository.</p>
+</div>
+</details>
+<details class="section" open>
+<summary>Graders — what "good" means for this case</summary>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">scoped-commands</span><span class="badge">llm</span></div>
+<div class="md"><p>The text is the <code>AGENTS.md</code> the run wrote for a repository with two independent packages: <code>services/api</code>, a Python API, and <code>apps/web</code>, a JavaScript UI.</p>
+<p>PASS if it scopes <code>python -m pytest</code> to <code>services/api</code>, after the install command <code>python -m pip install -e &#39;.[test]&#39;</code>, and scopes <code>npm test</code> to <code>apps/web</code>. Patterns seen in a source file may appear if they are labelled as observations.
+FAIL if it gives a repository-wide test runner, such as a root-level pytest rule that covers the JavaScript package, if it invents a lint command, or if it states a mandatory convention (a commit format, an import rule, a definition of done) drawn from one source file.</p>
+</div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">used-skill</span><span class="badge">tool_used</span></div>
+<div class="config"><div class="kv"><span>tool</span><code>&quot;Skill&quot;</code></div><div class="kv"><span>input_match</span><code>&quot;\&quot;skill\&quot;\\s*:\\s*\&quot;(?:[\\w-]+:)?setup-review-rules\&quot;&quot;</code></div><div class="kv"><span>arm</span><code>&quot;with-only&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">wrote-rules</span><span class="badge">file_exists</span></div>
+<div class="config"><div class="kv"><span>path</span><code>&quot;AGENTS.md&quot;</code></div><div class="kv"><span>exists</span><code>true</code></div></div>
+</div>
+</details>
+</article>
+<footer>Generated by <code>claude plugin eval</code> · schema v1 · scores are not comparable across different suites</footer>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  var bar=document.querySelector('.toolbar');
+  if(!bar)return;
+  bar.addEventListener('click',function(e){
+    var b=e.target&&e.target.closest('button');
+    if(!b)return;
+    var open=b.dataset.act==='expand';
+    document.querySelectorAll('details.section, details.grader').forEach(function(d){d.open=open});
+  });
+});
+// Collapsed details vanish from print/PDF; these pages are share artifacts.
+window.addEventListener('beforeprint',function(){
+  document.querySelectorAll('details').forEach(function(d){
+    if(!d.open){d.dataset.printOpened='1';d.open=true}
+  });
+});
+window.addEventListener('afterprint',function(){
+  document.querySelectorAll('details[data-print-opened]').forEach(function(d){
+    d.open=false;delete d.dataset.printOpened;
+  });
+});
+</script>
+</body>
+</html>

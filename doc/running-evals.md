@@ -73,7 +73,8 @@ Needs Claude Code 2.1.269 or later and a credential that a child process can use
    commands for it.
 
 4. **Find the result.** It is written to `plugins/<plugin>/evals/results/<timestamp>/` as
-   `aggregate-result.json` and `report.html`. That folder is git-ignored, so record a run worth keeping in
+   `aggregate-result.json` and `report.html`. That folder is git-ignored, so a run stays on your machine until
+   you archive it; see [Recording a run](#recording-a-run). Record the numbers of a run worth keeping in
    [`eval-results.md`](eval-results.md).
 
 ### Choosing the model (Claude Code)
@@ -96,6 +97,32 @@ Copilot's: Claude Code writes `claude-sonnet-5-5` where Copilot writes `claude-s
 - No `error:` on any case, and no `partial` in the summary line (`stopped: authentication failed`,
   cost ceiling, interrupted). A partial run is incomplete; do not chart it.
 - The `Δ` column (with minus without) is positive for the cases that should need the skill.
+
+### Recording a run
+
+`results/` is git-ignored, and its files hold the absolute paths of the machine that ran them. To keep a run in
+the repository, archive it:
+
+```bash
+python3 tools/archive_eval_results.py plugins/<plugin>/evals/results/<timestamp>   # one run
+python3 tools/archive_eval_results.py <folder holding plugins/*/evals/results/*>   # an unpacked bundle
+python3 tools/archive_eval_results.py --check                                       # verify what is archived
+```
+
+The tool copies `aggregate-result.json` and `report.html` to `plugins/<plugin>/evals/archive/<timestamp>/`,
+which is tracked, and commit that folder. It replaces every absolute local path with `<local>` and sets
+`tracePath` to null. Transcripts are never archived.
+
+- **Only the tool writes `archive/`.** Do not copy a raw run there: `--check`, which the tests run, fails on a
+  local path, on a secret pattern, and on a file over 5 MB.
+- **A refusal writes nothing** and names the file and the rule, never the text that matched: a secret pattern
+  (`sk-ant-`, `ghp_`, `gho_`, `github_pat_`, `AKIA…`, a private key block, `Authorization: Bearer <token>`, or
+  your `git config user.email`), a file over 5 MB, or a plugin with no `plugins/<name>/` folder.
+- **The plugin comes from the `results/` path**, so a run of a case that later moved keeps the plugin it ran
+  under. The same timestamp with the same content is skipped; with different content it is refused unless you
+  pass `--replace`.
+- The eval board and the skill manager read `archive/` and `results/` together, and count a run in both once.
+  An archived run shows "transcript not archived".
 
 ### Cleaning up
 
@@ -265,7 +292,7 @@ the page draws its badges, run forms and platform buttons from it.
   URL it prints, so no other web page can drive it.
 - It runs only the cases under `plugins/*/evals` and plugin commands it builds itself for plugins in the
   marketplace, with validated options, one job at a time, and serves only transcripts under
-  `plugins/*/evals/results/`. It never runs a command the page sends.
+  `plugins/*/evals/results/` (not `archive/`, which holds no transcripts). It never runs a command the page sends.
 - **Stop** takes effect at the next question or when the current command ends.
 - An eval run costs what it costs from the terminal, and lets the agent run commands in a scratch workspace as
   you. Installing changes your Copilot or Claude Code configuration.
@@ -299,7 +326,7 @@ English and Vietnamese. Add result files from elsewhere with `--results [plugin=
 | `Sandbox required but unavailable: … bubblewrap (bwrap) not installed, socat not installed` on every behavior run | A case that grants Bash needs the OS sandbox. On Linux, install `bubblewrap` and `socat` (for example `apt-get install -y bubblewrap socat`). |
 | A behavior run says the workspace or `$TMPDIR` is a `Read-only file system` | Seen once, running as root in a Linux container: the run's temp directory was under `/tmp`, which the sandbox denied writing to. Run with `TMPDIR` set to a directory outside `/tmp`, for example `TMPDIR="$HOME/evaltmp" claude plugin eval …`. |
 | A `testing` behavior case fails with the plugin because `pip install pytest` was blocked | The sandbox has no network, so a run cannot install the test runner, and the skill will not write tests it cannot run. Install the fixture's runner (`python3 -m pip install pytest`) for the Python the runs use, then rerun. |
-| The eval board or skill manager shows no results for runs made on another machine, such as a cloud session | `plugins/*/evals/results/` is git-ignored, so results stay on the machine that ran them. Copy the `plugins/<plugin>/evals/results/<timestamp>/` folders, at least `aggregate-result.json`, into the same paths in your checkout, and an open skill manager shows them within seconds. The static board needs a rebuild, and can take the files without copying: `python3 tools/build_eval_board.py --results <plugin>=<file>`. Record runs worth keeping in `doc/eval-results.md`. |
+| The eval board or skill manager shows no results for runs made on another machine, such as a cloud session | `plugins/*/evals/results/` is git-ignored, so results stay on the machine that ran them. Archive them: `python3 tools/archive_eval_results.py <folder holding plugins/*/evals/results/*>` copies the two files, with local paths scrubbed, to `plugins/<plugin>/evals/archive/`, which both the board and an open skill manager read (see [Recording a run](#recording-a-run)). Or copy the `plugins/<plugin>/evals/results/<timestamp>/` folders, at least `aggregate-result.json`, into the same paths in your checkout. The static board needs a rebuild, and can take the files without copying: `python3 tools/build_eval_board.py --results <plugin>=<file>`. Record runs worth keeping in `doc/eval-results.md`. |
 | Board shows `untrusted` | The run was partial, errored, or had a skipped grader. Rerun, or grade the skipped graders. |
 
 ## After you change a skill or a fixture

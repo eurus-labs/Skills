@@ -160,6 +160,39 @@ class Results(unittest.TestCase):
         runs = board.load_results([("p", claude), ("p", copilot)])["p/a"]
         self.assertEqual(sorted(r["host"] for r in runs), ["claude", "copilot"])
 
+    def put(self, repo, folder, plugin, stamp, doc):
+        run = os.path.join(repo, "plugins", plugin, "evals", folder, stamp)
+        os.makedirs(run)
+        path = os.path.join(run, "aggregate-result.json")
+        with open(path, "w") as fh:
+            json.dump(doc, fh)
+        return path
+
+    def test_result_files_lists_results_and_archive_and_counts_a_run_in_both_once(self):
+        repo = os.path.join(self.tmp.name, "repo2")
+        local = self.put(repo, "results", "docs", "2026-11-01T00-00-00Z", result([case("a", 0.1)]))
+        both_local = self.put(repo, "results", "docs", "2026-11-02T00-00-00Z", result([case("a", 0.2)]))
+        both_archived = self.put(repo, "archive", "docs", "2026-11-02T00-00-00Z", result([case("a", 0.3)]))
+        archived = self.put(repo, "archive", "testing", "2026-11-03T00-00-00Z", result([case("a", 0.4)]))
+        # The same timestamp under another plugin is another run.
+        other = self.put(repo, "results", "testing", "2026-11-02T00-00-00Z", result([case("a", 0.5)]))
+        files = board.result_files(repo)
+        self.assertEqual(sorted(files), sorted([local, both_archived, archived, other]))
+        self.assertNotIn(both_local, files, "the archived copy wins")
+        loaded = board.load_results(files)
+        self.assertEqual([r["score"] for r in loaded["docs/a"]], [0.3, 0.1])
+        self.assertEqual([r["archived"] for r in loaded["docs/a"]], [True, False])
+        self.assertEqual(loaded["testing/a"][0]["score"], 0.4, "plugin_of reads archive/ too")
+        self.assertEqual(len(loaded["testing/a"]), 2)
+
+    def test_an_archived_run_says_its_transcript_is_not_archived(self):
+        repo = os.path.join(self.tmp.name, "repo3")
+        self.put(repo, "archive", "docs", "2026-11-03T00-00-00Z", result([case("a", 0.4)]))
+        page = board.board([], board.load_results(board.result_files(repo)))
+        self.assertIn('"archived": true', page)
+        self.assertIn("transcript not archived", page)
+        self.assertIn("transcript không được lưu", page)
+
     def test_a_file_that_is_not_a_result_is_skipped(self):
         bad = os.path.join(self.tmp.name, "other.json")
         with open(bad, "w") as fh:

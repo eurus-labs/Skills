@@ -1,0 +1,507 @@
+{
+  "schemaVersion": 1,
+  "claudeVersion": "2.1.332",
+  "startedAt": "2026-11-26T07:08:27.296Z",
+  "durationSeconds": 82,
+  "costUsd": 0.7759081000000001,
+  "partial": false,
+  "suite": {
+    "root": "<local>",
+    "ablation": "with-without",
+    "modelOverride": "claude-sonnet-5-5",
+    "judgeModel": "haiku",
+    "caseFilter": "derive-software-requirements-from-*",
+    "tagFilters": [
+      "behavior"
+    ],
+    "threshold": 1,
+    "concurrency": 3,
+    "plugins": [
+      {
+        "name": "planning",
+        "version": "0.1.0",
+        "path": "<local>"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "derive-software-requirements-from-final-analysis",
+      "dir": "evals/behavior/derive-software-requirements-from-final-analysis",
+      "source": "mixed",
+      "promptMarkdown": "Derive the software requirements from the requirement analysis in requirements/export/. I won't be around to answer questions, so do not wait for me.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 1800,
+      "maxTurns": 60,
+      "graders": [
+        {
+          "name": "analysis-untouched",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": {
+              "source": "file",
+              "path": "requirements/export/analysis.md"
+            },
+            "pattern": "superseded by SYS-006 and SYS-007\\.\\s*$",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "dou-untouched",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": {
+              "source": "file",
+              "path": "requirements/export/dou.md"
+            },
+            "pattern": "run it again the next night\\.\"\\n- Date: 2026-11-26\\n- Confirmed by: Lan \\(PO\\)\\s*$",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "no-epics",
+          "type": "file_exists",
+          "weight": 1,
+          "config": {
+            "path": "requirements/export/epics.md",
+            "exists": false
+          }
+        },
+        {
+          "name": "software-requirements",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "The text is the `software-requirements.md` the run wrote from a final requirement analysis of a report export. The analysis has five in-scope system requirements: SYS-001 (at most 100 reports per request, `src/exporter.py:8`), SYS-003 (only the owner can export, teammates included, `src/exporter.py:17-19`), SYS-004 (a scheduled export runs every night, in UTC, and runs again the next night when it fails), SYS-006 (every export is recorded in the audit log, already met at `src/exporter.py:42`) and SYS-007 (a report of up to 10,000 rows exports within 30 seconds). SYS-002 and SYS-005 are superseded, SYS-008 is unchanged, and all three are out of scope. The Definition of Done asks that each requirement states one observable behavior and that a speed target gives a number, its unit and the input size.\n\nPASS if all of these hold:\n- Each of the five in-scope system requirements is traced by at least one `SWR-` whose statement starts \"The software shall\" and states what the software does, not how it is built. The superseded and unchanged requirements are not derived.\n- Each `SWR-` has a rationale, its `Traces to` line, a type (the export-time one is non-functional with the quality named), testable verification criteria and a code area as `path:line`, or \"new\" with where.\n- The criteria meet the DoD: the export-time requirement has 10,000 rows and 30 seconds in its criteria, and a requirement that can refuse a request has a negative case.\n- No requirement is invented: nothing states a behavior that none of the five system requirements supports.\n- A traceability table maps every in-scope system requirement to its software requirements, and the file has a \"Not derived to software\" section.\nFAIL if an in-scope requirement has no `SWR-`, if a statement names a technology, class or table, if the export-time criteria have no number, if a requirement no system requirement supports is present, or if a superseded requirement is derived.",
+          "config": {
+            "criteria": "The text is the `software-requirements.md` the run wrote from a final requirement analysis of a report export. The analysis has five in-scope system requirements: SYS-001 (at most 100 reports per request, `src/exporter.py:8`), SYS-003 (only the owner can export, teammates included, `src/exporter.py:17-19`), SYS-004 (a scheduled export runs every night, in UTC, and runs again the next night when it fails), SYS-006 (every export is recorded in the audit log, already met at `src/exporter.py:42`) and SYS-007 (a report of up to 10,000 rows exports within 30 seconds). SYS-002 and SYS-005 are superseded, SYS-008 is unchanged, and all three are out of scope. The Definition of Done asks that each requirement states one observable behavior and that a speed target gives a number, its unit and the input size.\n\nPASS if all of these hold:\n- Each of the five in-scope system requirements is traced by at least one `SWR-` whose statement starts \"The software shall\" and states what the software does, not how it is built. The superseded and unchanged requirements are not derived.\n- Each `SWR-` has a rationale, its `Traces to` line, a type (the export-time one is non-functional with the quality named), testable verification criteria and a code area as `path:line`, or \"new\" with where.\n- The criteria meet the DoD: the export-time requirement has 10,000 rows and 30 seconds in its criteria, and a requirement that can refuse a request has a negative case.\n- No requirement is invented: nothing states a behavior that none of the five system requirements supports.\n- A traceability table maps every in-scope system requirement to its software requirements, and the file has a \"Not derived to software\" section.\nFAIL if an in-scope requirement has no `SWR-`, if a statement names a technology, class or table, if the export-time criteria have no number, if a requirement no system requirement supports is present, or if a superseded requirement is derived.",
+            "focus": {
+              "source": "file",
+              "path": "requirements/export/software-requirements.md"
+            }
+          }
+        },
+        {
+          "name": "used-skill",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?derive-software-requirements\"",
+            "arm": "with-only"
+          }
+        },
+        {
+          "name": "wrote-software-requirements",
+          "type": "file_exists",
+          "weight": 1,
+          "config": {
+            "path": "requirements/export/software-requirements.md",
+            "exists": true
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 0.8,
+            "passed": false,
+            "turns": 8,
+            "costUsd": 0.14367979999999997,
+            "judgeCostUsd": 0.0057089,
+            "durationSeconds": 42,
+            "startedAt": "2026-11-26T07:08:27.363Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "analysis-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched superseded by SYS-006 and SYS-007\\.\\s*$",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "dou-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched run it again the next night\\.\"\\n- Date: 2026-11-26\\n- Confirmed by: Lan \\(PO\\)\\s*$",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-epics",
+                "passed": true,
+                "weight": 1,
+                "explanation": "requirements/export/epics.md absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "software-requirements",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "# Software requirements — export\n\n## SWR-001 — Limit per request\n\n- Statement: The software shall reject an export request for more than 100 reports.\n- Rationale: SYS-001 raises the limit from 50 to 100 for every user (DOU-001).\n- Traces to: SYS-001\n- Type: functional\n- Verification criteria:\n  - A request for 100 reports by any user succeeds and returns 100 outputs.\n  - A request for 101 reports is rejected with an error, and no output is written.\n  - A request for 51 reports, which the old limit refused, succeeds.\n- Component: `src/exporter.py:8`, `src/exporter.py:33`\n- Status: changes existing behavior\n\n## SWR-002 — Owner-only export\n\n- Statement: The software shall export a report only when the requesting user is its owner.\n- Rationale: SYS-003 limits export to the owner; the code also allows teammates (`src/exporter.py:19`), and the PO settled \"owner only\" (DOU-002).\n- Traces to: SYS-003\n- Type: functional\n- Verification criteria:\n  - A request by the owner of a report succeeds and returns an output for it.\n  - A request by a teammate who is not the owner is rejected with an error, and no output is written for that report.\n  - A request by a user on another team who is not the owner is rejected with an error.\n- Component: `src/exporter.py:17-19`, `src/exporter.py:39-40`\n- Status: changes existing behavior\n\n## SWR-003 — Schedule a nightly export\n\n- Statement: The software shall let a user schedule an export to run every night.\n- Rationale: SYS-004 asks that a user can schedule a nightly export. The report set is assumed to be the reports the user could export by hand (analysis assumption).\n- Traces to: SYS-004\n- Type: functional\n- Verification criteria:\n  - After a user schedules an export, the schedule exists and is shown as active for that user.\n  - A user cannot schedule an export for a report they do not own; the request is rejected with an error and no schedule is created.\n- Component: new: a scheduling capability beside `src/exporter.py` (none exists today)\n- Status: new\n\n## SWR-004 — Run scheduled exports nightly in UTC\n\n- Statement: The software shall run each scheduled export once per night, with the night determined in UTC.\n- Rationale: SYS-004 asks for a nightly run; the PO fixed the time zone as UTC (DOU-005).\n- Traces to: SYS-004\n- Type: functional\n- Verification criteria:\n  - With a schedule active, the export runs exactly once in each UTC night and its outputs are written.\n  - For a user whose local time zone differs from UTC, the run time follows UTC, not the user's local time.\n  - A schedule that was removed does not run.\n- Component: new: a scheduling capability beside `src/exporter.py`\n- Status: new\n\n## SWR-005 — Tell the user when a scheduled export fails\n\n- Statement: The software shall notify the user when a scheduled export fails.\n- Rationale: SYS-004 and the PO's answer: \"tell the user\" on failure (DOU-005).\n- Traces to: SYS-004\n- Type: functional\n- Verification criteria:\n  - When a scheduled run fails (for example the export raises an error), the user receives a notification identifying the failed export.\n  - When a scheduled run succeeds, no failure notification is sent.\n- Component: new: a scheduling capability beside `src/exporter.py`\n- Status: new\n\n## SWR-006 — Retry a failed scheduled export the next night\n\n- Statement: The software shall run a failed scheduled export again on the next night.\n- Rationale: SYS-004 and the PO's answer: \"run it again the next night\" (DOU-005).\n- Traces to: SYS-004\n- Type: functional\n- Verification criteria:\n  - After a failed run on night N, the export runs again on night N+1.\n  - After a failed run on night N, no further run happens on night N before N+1 (no immediate retry).\n  - If the run on night N+1 succeeds, the schedule continues on night N+2 as normal.\n- Component: new: a scheduling capability beside `src/exporter.py`\n- Status: new\n\n## SWR-007 — Audit log entry per export\n\n- Statement: The software shall record every export in the audit log.\n- Rationale: SYS-006 keeps the audit requirement v2 dropped; compliance needs it (DOU-004). The code already writes one entry per exported report.\n- Traces to: SYS-006\n- Type: functional\n- Verification criteria:\n  - After a successful export of 1 report, the audit log holds 1 new entry naming that report.\n  - After a successful export of 3 reports, the audit log holds 3 new entries, one per report.\n  - A request rejected before any report is written adds no entry for the rejected report.\n- Component: `src/exporter.py:42`\n- Status: already met\n\n## SWR-008 — Export time for large reports\n\n- Statement: The software shall finish exporting a report of up to 10,000 rows within 30 seconds.\n- Rationale: SYS-007 sets the speed target that replaces \"quickly\" (DOU-003); the DoD requires a number, a unit and an input size (`requirements/dod.md:6`). The code writes rows one at a time with no time limit (`src/exporter.py:22-27`).\n- Traces to: SYS-007\n- Type: non-functional (performance)\n- Verification criteria:\n  - Exporting one report of 10,000 rows completes, with its output written, in 30 seconds or less.\n  - Exporting a report of 10,000 rows is measured over repeated runs; no run exceeds 30 seconds.\n- Component: `src/exporter.py:22-27`\n- Status: changes existing behavior\n\n## Traceability\n\n| System requirement | Software requirements |\n| ------------------ | --------------------- |\n| SYS-001 | SWR-001 |\n| SYS-003 | SWR-002 |\n| SYS-004 | SWR-003, SWR-004, SWR-005, SWR-006 |\n| SYS-006 | SWR-007 |\n| SYS-007 | SWR-008 |\n\n## Not derived to software\n\n| System requirement | Reason |\n| ------------------ | ------ |\n\nNone. SYS-002 and SYS-005 are superseded, and SYS-008 is out of scope (unchanged), so they are not derived.\n\n## Gaps found\n\n- SYS-004 (non-blocking): the time of night in UTC at which the run starts is not stated, so SWR-004 can only be tested as \"once per UTC night\".\n- SYS-004 (non-blocking): what counts as a \"failure\" of a scheduled export, and how the user is told (channel), are not stated; SWR-005 assumes any error raised by the export.\n- SYS-004 (non-blocking): whether a scheduled export is subject to the 100-report limit (SWR-001) is not stated.\n- SYS-007 (non-blocking): the environment (hardware, load) in which 30 seconds must hold is not stated.\n"
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-software-requirements",
+                "passed": true,
+                "weight": 1,
+                "explanation": "requirements/export/software-requirements.md exists as expected",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.8,
+            "passed": false,
+            "turns": 7,
+            "costUsd": 0.147265,
+            "judgeCostUsd": 0.0066067,
+            "durationSeconds": 45,
+            "startedAt": "2026-11-26T07:08:27.363Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "analysis-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched superseded by SYS-006 and SYS-007\\.\\s*$",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "dou-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched run it again the next night\\.\"\\n- Date: 2026-11-26\\n- Confirmed by: Lan \\(PO\\)\\s*$",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-epics",
+                "passed": true,
+                "weight": 1,
+                "explanation": "requirements/export/epics.md absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "software-requirements",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: PASS FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  false,
+                  false
+                ],
+                "evidence": "# Software requirements — export\n\n## SWR-001 — Limit per request\n\n- Statement: The software shall accept an export request for up to 100 reports and reject a request for more.\n- Rationale: SYS-001 raises the limit from 50 to 100 for every user, not only some roles (DOU-001).\n- Traces to: SYS-001\n- Type: functional\n- Verification criteria:\n  - A request for 100 reports from any user succeeds and returns 100 outputs.\n  - A request for 101 reports is rejected with an error, and no output is written.\n  - A request for 51 reports from an ordinary user succeeds (the old limit of 50 no longer applies).\n- Component: `src/exporter.py:8`, `src/exporter.py:33`\n- Status: changes existing behavior\n\n## SWR-002 — Owner-only export\n\n- Statement: The software shall reject an export of a report requested by any user other than the report's owner.\n- Rationale: SYS-003 and DOU-002: owner only; teammates must ask the owner. The code lets teammates export (`src/exporter.py:19`).\n- Traces to: SYS-003\n- Type: functional\n- Verification criteria:\n  - A request by the owner for their report succeeds and returns one output.\n  - A request by a teammate of the owner (same team, not the owner) is rejected with an error, and no output is written for that report.\n  - A request by a user outside the owner's team is rejected with an error, and no output is written for that report.\n- Component: `src/exporter.py:17-19`, `src/exporter.py:39-40`\n- Status: changes existing behavior\n\n## SWR-003 — Nightly export run\n\n- Statement: The software shall run each export a user has scheduled once every night, with night determined in UTC.\n- Rationale: SYS-004 asks for a nightly scheduled export; DOU-005 fixes UTC. The assumption in analysis.md is that a nightly export covers the reports the user could export by hand.\n- Traces to: SYS-004\n- Type: functional\n- Verification criteria:\n  - A user schedules an export; on the next UTC night the export runs exactly once and its outputs are written.\n  - With the user's local time zone set differently from UTC, the run still happens at the UTC night, not the local one.\n  - A user who has not scheduled an export gets no nightly run.\n  - A schedule that includes a report the user does not own is rejected (see SWR-002), and no output is written for that report.\n- Component: new: no scheduler exists in `src/exporter.py`\n- Status: new\n\n## SWR-004 — Failed scheduled export is reported\n\n- Statement: The software shall tell the user when a scheduled export fails.\n- Rationale: SYS-004 and DOU-005: \"If it fails, tell the user\".\n- Traces to: SYS-004\n- Type: functional\n- Verification criteria:\n  - When a scheduled export fails (for example, the output cannot be written), the user receives a notification that names the failed export.\n  - When a scheduled export succeeds, the user receives no failure notification.\n- Component: new: no scheduler exists in `src/exporter.py`\n- Status: new\n\n## SWR-005 — Failed scheduled export is retried the next night\n\n- Statement: The software shall run a failed scheduled export again on the next night.\n- Rationale: SYS-004 and DOU-005: \"run it again the next night\".\n- Traces to: SYS-004\n- Type: functional\n- Verification criteria:\n  - After a failed run on night N, the export runs again on night N+1 and, if it succeeds, its outputs are written.\n  - A failed run on night N does not cause a second run on the same night N.\n  - A successful run on night N is not repeated on night N+1 as a retry (it runs only as the regular nightly run).\n- Component: new: no scheduler exists in `src/exporter.py`\n- Status: new\n\n## SWR-006 — Audit log entry per export\n\n- Statement: The software shall record every export in the audit log.\n- Rationale: SYS-006: the PO kept the audit requirement that v2 dropped (DOU-004). The code already writes it.\n- Traces to: SYS-006\n- Type: functional\n- Verification criteria:\n  - An export of one report writes one audit log entry that identifies the report.\n  - An export request for 3 reports writes 3 audit log entries.\n  - An export that is rejected (for example, by SWR-002) writes no audit entry for the rejected report.\n- Component: `src/exporter.py:42`\n- Status: already met\n\n## SWR-007 — Export time for large reports\n\n- Statement: The software shall complete the export of a report with up to 10,000 rows within 30 seconds.\n- Rationale: SYS-007 and DOU-003 give the target. The code writes rows one at a time with no time limit (`src/exporter.py:22-27`), so the target is not guaranteed.\n- Traces to: SYS-007\n- Type: non-functional (performance)\n- Verification criteria:\n  - Exporting a report of 10,000 rows finishes and writes its output in at most 30 seconds.\n  - Exporting a report of 1 row finishes within the same 30 seconds.\n- Component: `src/exporter.py:22-27`\n- Status: changes existing behavior\n\n## Traceability\n\n| System requirement | Software requirements |\n| ------------------ | --------------------- |\n| SYS-001 | SWR-001 |\n| SYS-003 | SWR-002 |\n| SYS-004 | SWR-003, SWR-004, SWR-005 |\n| SYS-006 | SWR-006 |\n| SYS-007 | SWR-007 |\n\n## Not derived to software\n\n| System requirement | Reason |\n| ------------------ | ------ |\n| SYS-002 | superseded by SYS-006, out of scope |\n| SYS-005 | superseded by SYS-007, out of scope |\n| SYS-008 | out of scope, unchanged and already met |\n\n## Gaps found\n\n- SYS-004 (non-blocking): \"every night\" gives no hour in UTC; SWR-003 can only test \"once per UTC night\". Which hour or window?\n- SYS-004 (non-blocking): how many times a failed export is retried (only the next night is stated), and through which channel the user is told of a failure.\n- SYS-007 (non-blocking): the 30-second target gives no conditions (machine, load, output format csv or pdf); SWR-007 is tested without them.\n- SYS-006 (non-blocking): it is not stated whether a scheduled export is audited and whether a failed export is recorded; SWR-006 covers successful exports only.\n"
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-software-requirements",
+                "passed": true,
+                "weight": 1,
+                "explanation": "requirements/export/software-requirements.md exists as expected",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.8,
+            "passed": false,
+            "turns": 13,
+            "costUsd": 0.1584452,
+            "judgeCostUsd": 0.0073989,
+            "durationSeconds": 45,
+            "startedAt": "2026-11-26T07:08:27.363Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "analysis-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched superseded by SYS-006 and SYS-007\\.\\s*$",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "dou-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched run it again the next night\\.\"\\n- Date: 2026-11-26\\n- Confirmed by: Lan \\(PO\\)\\s*$",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-epics",
+                "passed": true,
+                "weight": 1,
+                "explanation": "requirements/export/epics.md absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "software-requirements",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "# Software requirements — export\n\n## SWR-001 — Limit per request\n\n- Statement: The software shall reject an export request for more than 100 reports.\n- Rationale: SYS-001 raises the limit from 50 to 100 for every user, not only some roles (DOU-001).\n- Traces to: SYS-001\n- Type: functional\n- Verification criteria:\n  - A request for 100 reports, all owned by the requester, succeeds and returns 100 output paths.\n  - A request for 101 reports is rejected with an error and no output is written.\n  - The same limit of 100 applies to any user, whatever their role.\n- Component: `src/exporter.py:8`, `src/exporter.py:33`\n- Status: changes existing behavior\n\n## SWR-002 — Owner-only export\n\n- Statement: The software shall reject an export of a report requested by a user who is not its owner.\n- Rationale: SYS-003 requires owner-only export; teammates must ask the owner (DOU-002). The code currently also allows teammates.\n- Traces to: SYS-003\n- Type: functional\n- Verification criteria:\n  - The owner exports their own report and receives its output path.\n  - A teammate (same team, not the owner) requests that report and is rejected with an error; no output is written.\n  - A user of another team requests that report and is rejected with an error; no output is written.\n- Component: `src/exporter.py:17-19`, `src/exporter.py:39-40`\n- Status: changes existing behavior\n\n## SWR-003 — Schedule a nightly export\n\n- Statement: The software shall let a user schedule an export to run every night.\n- Rationale: SYS-004 adds scheduled exports. A nightly export covers the reports the user could export by hand (assumption in analysis.md).\n- Traces to: SYS-004\n- Type: functional\n- Verification criteria:\n  - A user schedules an export of a report they own; the schedule is accepted and listed as active for that user.\n  - A user schedules an export of a report they do not own; the request is rejected with an error and no schedule is created.\n- Component: new: no scheduler exists in `src/exporter.py`\n- Status: new\n\n## SWR-004 — Run scheduled exports nightly in UTC\n\n- Statement: The software shall run each active scheduled export once per night, with \"night\" defined in UTC.\n- Rationale: SYS-004; the PO fixed the time zone as UTC (DOU-005). The hour of the run is not stated (see Gaps found).\n- Traces to: SYS-004\n- Type: functional\n- Verification criteria:\n  - With one active schedule, exactly one run occurs per UTC calendar day and its output is written.\n  - Changing the user's local time zone does not move the run to a different UTC night.\n- Component: new: no scheduler exists in `src/exporter.py`\n- Status: new\n\n## SWR-005 — Notify the user of a failed scheduled export\n\n- Statement: The software shall tell the user when a scheduled export fails.\n- Rationale: SYS-004; the PO answered \"tell the user\" on failure (DOU-005). The channel is not stated (see Gaps found).\n- Traces to: SYS-004\n- Type: functional\n- Verification criteria:\n  - A scheduled export made to fail (for example, the report has no rows) results in the owning user being notified of the failure for that run.\n  - A scheduled export that succeeds produces no failure notification.\n- Component: new: no scheduler exists in `src/exporter.py`\n- Status: new\n\n## SWR-006 — Retry a failed scheduled export the next night\n\n- Statement: The software shall run a failed scheduled export again the next night.\n- Rationale: SYS-004; the PO answered \"run it again the next night\" (DOU-005).\n- Traces to: SYS-004\n- Type: functional\n- Verification criteria:\n  - A scheduled export that fails on night N runs again on night N+1.\n  - A scheduled export that succeeds on night N still runs on night N+1 as a normal nightly run.\n  - A failure on night N does not cause a second run on night N.\n- Component: new: no scheduler exists in `src/exporter.py`\n- Status: new\n\n## SWR-007 — Audit log of every export\n\n- Statement: The software shall record every export in the audit log.\n- Rationale: SYS-006 keeps the audit-log requirement that v2 dropped; compliance needs it (DOU-004).\n- Traces to: SYS-006\n- Type: functional\n- Verification criteria:\n  - After an export request for one report succeeds, the audit log holds one new entry naming that report.\n  - After a request for 3 reports succeeds, the audit log holds 3 new entries, one per report.\n  - A request that is rejected for a report (not owner, no rows) adds no entry for that report.\n- Component: `src/exporter.py:42`\n- Status: already met\n\n## SWR-008 — Export time for a large report\n\n- Statement: The software shall complete the export of a report of up to 10,000 rows within 30 seconds.\n- Rationale: SYS-007 gives the speed target the DoD asks for: number, unit and input size (DOU-003). It replaces the untestable \"quickly\" of SYS-005.\n- Traces to: SYS-007\n- Type: non-functional (performance)\n- Verification criteria:\n  - Exporting one report of 10,000 rows finishes, with its output written, in 30 seconds or less.\n  - Exporting one report of 1 row also finishes within 30 seconds.\n- Component: `src/exporter.py:22-27`\n- Status: new\n\n## Traceability\n\n| System requirement | Software requirements |\n| ------------------ | --------------------- |\n| SYS-001 | SWR-001 |\n| SYS-003 | SWR-002 |\n| SYS-004 | SWR-003, SWR-004, SWR-005, SWR-006 |\n| SYS-006 | SWR-007 |\n| SYS-007 | SWR-008 |\n\n## Not derived to software\n\nEvery in-scope system requirement is derived; none is a manual or hardware step. SYS-002, SYS-005 and SYS-008 are `out` and are not derived.\n\n| System requirement | Reason |\n| ------------------ | ------ |\n\n## Gaps found\n\nFor the user to take to `analyze-requirements`, which adds the `DOU-` point. None blocks the derivation.\n\n- Non-blocking, SYS-004 (SWR-004): the hour of the nightly run is not stated, only the time zone (UTC). The verification criterion checks one run per UTC day, not a time.\n- Non-blocking, SYS-004 (SWR-005): the channel by which the user is told of a failure (email, in-app, other) is not stated.\n- Non-blocking, SYS-004 (SWR-006): whether the retry repeats forever or stops after a number of nights is not stated.\n- Non-blocking, SYS-007 (SWR-008): the machine or load conditions for the 30 seconds are not stated, and whether the 10,000 rows hold for a request of many reports (up to 100) or per report.\n- Non-blocking, SYS-001 and SYS-003: the order of the checks when a request breaks several rules at once (too many reports and not owner) is not stated; the code currently checks the limit first.\n"
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-software-requirements",
+                "passed": true,
+                "weight": 1,
+                "explanation": "requirements/export/software-requirements.md exists as expected",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0.6,
+            "passed": false,
+            "turns": 8,
+            "costUsd": 0.10583939999999999,
+            "judgeCostUsd": 0,
+            "durationSeconds": 24,
+            "startedAt": "2026-11-26T07:09:09.344Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "analysis-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched superseded by SYS-006 and SYS-007\\.\\s*$",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "dou-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched run it again the next night\\.\"\\n- Date: 2026-11-26\\n- Confirmed by: Lan \\(PO\\)\\s*$",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-epics",
+                "passed": true,
+                "weight": 1,
+                "explanation": "requirements/export/epics.md absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "software-requirements",
+                "passed": false,
+                "weight": 1,
+                "explanation": "grader threw: case \"derive-software-requirements-from-final-analysis\" grader focus file \"requirements/export/software-requirements.md\": path \"requirements/export/software-requirements.md\" does not exist",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "wrote-software-requirements",
+                "passed": false,
+                "weight": 1,
+                "explanation": "requirements/export/software-requirements.md missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.8,
+            "passed": false,
+            "turns": 9,
+            "costUsd": 0.11029140000000001,
+            "judgeCostUsd": 0.002930499999999999,
+            "durationSeconds": 36,
+            "startedAt": "2026-11-26T07:09:11.896Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "analysis-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched superseded by SYS-006 and SYS-007\\.\\s*$",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "dou-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched run it again the next night\\.\"\\n- Date: 2026-11-26\\n- Confirmed by: Lan \\(PO\\)\\s*$",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-epics",
+                "passed": true,
+                "weight": 1,
+                "explanation": "requirements/export/epics.md absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "software-requirements",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "# Software requirements — export\n\nDerived from `requirements/export/analysis.md` (status: final, 2026-11-26) and the closed points in `requirements/export/dou.md`. Each requirement traces to one in-scope system requirement. Each states one behavior a test can observe from outside the system (DoD, `requirements/dod.md`).\n\n## Requirements\n\n| ID | Requirement | Traces to | Verification |\n| -- | ----------- | --------- | ------------ |\n| SWR-001 | The system shall accept an export request of up to 100 reports from any user. | SYS-001, DOU-001 | Request 100 reports as a user of any role: accepted. |\n| SWR-002 | The system shall reject an export request of more than 100 reports with an error. | SYS-001, DOU-001 | Request 101 reports: rejected with an error, no file written. |\n| SWR-003 | The system shall export a report only when the requesting user is its owner. Being on the owner's team gives no right to export. | SYS-003, DOU-002 | A teammate who is not the owner requests an export: see SWR-004. The owner requests it: succeeds. |\n| SWR-004 | The system shall reject an export request for a report the user does not own, with an error. | SYS-003, DOU-002 | A non-owner, teammate or not, requests an export: rejected with an error, no file written, no audit entry. |\n| SWR-005 | The system shall let a user schedule an export to run every night. | SYS-004 | Schedule an export: it runs once each night. |\n| SWR-006 | The system shall run scheduled exports at night as defined in UTC. | SYS-004, DOU-005 | Check the run time against a UTC clock. |\n| SWR-007 | When a scheduled export fails, the system shall tell the user. | SYS-004, DOU-005 | Force a failure: the user gets a failure notice. |\n| SWR-008 | When a scheduled export fails, the system shall run it again the next night. | SYS-004, DOU-005 | Force a failure, then let the next night pass: the export runs again. |\n| SWR-009 | The system shall record every export in the audit log. | SYS-006, DOU-004 | Export a report: the audit log has one entry for it. |\n| SWR-010 | The system shall export a report of up to 10,000 rows within 30 seconds. | SYS-007, DOU-003 | Export a 10,000-row report: finishes in 30 s or less. |\n\n## Not derived\n\n| System requirement | Reason |\n| ------------------ | ------ |\n| SYS-002 | Superseded by SYS-006 (SWR-009). |\n| SYS-005 | Superseded by SYS-007 (SWR-010); \"quickly\" had no number. |\n| SYS-008 | Out of scope, unchanged, already met (`src/exporter.py:9`). |\n\n## Code impact (from the analysis)\n\n- SWR-001, SWR-002: `MAX_REPORTS_PER_REQUEST` is 50 at `src/exporter.py:8`; change to 100.\n- SWR-003, SWR-004: `_may_export` (`src/exporter.py:17-19`) also allows teammates; restrict to the owner.\n- SWR-005 to SWR-008: nothing schedules work today; new.\n- SWR-009: already met (`src/exporter.py:42`).\n- SWR-010: `_write` (`src/exporter.py:22-27`) writes row by row with no time limit; needs verification against the target.\n\n## Open points\n\n- **Gaps in the analysis.** Both `v1.md` and `v2.rst` also say \"exports a saved report as PDF\" and \"an export request is rejected when the report has no rows\". The analysis table has no system requirement for either, so I derived nothing for them. The code already rejects empty reports (`src/exporter.py:37-38`) and accepts `pdf`, but writes CSV text for any format (`src/exporter.py:22-27`). The analysis needs to cover these before software requirements are written for them.\n- **Assumption (owner: PO).** A nightly export covers the reports the user could export by hand. If wrong, the scheduler is built on the wrong report set. SWR-005 depends on it.\n- **Interpretation.** SWR-006 reads \"UTC\" as the time zone for \"every night\". The PO gave no hour, so the requirement fixes none.\n- **Interpretation.** SWR-002 and SWR-004 state the error from SYS-001 and SYS-003 as an error, with no message wording.\n"
+              },
+              {
+                "name": "wrote-software-requirements",
+                "passed": true,
+                "weight": 1,
+                "explanation": "requirements/export/software-requirements.md exists as expected",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.8,
+            "passed": false,
+            "turns": 6,
+            "costUsd": 0.11038730000000001,
+            "judgeCostUsd": 0.003560999999999998,
+            "durationSeconds": 38,
+            "startedAt": "2026-11-26T07:09:12.164Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "analysis-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched superseded by SYS-006 and SYS-007\\.\\s*$",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "dou-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched run it again the next night\\.\"\\n- Date: 2026-11-26\\n- Confirmed by: Lan \\(PO\\)\\s*$",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-epics",
+                "passed": true,
+                "weight": 1,
+                "explanation": "requirements/export/epics.md absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "software-requirements",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "# Software requirements — export\n\nStatus: draft (derived from `analysis.md`, status final, and `dou.md`, all DOU closed)\n\nDerived from the in-scope system requirements SYS-001, SYS-003, SYS-004, SYS-006 and SYS-007. Each software requirement states one behavior a test can observe from outside the system (`requirements/dod.md:1-3`).\n\n## Software requirements\n\n| ID | Requirement | Parent | Source | Code impact | Verification |\n| -- | ----------- | ------ | ------ | ----------- | ------------ |\n| SWR-001 | The system shall accept an export request of up to 100 reports from any user, whatever their role. | SYS-001 | DOU-001 | change: `MAX_REPORTS_PER_REQUEST` 50 → 100 (`src/exporter.py:8`) | Request with 100 reports succeeds; request with 50 succeeds. |\n| SWR-002 | The system shall reject an export request of more than 100 reports with an error, and shall export none of them. | SYS-001 | DOU-001 | existing check `src/exporter.py:33-34`, new limit | Request with 101 reports raises `ExportError`; no file written. |\n| SWR-003 | The system shall export a report only when the requesting user is the report's owner. | SYS-003 | DOU-002 | change: `_may_export` must drop the `report.team == user.team` clause (`src/exporter.py:17-19`) | Owner exports successfully. |\n| SWR-004 | The system shall reject an export request for a report the user does not own with an error, including when the user is on the owner's team. | SYS-003 | DOU-002 | change: same as SWR-003; existing error at `src/exporter.py:39-40` | A teammate (same team, different owner) gets `ExportError`; a user from another team gets `ExportError`; no file written for that report. |\n| SWR-005 | The system shall let a user schedule an export that runs every night. | SYS-004 | `v2.rst:20` | new: no scheduling in `src/exporter.py` | A user creates a schedule; the export runs once per night. |\n| SWR-006 | The system shall run scheduled exports at a fixed time each night measured in UTC, independent of the user's or server's local time zone. | SYS-004 | DOU-005 | new | With server and user zones set to non-UTC, the run occurs at the configured UTC time. |\n| SWR-007 | When a scheduled export fails, the system shall notify the user who scheduled it. | SYS-004 | DOU-005 | new | Force a failure; the user receives a notification identifying the failed export. |\n| SWR-008 | When a scheduled export fails, the system shall run it again the next night. | SYS-004 | DOU-005 | new | Force a failure on night N; a run is made on night N+1. |\n| SWR-009 | A scheduled export shall apply the same rules as a manual export: format, request limit, and owner-only access. | SYS-004, SYS-001, SYS-003 | analysis assumption (PO) | new, reuse `export_reports` | Scheduled run for a report the user does not own is rejected like SWR-004. |\n| SWR-010 | The system shall write one audit log entry for every report exported, naming the report. | SYS-006 | DOU-004 | already met: `src/exporter.py:42` | Export of N reports yields N audit entries. |\n| SWR-011 | The system shall export a report of up to 10,000 rows in 30 seconds or less. | SYS-007 | DOU-003 | new target; `_write` writes row by row, no time limit (`src/exporter.py:22-27`) | Export a 10,000-row report; elapsed time ≤ 30 s. |\n\n## Not derived\n\n| ID | Reason |\n| -- | ------ |\n| SYS-002 | Superseded by SYS-006. |\n| SYS-005 | Superseded by SYS-007; untestable (\"quickly\"). |\n| SYS-008 | Out of scope: unchanged, already met (`src/exporter.py:9`). |\n\n## Open points\n\nThese are not covered by a DOU, and I did not ask the PO (not available). They are my assumptions, to confirm.\n\n- **Nightly time of day.** DOU-005 gives the zone (UTC) but not the hour. SWR-006 therefore says \"a fixed time\", configurable; the value is unspecified. A test needs a number.\n- **Notification channel (SWR-007).** \"Tell the user\" does not say how (email, in-app, other).\n- **Retry limit (SWR-008).** The PO said \"run it again the next night\". I did not add a cap on repeated failures, or a retry on the retry's failure beyond the following night.\n- **Scheduled export contents (SWR-005, SWR-009).** The report set, format and owner-only check at run time follow the analysis assumption (PO owns the risk); unconfirmed. Whether a schedule continues if the user later loses ownership is not stated.\n- **SWR-011 environment.** The 30-second target has no stated hardware or load; it should be fixed before the test is written.\n- **Empty reports.** The code rejects a report with no rows (`src/exporter.py:37-38`); no requirement covers this. Left unchanged and not derived.\n\n## Revision history\n\n- 2026-11-26 — first derivation from `analysis.md` and `dou.md`.\n"
+              },
+              {
+                "name": "wrote-software-requirements",
+                "passed": true,
+                "weight": 1,
+                "explanation": "requirements/export/software-requirements.md exists as expected",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 0.8000000000000002,
+        "passRate": 0,
+        "scoreWithout": 0.7333333333333334,
+        "passRateWithout": 0,
+        "delta": 0.06666666666666676
+      }
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 1,
+    "casesPassed": 0,
+    "overallScore": 0.8000000000000002,
+    "overallPassRate": 0,
+    "meanDelta": 0.06666666666666676
+  }
+}

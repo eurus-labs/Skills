@@ -1,0 +1,948 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Eval report — docs v1.7.0</title>
+</head>
+<body>
+<style>
+:root{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme:dark){:root{--plane:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink-2:#c3c2b7;--ink-3:#898781;--hairline:rgba(255,255,255,.10);--grid:#2c2c2a;--inset:rgba(255,255,255,.05);--accent:#3987e5;--base-fill:#898781;--delta-good:#0ca30c;--good:#0ca30c;--warning:#fab219;--critical:#e06c6c;color-scheme:dark}}
+:root[data-theme="dark"]{--plane:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink-2:#c3c2b7;--ink-3:#898781;--hairline:rgba(255,255,255,.10);--grid:#2c2c2a;--inset:rgba(255,255,255,.05);--accent:#3987e5;--base-fill:#898781;--delta-good:#0ca30c;--good:#0ca30c;--warning:#fab219;--critical:#e06c6c;color-scheme:dark}
+:root[data-theme="light"]{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--plane);color:var(--ink);
+  font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:880px;margin:0 auto;padding:40px 24px 64px;display:flex;flex-direction:column;gap:20px}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+header h1{margin:2px 0 0;font-size:24px;font-weight:600;line-height:1.25;text-wrap:balance}
+.meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;color:var(--ink-2);font-size:13px}
+.meta .num{font-variant-numeric:tabular-nums lining-nums}
+.banner{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;
+  border:1px solid var(--hairline);background:var(--surface);font-size:13px}
+.banner .chip-warn{color:var(--warning);font-weight:600}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--hairline);border-radius:10px;padding:14px 16px;
+  display:flex;flex-direction:column;gap:4px}
+.tile .label{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.tile .value{font-size:26px;font-weight:600;font-variant-numeric:tabular-nums lining-nums;line-height:1.1}
+.tile.hero .value{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:48px}
+.tile .sub{font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.tile .value.delta-pos{color:var(--delta-good)}
+.tile .value.delta-neg{color:var(--critical)}
+.toolbar{display:flex;gap:8px;justify-content:flex-end}
+.toolbar button{font:12px system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink-2);
+  background:var(--surface);border:1px solid var(--hairline);border-radius:6px;padding:4px 10px;cursor:pointer}
+.toolbar button:hover{color:var(--ink)}
+.toolbar button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.case{background:var(--surface);border:1px solid var(--hairline);border-radius:10px;padding:18px 20px;
+  display:flex;flex-direction:column;gap:10px}
+.case-regressed{border-left:3px solid var(--critical)}
+.verdict{margin:6px 0 0;font-size:15px}
+.verdict .delta{font-size:15px}
+.flag{font-size:11px;font-weight:600;color:var(--warning);white-space:nowrap}
+.star{color:var(--warning);font-size:.45em;vertical-align:super;line-height:0;cursor:help}
+.legend summary{cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
+.legend-list{margin:8px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--ink-2)}
+.case-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.case-head h2{margin:0;font-size:16px;font-weight:600}
+.case-head .spacer{flex:1}
+.case-score{font-size:15px;font-weight:600}
+.mono{font:12px "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.num{font-variant-numeric:tabular-nums lining-nums}
+.muted{color:var(--ink-3);font-size:12px}
+.meter{display:inline-block;position:relative;width:120px;height:6px;border-radius:4px;background:var(--grid);
+  vertical-align:middle}
+.meter>span{display:block;height:100%;border-radius:4px;max-width:100%}
+.meter .tick{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink-3);border-radius:1px}
+.m-accent>span{background:var(--accent)}
+.m-base>span{background:var(--base-fill)}
+.delta{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.delta-pos{color:var(--delta-good)}
+.delta-neg{color:var(--critical)}
+.delta-zero{color:var(--ink-3)}
+details.section{border-top:1px solid var(--grid);padding-top:10px}
+details.section>summary{cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--ink-2);list-style-position:outside;margin-left:2px}
+details.section>summary:hover{color:var(--ink)}
+details.section[open]>summary{margin-bottom:8px}
+.md{display:flex;flex-direction:column;gap:8px;background:var(--inset);border-radius:8px;
+  padding:12px 14px;overflow-wrap:break-word}
+.md>:first-child{margin-top:0}
+.md h1,.md h2,.md h3,.md h4,.md h5,.md h6{margin:4px 0 0;font-size:1em;font-weight:600;line-height:1.3}
+.md p,.md ul,.md ol,.md blockquote,.md table,.md pre,.md hr{margin:0}
+.md ul,.md ol{display:flex;flex-direction:column;gap:4px;padding-left:20px}
+.md blockquote{border-left:2px solid var(--hairline);padding-left:10px;color:var(--ink-2)}
+.md :not(pre)>code{background:var(--inset);padding:1px 4px;border-radius:4px;
+  font:.92em "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.md pre{background:var(--inset);border:1px solid var(--hairline);padding:10px 12px;border-radius:6px;
+  overflow-x:auto;font:12px/1.5 "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.md pre code{background:none;padding:0;font:inherit}
+.md table{width:100%;border-collapse:collapse}
+.md th,.md td{padding:5px 8px;text-align:left;vertical-align:top;border-bottom:1px solid var(--grid)}
+.md th{font-weight:600;color:var(--ink-2)}
+.md a{color:var(--accent);text-decoration:none}
+.md a:hover{text-decoration:underline}
+.grader-def{display:flex;flex-direction:column;gap:6px;padding:8px 0}
+.grader-def+.grader-def{border-top:1px solid var(--grid)}
+.grader-def-head{display:flex;align-items:baseline;gap:8px}
+.grader-name{font:13px "SF Mono",ui-monospace,Menlo,Consolas,monospace;font-weight:600}
+.badge{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);
+  border:1px solid var(--hairline);border-radius:999px;padding:1px 8px}
+.config{display:flex;flex-direction:column;gap:2px;background:var(--inset);border-radius:8px;padding:10px 14px}
+.config code{font:12px "SF Mono",ui-monospace,Menlo,Consolas,monospace;overflow-wrap:anywhere}
+.arm{display:flex;flex-direction:column;gap:8px;padding:6px 0}
+.arm+.arm{border-top:1px dashed var(--grid);margin-top:4px;padding-top:12px}
+.arm-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.arm-label{font-size:13px;font-weight:600}
+.run{border:1px solid var(--grid);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.run-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.run-title{font-size:12px;font-weight:600;color:var(--ink-2)}
+.run-error .explanation{color:var(--ink-2)}
+.note{font-size:12px;color:var(--ink-2)}
+.graders{display:flex;flex-direction:column;gap:4px}
+details.grader{border-radius:6px}
+details.grader>summary{cursor:pointer;display:flex;align-items:baseline;gap:8px;padding:3px 4px;
+  border-radius:6px;list-style:none}
+details.grader>summary::-webkit-details-marker{display:none}
+details.grader>summary::before{content:'▸';font-size:10px;color:var(--ink-3);flex:none;
+  transition:transform .12s ease}
+details.grader[open]>summary::before{transform:rotate(90deg)}
+details.grader>summary:hover{background:var(--inset)}
+details.grader>summary:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.grader-body{padding:6px 8px 8px 24px;display:flex;flex-direction:column;gap:6px}
+.chip{font-size:11px;font-weight:600;border-radius:999px;padding:1px 8px;white-space:nowrap}
+.chip-pass{color:var(--good);border:1px solid currentColor}
+.chip-fail{color:var(--critical);border:1px solid currentColor}
+.chip.chip-warn{color:var(--warning);border:1px solid currentColor}
+.explanation{margin:0;font-size:13px;color:var(--ink-2);white-space:pre-wrap;overflow-wrap:break-word}
+.kv{display:flex;gap:8px;font-size:12px;color:var(--ink-3)}
+.votes{font-variant-numeric:tabular-nums;letter-spacing:.1em}
+pre.evidence{margin:0;background:var(--inset);border:1px solid var(--hairline);border-radius:6px;
+  padding:8px 10px;overflow-x:auto;max-height:320px;
+  font:12px/1.5 "SF Mono",ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-wrap:break-word}
+footer{color:var(--ink-3);font-size:12px;text-align:center;padding-top:8px}
+@media (prefers-reduced-motion:no-preference){
+  details.grader>summary,.toolbar button{transition:background .12s ease,color .12s ease}
+}
+@media (prefers-reduced-motion:reduce){
+  details.grader>summary::before{transition:none}
+}
+@media print{
+  :root,:root[data-theme="dark"],:root[data-theme="light"]{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;color-scheme:light}
+  body{background:#fff}
+  .toolbar{display:none}
+  .case,.run,.grader-def{break-inside:avoid}
+  pre.evidence{max-height:none}
+}
+</style>
+<div class="wrap">
+<header>
+<div class="eyebrow">Plugin eval report</div>
+<h1>docs v1.7.0</h1>
+<p class="verdict">Plugin effect: <span class="delta delta-pos">↑ +66.7 pts</span> vs baseline — improved 1 · flat 0 · regressed 0 of 1 case.</p>
+<div class="meta">
+<span class="mono">.</span>
+<span>Claude Code v2.1.329</span>
+<span class="num">2026-11-20 07:14 UTC</span>
+<span class="num">3m 2s</span>
+<span class="num">$1.85</span>
+<span class="num">6 runs</span>
+<span class="num">3 in flight</span>
+
+<span>model claude-sonnet-5-5</span>
+<span>judge haiku</span>
+<span class="num">threshold 100%</span>
+<span>filtered: --tag behavior</span>
+</div>
+</header>
+
+<section class="tiles">
+<div class="tile hero"><span class="label">Suite score · with plugin</span><span class="value">100%</span><span class="sub">mean of per-case scores</span></div>
+<div class="tile"><span class="label">Ablation Δ</span><span class="value num delta-pos">↑ +66.7</span><span class="sub">score points vs baseline, 1 of 1 case</span></div>
+<div class="tile"><span class="label">Baseline score</span><span class="value num">33.3%</span><span class="sub">without the plugin</span></div>
+<div class="tile"><span class="label">Cases</span><span class="value num">1</span><span class="sub">1 of 1 ≥ 100% threshold</span></div>
+<div class="tile"><span class="label">Perfect runs</span><span class="value num">100%</span><span class="sub">runs where every grader passed</span></div>
+</section>
+<details class="section legend">
+<summary>How to read this report</summary>
+<ul class="legend-list">
+<li>A run's score is the weighted fraction of its graders that passed; a "perfect" run passed every grader.</li>
+<li>A case's score is the mean of its runs; a case passes when its score is at or above the 100% threshold (the tick on each case bar).</li>
+<li>The suite score is the mean of the per-case scores.</li>
+<li>Judge votes are independent samples of the LLM judge; the majority decides pass or fail.</li>
+<li>"With plugin" and "Baseline" runs are identical except for the plugin being loaded; Δ is the with-plugin score minus the baseline score.</li>
+
+</ul>
+</details>
+<div class="toolbar"><button type="button" data-act="expand">Expand all</button><button type="button" data-act="collapse">Collapse all</button></div>
+<article class="case" id="case-1">
+<div class="case-head">
+<h2>architecture-overview-of-layered-repo</h2>
+<span class="muted mono">evals/behavior/architecture-overview-of-layered-repo</span>
+<span class="spacer"></span>
+
+<span class="delta delta-pos">↑ +66.7 pts</span>
+<span class="muted">with plugin</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span><i class="tick" style="left:100.0%"></i></span>
+<span class="num case-score">100%</span>
+</div>
+
+<details class="section" open>
+<summary>Results</summary>
+<section class="arm">
+<div class="arm-head">
+<span class="arm-label">With plugin</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">100% of runs perfect</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">30 turns · $0.53 · 07:14:52 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">architecture-preset</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Bash called 1x (expected 1..∞)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">handoff</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I wrote the architecture docs, but they aren&apos;t in `docs/` yet. They&apos;re in a draft at `.docs-build/rendered-docs/`, and `publish` is blocked until you answer checkpoint P4.
+
+**What the draft covers**
+- The draft has six pages: `overview`, `architecture`, `dependencies`, `class-views`, `flows` and `limitations`.
+- Components and dependencies come from the import graph, with `file:line` evidence for each claim. All 17 structural claims verified, including the four call sites.
+- The order flow is traced twice, as `main` → `OrderService.record` → `Store.put` from the CLI and `Handler.post` → `record` → `put` from HTTP.
+- Entry points are only covered inside the per-module notes. The `architecture` preset has no separate entry-points page.
+
+**Choices I made for you (all recorded in `.docs-build/checkpoints/`)**
+- **Template:** I picked the `architecture` preset because you asked for components, dependencies, entry points and order flow. It&apos;s provisional until you confirm it. If you want a dedicated entry-points page, `onboarding` has one, and `outside-in` renders the component and flow analyses as their own pages.
+- **P1–P3 (scope, module roles, boundaries):** I accepted all ten files as in scope. I grouped them into three components: the two entry points, the order workflow and domain, and storage and settings. Where the repo gives no reason for a boundary, the rationale says `unknown`.
+
+**Needs your answer when you&apos;re back**
+- **P4:** Three readings are queued for your review, and I did not answer for you. They are the service-boundary rationale and the &quot;who owns what&quot; lines for `Handler` and `OrderService`. Record your verdict with `pipeline.py decide --checkpoint P4 --user-response &quot;...&quot; --p4-verdict accepted|changes-requested`, then run `publish --docs docs`.
+- **Template confirmation:** `publish` also refuses until you confirm the `architecture` preset or pick another.
+
+**Things in the code you should know about**
+- Orders are never persisted. `Store.put` appends to an in-memory list, and there is no flush or read method. This contradicts the README&apos;s &quot;history that outlives a spreadsheet&quot;.
+- `ORDERLOG_PATH` is loaded but nothing reads it.
+- Only the HTTP handler validates input. The CLI doesn&apos;t, and always returns 0.
+- Nothing serves `Handler`, so there is no HTTP server.
+- CI runs `pytest`, but the repo has no tests.
+
+**What didn&apos;t pass**
+- **Quality gate:** The review step&apos;s quality gate reports `failed`. The cause is advisory flags on the four empty `__init__.py` files, which can only be described with near-identical sentences. A few statements also name too little of their own module (A013, A014 and A016).
+- **Prose review:** `check_prose` also exited 1 on two flagged passages, a 27-word sentence in `architecture` and the opening line of `overview`. I haven&apos;t fixed either.
+- **Review mode:** There was no separate reviewer, so any review would be `self_review`.
+- **Build check:** Sphinx and docutils aren&apos;t installed, so the markup was not parsed or built.
+
+`.docs-build/` is still in the repo; I can remove it when you want.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">not-manual-preset</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Bash called 0x (expected 0..0)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">not-published</span>  </summary>
+<div class="grader-body">
+<p class="explanation">docs/** absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">overview</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS FAIL PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✗ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">.docs-build/.gitignore
+.docs-build/architecture-analysis.json
+.docs-build/checkpoints/P1.json
+.docs-build/checkpoints/P2.json
+.docs-build/checkpoints/P3.json
+.docs-build/checkpoints/P4.json
+.docs-build/claims.jsonl
+.docs-build/claims.verified.jsonl
+.docs-build/class-graph.json
+.docs-build/config-analysis.json
+.docs-build/config-report.json
+.docs-build/diagrams/diagram-manifest.json
+.docs-build/diagrams/flow-diagram-manifest.json
+.docs-build/diagrams/flow-record-cli.puml
+.docs-build/diagrams/flow-record-http.puml
+.docs-build/diagrams/full-repository.puml
+.docs-build/doc.json
+.docs-build/drafts/counter.json
+.docs-build/drafts/rev-0001.meta/revision.json
+.docs-build/drafts/rev-0001/_diagrams/diagram-manifest.json
+.docs-build/drafts/rev-0001/_diagrams/flow-diagram-manifest.json
+.docs-build/drafts/rev-0001/_diagrams/flow-record-cli.puml
+.docs-build/drafts/rev-0001/_diagrams/flow-record-http.puml
+.docs-build/drafts/rev-0001/_diagrams/full-repository.puml
+.docs-build/drafts/rev-0001/architecture.rst
+.docs-build/drafts/rev-0001/class-views.rst
+.docs-build/drafts/rev-0001/dependencies.rst
+.docs-build/drafts/rev-0001/flows.rst
+.docs-build/drafts/rev-0001/index.rst
+.docs-build/drafts/rev-0001/limitations.rst
+.docs-build/drafts/rev-0001/overview.rst
+.docs-build/drafts/rev-0002.meta/prose-report-01.json
+.docs-build/drafts/rev-0002.meta/revision.json
+.docs-build/drafts/rev-0002/_diagrams/diagram-manifest.json
+.docs-build/drafts/rev-0002/_diagrams/flow-diagram-manifest.json
+.docs-build/drafts/rev-0002/_diagrams/flow-record-cli.puml
+.docs-build/drafts/rev-0002/_diagrams/flow-record-http.puml
+.docs-build/drafts/rev-0002/_diagrams/full-repository.puml
+.docs-build/drafts/rev-0002/architecture.rst
+.docs-build/drafts/rev-0002/class-views.rst
+.docs-build/drafts/rev-0002/dependencies.rst
+.docs-build/drafts/rev-0002/flows.rst
+.docs-build/drafts/rev-0002/index.rst
+.docs-build/drafts/rev-0002/limitations.rst
+.docs-build/drafts/rev-0002/overview.rst
+.docs-build/findings.jsonl
+.docs-build/flow-analysis.json
+.docs-build/flow-report.json
+.docs-build/fragments.csv
+.docs-build/fragments.jsonl
+.docs-build/fragments.verified.jsonl
+.docs-build/generation-report.json
+.docs-build/hygiene-report.json
+.docs-build/module-analysis.jsonl
+.docs-build/operations-analysis.json
+.docs-build/packets/src__app____init__.py.6909a592.json
+.docs-build/packets/src__app__api____init__.py.bee6bd7b.json
+.docs-build/packets/src__app__api__cli.py.b906b928.json
+.docs-build/packets/src__app__api__http.py.f4af65ee.json
+.docs-build/packets/src__app__core____init__.py.c7264f99.json
+.docs-build/packets/src__app__core__models.py.39e77b07.json
+.docs-build/packets/src__app__core__service.py.2dba3b03.json
+.docs-build/packets/src__app__infra____init__.py.9b80badd.json
+.docs-build/packets/src__app__infra__config.py.63d0c6cc.json
+.docs-build/packets/src__app__infra__store.py.4aa00ae4.json
+.docs-build/prose-report.json
+.docs-build/render-manifest.json
+.docs-build/rendered-docs/_diagrams/diagram-manifest.json
+.docs-build/rendered-docs/_diagrams/flow-diagram-manifest.json
+.docs-build/rendered-docs/_diagrams/flow-record-cli.puml
+.docs-build/rendered-docs/_diagrams/flow-record-http.puml
+.docs-build/rendered-docs/_diagrams/full-repository.puml
+.docs-build/rendered-docs/architecture.rst
+.docs-build/rendered-docs/class-views.rst
+.docs-build/rendered-docs/dependencies.rst
+.docs-build/rendered-docs/flows.rst
+.docs-build/rendered-docs/index.rst
+.docs-build/rendered-docs/limitations.rst
+.docs-build/rendered-docs/overview.rst
+.docs-build/scope.json
+.docs-build/selection-options.json
+.docs-build/structure.json
+.docs-build/template.json
+.docs-build/timings.jsonl
+.docs-build/units.txt</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">rendered-draft</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">.docs-build/rendered-docs/** exists as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 2</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">36 turns · $0.57 · 07:14:52 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">architecture-preset</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Bash called 1x (expected 1..∞)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">handoff</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">The architecture docs are drafted but not published, so `docs/` doesn&apos;t exist yet. The pipeline stopped at the last review checkpoint (P4), which needs your direct answer.
+
+## State
+- **Draft:** seven pages are in `.docs-build/rendered-docs/`, as revision `rev-0001`.
+  - The pages are `index`, `overview`, `architecture`, `dependencies`, `flows`, `class-views` and `limitations`.
+  - They cover components, dependencies, entry points and the order flow.
+  - Every claim cites a `path:line`. The citations show only in the audit edition.
+- **Review:** the final review run exited 1. It reports `P005` findings (&quot;carries no citation&quot;) on some blocks. I didn&apos;t repair them.
+- **No Sphinx build:** neither `sphinx-build` nor `docutils` is installed, so the markup was never parsed.
+
+## Choices I made
+- **Template:** the `architecture` preset, because you asked for components, dependencies, entry points and flow. This is your decision, so please confirm it or pick another.
+- **Checkpoints P1–P3:** I recorded these myself and marked each note &quot;Unattended&quot;.
+  - Scope was all 10 files under `src/`.
+  - Module roles come from reading the source.
+  - Components are Entry points (`cli.py`, `http.py`), Order workflow (`service.py`, `models.py`) and Storage/config (`store.py`, `config.py`).
+- **Components follow the directories:** the repo is small and layered, so this is a weak result.
+- **Rejected claim:** a `calls` claim for `OrderService.record` → `Order(...)` was rejected by the checker (instantiating a class isn&apos;t a call to that symbol). I removed it, so construction appears only as an import relationship.
+- **Advisory findings:** the `A013`/`A016` findings (the empty `__init__.py` files and `config.py`) are advisory and left as they are.
+
+## What the code shows
+- **Entry points:** the `orderlog` console script (`pyproject.toml:7` → `app.api.cli:main`) and `Handler.post` in `http.py`.
+- **Order flow:** entry point → `OrderService.record` → `Store.put`.
+- **Nothing persists:** `Store` only appends to an in-memory list. The `ORDERLOG_PATH` setting is loaded but nothing reads it or writes to disk, which contradicts the README&apos;s &quot;order history that outlives a spreadsheet&quot;. I recorded this as a limitation.
+- **HTTP handler is unreachable:** no server or router calls `Handler.post` in the scanned source.
+- **Different validation:** the HTTP path checks for `sku`, but the CLI accepts any argument.
+- **Separate stores:** each `Handler` and each CLI run builds its own `OrderService` and `Store`.
+
+## Waiting for you
+1. Answer P4. The queue is the `OrderService.record` reading and the other queued readings. Use `pipeline.py decide --checkpoint P4 --user-response &apos;…&apos; --p4-verdict accepted|changes-requested`.
+2. Confirm the template.
+3. Decide whether the persistence gap is a bug or planned work. I documented it only as an observation.
+4. Then run `pipeline.py publish --docs docs`. `.docs-build/` is still in place, and I can remove it when you&apos;re done.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">not-manual-preset</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Bash called 0x (expected 0..0)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">not-published</span>  </summary>
+<div class="grader-body">
+<p class="explanation">docs/** absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">overview</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">.docs-build/.gitignore
+.docs-build/architecture-analysis.json
+.docs-build/checkpoints/P1.json
+.docs-build/checkpoints/P2.json
+.docs-build/checkpoints/P3.json
+.docs-build/checkpoints/P4.json
+.docs-build/claims.jsonl
+.docs-build/claims.verified.jsonl
+.docs-build/class-graph.json
+.docs-build/config-analysis.json
+.docs-build/config-report.json
+.docs-build/diagrams/diagram-manifest.json
+.docs-build/diagrams/flow-diagram-manifest.json
+.docs-build/diagrams/flow-record-cli.puml
+.docs-build/diagrams/flow-record-http.puml
+.docs-build/diagrams/full-repository.puml
+.docs-build/doc.json
+.docs-build/drafts/counter.json
+.docs-build/drafts/rev-0001.meta/prose-report-01.json
+.docs-build/drafts/rev-0001.meta/prose-report-02.json
+.docs-build/drafts/rev-0001.meta/revision.json
+.docs-build/drafts/rev-0001/_diagrams/diagram-manifest.json
+.docs-build/drafts/rev-0001/_diagrams/flow-diagram-manifest.json
+.docs-build/drafts/rev-0001/_diagrams/flow-record-cli.puml
+.docs-build/drafts/rev-0001/_diagrams/flow-record-http.puml
+.docs-build/drafts/rev-0001/_diagrams/full-repository.puml
+.docs-build/drafts/rev-0001/architecture.rst
+.docs-build/drafts/rev-0001/class-views.rst
+.docs-build/drafts/rev-0001/dependencies.rst
+.docs-build/drafts/rev-0001/flows.rst
+.docs-build/drafts/rev-0001/index.rst
+.docs-build/drafts/rev-0001/limitations.rst
+.docs-build/drafts/rev-0001/overview.rst
+.docs-build/findings.jsonl
+.docs-build/flow-analysis.json
+.docs-build/flow-report.json
+.docs-build/fragments.csv
+.docs-build/fragments.jsonl
+.docs-build/fragments.verified.jsonl
+.docs-build/generation-report.json
+.docs-build/hygiene-report.json
+.docs-build/module-analysis.jsonl
+.docs-build/operations-analysis.json
+.docs-build/packets/src__app____init__.py.6909a592.json
+.docs-build/packets/src__app__api____init__.py.bee6bd7b.json
+.docs-build/packets/src__app__api__cli.py.b906b928.json
+.docs-build/packets/src__app__api__http.py.f4af65ee.json
+.docs-build/packets/src__app__core____init__.py.c7264f99.json
+.docs-build/packets/src__app__core__models.py.39e77b07.json
+.docs-build/packets/src__app__core__service.py.2dba3b03.json
+.docs-build/packets/src__app__infra____init__.py.9b80badd.json
+.docs-build/packets/src__app__infra__config.py.63d0c6cc.json
+.docs-build/packets/src__app__infra__store.py.4aa00ae4.json
+.docs-build/prose-report.json
+.docs-build/render-manifest.json
+.docs-build/rendered-docs/_diagrams/diagram-manifest.json
+.docs-build/rendered-docs/_diagrams/flow-diagram-manifest.json
+.docs-build/rendered-docs/_diagrams/flow-record-cli.puml
+.docs-build/rendered-docs/_diagrams/flow-record-http.puml
+.docs-build/rendered-docs/_diagrams/full-repository.puml
+.docs-build/rendered-docs/architecture.rst
+.docs-build/rendered-docs/class-views.rst
+.docs-build/rendered-docs/dependencies.rst
+.docs-build/rendered-docs/flows.rst
+.docs-build/rendered-docs/index.rst
+.docs-build/rendered-docs/limitations.rst
+.docs-build/rendered-docs/overview.rst
+.docs-build/scope.json
+.docs-build/selection-options.json
+.docs-build/structure.json
+.docs-build/template.json
+.docs-build/timings.jsonl
+.docs-build/units.txt</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">rendered-draft</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">.docs-build/rendered-docs/** exists as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 3</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">26 turns · $0.45 · 07:14:52 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">architecture-preset</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Bash called 1x (expected 1..∞)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">handoff</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I&apos;ve built the architecture docs, but they aren&apos;t in `docs/` yet. The publish step needs your answer on four readings first (P4), and I wasn&apos;t going to answer that for you. The drafted pages are in `.docs-build/rendered-docs/`:
+
+- `overview.rst`
+- `architecture.rst`
+- `dependencies.rst`
+- `class-views.rst`
+- `flows.rst`
+- `limitations.rst`
+- a `_diagrams/` folder with PlantUML sources
+
+None of it has gone through a Sphinx build, because neither `sphinx-build` nor `docutils` is installed here.
+
+**What&apos;s verified:** all 17 structural and call claims check out against the source. That includes four call claims I wrote by hand, covering `main`, `Handler.post`, `OrderService.record` and `Store.__init__`. The two order flows trace cleanly:
+
+- **CLI:** `cli.main` calls `OrderService.record`, which calls `Store.put`.
+- **HTTP:** `Handler.post` follows the same path into `record` and `put`.
+
+**Choices I made myself, for you to overrule:**
+- **Template:** the `architecture` preset, because you asked for components, dependencies, entry points and order flow.
+- **Checkpoints P1–P3:** I recorded each with a note saying it was unattended. All 10 product files are in scope. The three components are Entry points (`api`), Order recording (`core`) and Storage and settings (`infra`). They follow the package layout, and I found no better boundary in 10 small files.
+- **Missing rationale:** for &quot;Storage and settings&quot; the repo gives no reason, so I recorded the rationale as unknown.
+
+**Things the code does that you may not expect:**
+- **Orders aren&apos;t persisted.** The README promises history that outlives a spreadsheet, but `Store` keeps orders in an in-memory list, and nothing flushes it or reads `ORDERLOG_PATH`. Orders are lost when the process exits.
+- **HTTP isn&apos;t wired up.** `Handler` in `http.py` isn&apos;t instantiated or routed anywhere.
+- **CI runs `pytest`, but the repo has no tests.**
+- **`Order.total` and `Record.key` are unused.**
+
+**Waiting on you:**
+1. **P4:** read the four queued readings and their evidence in `store.py`, `http.py` and `service.py`. Then run `decide --checkpoint P4 --user-response &apos;&lt;answer&gt;&apos; --p4-verdict accepted|changes-requested`.
+2. **Review findings:**
+   - One error: the overview says `config.py` &quot;reads&quot; the environment variable, which an import claim doesn&apos;t support.
+   - Several sentences run over 25 words.
+   - The quality report came back `failed`.
+   - Fix these (the wording could be reworded on request), then rerun `review` and `publish --docs docs`.
+3. **Review mode:** I did no independent review. Everything so far was one pass by me.
+
+The `.docs-build/` directory is still in place. I can remove it once you&apos;re done.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">not-manual-preset</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Bash called 0x (expected 0..0)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">not-published</span>  </summary>
+<div class="grader-body">
+<p class="explanation">docs/** absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">overview</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">.docs-build/.gitignore
+.docs-build/architecture-analysis.json
+.docs-build/checkpoints/P1.json
+.docs-build/checkpoints/P2.json
+.docs-build/checkpoints/P3.json
+.docs-build/checkpoints/P4.json
+.docs-build/claims.jsonl
+.docs-build/claims.verified.jsonl
+.docs-build/class-graph.json
+.docs-build/config-analysis.json
+.docs-build/config-report.json
+.docs-build/diagrams/diagram-manifest.json
+.docs-build/diagrams/flow-diagram-manifest.json
+.docs-build/diagrams/flow-record-cli.puml
+.docs-build/diagrams/flow-record-http.puml
+.docs-build/diagrams/full-repository.puml
+.docs-build/doc.json
+.docs-build/drafts/counter.json
+.docs-build/drafts/rev-0001.meta/prose-report-01.json
+.docs-build/drafts/rev-0001.meta/prose-report-02.json
+.docs-build/drafts/rev-0001.meta/revision.json
+.docs-build/drafts/rev-0001/_diagrams/diagram-manifest.json
+.docs-build/drafts/rev-0001/_diagrams/flow-diagram-manifest.json
+.docs-build/drafts/rev-0001/_diagrams/flow-record-cli.puml
+.docs-build/drafts/rev-0001/_diagrams/flow-record-http.puml
+.docs-build/drafts/rev-0001/_diagrams/full-repository.puml
+.docs-build/drafts/rev-0001/architecture.rst
+.docs-build/drafts/rev-0001/class-views.rst
+.docs-build/drafts/rev-0001/dependencies.rst
+.docs-build/drafts/rev-0001/flows.rst
+.docs-build/drafts/rev-0001/index.rst
+.docs-build/drafts/rev-0001/limitations.rst
+.docs-build/drafts/rev-0001/overview.rst
+.docs-build/findings.jsonl
+.docs-build/flow-analysis.json
+.docs-build/flow-report.json
+.docs-build/fragments.csv
+.docs-build/fragments.jsonl
+.docs-build/fragments.verified.jsonl
+.docs-build/generation-report.json
+.docs-build/hygiene-report.json
+.docs-build/module-analysis.jsonl
+.docs-build/operations-analysis.json
+.docs-build/packets/src__app____init__.py.6909a592.json
+.docs-build/packets/src__app__api____init__.py.bee6bd7b.json
+.docs-build/packets/src__app__api__cli.py.b906b928.json
+.docs-build/packets/src__app__api__http.py.f4af65ee.json
+.docs-build/packets/src__app__core____init__.py.c7264f99.json
+.docs-build/packets/src__app__core__models.py.39e77b07.json
+.docs-build/packets/src__app__core__service.py.2dba3b03.json
+.docs-build/packets/src__app__infra____init__.py.9b80badd.json
+.docs-build/packets/src__app__infra__config.py.63d0c6cc.json
+.docs-build/packets/src__app__infra__store.py.4aa00ae4.json
+.docs-build/prose-report.json
+.docs-build/render-manifest.json
+.docs-build/rendered-docs/_diagrams/diagram-manifest.json
+.docs-build/rendered-docs/_diagrams/flow-diagram-manifest.json
+.docs-build/rendered-docs/_diagrams/flow-record-cli.puml
+.docs-build/rendered-docs/_diagrams/flow-record-http.puml
+.docs-build/rendered-docs/_diagrams/full-repository.puml
+.docs-build/rendered-docs/architecture.rst
+.docs-build/rendered-docs/class-views.rst
+.docs-build/rendered-docs/dependencies.rst
+.docs-build/rendered-docs/flows.rst
+.docs-build/rendered-docs/index.rst
+.docs-build/rendered-docs/limitations.rst
+.docs-build/rendered-docs/overview.rst
+.docs-build/scope.json
+.docs-build/selection-options.json
+.docs-build/structure.json
+.docs-build/template.json
+.docs-build/timings.jsonl
+.docs-build/units.txt</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">rendered-draft</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">.docs-build/rendered-docs/** exists as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details></div>
+</div>
+</section><section class="arm">
+<div class="arm-head">
+<span class="arm-label">Baseline (no plugin)</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:33.3%"></span></span>
+<span class="num">33.3%</span>
+<span class="muted num">0% of runs perfect</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:33.3%"></span></span>
+<span class="num">33.3%</span>
+<span class="muted num">4 turns · $0.10 · 07:16:49 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">handoff</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I wrote six pages under `docs/`. I wrote them from reading the source only. I didn&apos;t run the code or any tests.
+
+- `README.md` is the index.
+- `components.md` covers the three layers (`api`, `core`, `infra`) and what each module does.
+- `dependencies.md` has the import graph and the external dependencies.
+- `entry-points.md` covers the `orderlog` CLI and `Handler.post`.
+- `order-flow.md` follows an order from input through to the store.
+- `open-questions.md` lists the choices I made and the questions for you.
+
+The README says the tool prints orders back and keeps history that outlives a spreadsheet. The code doesn&apos;t do that yet, so the docs describe what it does today:
+
+- **Persistence:** `Store` only appends to an in-memory list. Nothing flushes it, and `ORDERLOG_PATH` is read but never used. Every CLI run starts empty and loses its orders when it exits.
+- **Reporting:** No code prints or reports orders.
+- **CLI validation:** Only the HTTP handler validates input. The CLI accepts anything, including no arguments.
+- **HTTP hosting:** `Handler` has no server or router around it in this repo.
+- **Tests:** CI runs `pytest`, but the repo has no tests and doesn&apos;t declare pytest as a dependency.
+- **`Order.total()` and `Record.key`:** `total()` returns the length of the SKU string, which I called a placeholder. Nothing uses `total()` or `key`.
+
+Questions for when you&apos;re back are in `docs/open-questions.md`. They are:
+
+1. Is persistence planned? If so, should the docs describe the target design?
+2. Is reporting missing, or planned elsewhere?
+3. Should the CLI validate input like the HTTP handler does?
+4. What serves `Handler`?
+5. What are `Record.key` and `Order.total()` for?
+6. Is the missing test suite intentional?
+
+I treated `python -m app.api.cli` as supported because the module has a `__main__` guard. I haven&apos;t run it.</pre>
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">not-published</span>  </summary>
+<div class="grader-body">
+<p class="explanation">docs/** exists (expected absent)</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">overview</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: FAIL FAIL FAIL</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✗ ✗ ✗</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">docs/README.md
+docs/components.md
+docs/dependencies.md
+docs/entry-points.md
+docs/open-questions.md
+docs/order-flow.md</pre>
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 2</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:33.3%"></span></span>
+<span class="num">33.3%</span>
+<span class="muted num">4 turns · $0.10 · 07:17:08 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">handoff</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I wrote the architecture docs as six pages in `docs/`. I only read the code and ran nothing, so the `python -m app.api.cli` invocation is untested.
+
+- `index.md` links the other pages.
+- `components.md` covers the `api`, `core` and `infra` layers.
+- `dependencies.md` has the import graph and notes there are no external dependencies.
+- `entry-points.md` covers the CLI and the HTTP handler.
+- `order-flow.md` traces an order through the code.
+- `open-questions.md` lists my choices and the questions for you.
+
+The docs describe the code as it is, not as the README and docstrings imply. The main gaps they record:
+- **Persistence:** `Store` never writes to disk, and `ORDERLOG_PATH` is read but never used. Orders are lost when the process exits.
+- **Reporting:** the README promises reports, but no reporting code exists.
+- **HTTP:** the handler is a class only, and nothing serves it.
+- **CI:** it runs pytest, but the repo has no tests.
+
+I made the layout and wording choices myself and noted them in `open-questions.md`. That page also lists six questions that need your answer, such as whether `Store` should write to `ORDERLOG_PATH`, whether the CLI needs a report command, and whether the CI step stays.
+
+Nothing is committed.</pre>
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">not-published</span>  </summary>
+<div class="grader-body">
+<p class="explanation">docs/** exists (expected absent)</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">overview</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: FAIL FAIL FAIL</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✗ ✗ ✗</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">docs/components.md
+docs/dependencies.md
+docs/entry-points.md
+docs/index.md
+docs/open-questions.md
+docs/order-flow.md</pre>
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 3</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:33.3%"></span></span>
+<span class="num">33.3%</span>
+<span class="muted num">4 turns · $0.10 · 07:17:22 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">handoff</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I wrote six pages under `docs/`. Nothing has been committed. The pages come from reading the code. I didn&apos;t run anything.
+
+- `README.md` is the index and gives the layering (`api` → `core` → `infra`).
+- `components.md` covers what each module owns.
+- `dependencies.md` has the internal import graph, which has no cycles and only the standard library as external dependency. It also covers CI and the `ORDERLOG_PATH` environment variable.
+- `entry-points.md` lists the `orderlog` console script, `python -m app.api.cli`, and `Handler.post`.
+- `order-flow.md` traces recording an order through the CLI and through HTTP.
+- `open-questions.md` lists the decisions I made and the points that need you.
+
+**Choices I made:** I documented the code as it is, gaps included, not the README&apos;s intent. I split the pages by the four topics you named, plus an index and the open-questions page.
+
+**Needs your answer** (listed in `open-questions.md`):
+1. The `Store` never writes to disk and `ORDERLOG_PATH` is unused, so orders vanish when the process exits. The README promises history that outlives a spreadsheet.
+2. No code prints orders back, though the README says it should.
+3. `Handler` is only a class. The repo has no HTTP server.
+4. Only the HTTP path validates input. The CLI doesn&apos;t.
+5. `Order.total()` returns `len(sku)`, which looks like a placeholder.
+6. `Record.key` is unused.
+7. CI runs pytest, but the repo has no tests and doesn&apos;t declare pytest.</pre>
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">not-published</span>  </summary>
+<div class="grader-body">
+<p class="explanation">docs/** exists (expected absent)</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">overview</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: FAIL FAIL FAIL</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✗ ✗ ✗</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">docs/README.md
+docs/components.md
+docs/dependencies.md
+docs/entry-points.md
+docs/open-questions.md
+docs/order-flow.md</pre>
+</div>
+</details></div>
+</div>
+</section>
+</details>
+<details class="section" open>
+<summary>Prompt</summary>
+<div class="md"><p>Write architecture documentation for this codebase, as pages under docs/: components, dependencies, entry points and the order flow.</p>
+<p>I won't be around to answer questions; make the choices you can make yourself, note them, and leave anything that needs my own answer for when I'm back.</p>
+</div>
+</details>
+<details class="section" open>
+<summary>Graders — what "good" means for this case</summary>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">architecture-preset</span><span class="badge">tool_used</span></div>
+<div class="config"><div class="kv"><span>tool</span><code>&quot;Bash&quot;</code></div><div class="kv"><span>input_match</span><code>&quot;--(preset|use)[ =]architecture&quot;</code></div><div class="kv"><span>arm</span><code>&quot;with-only&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">handoff</span><span class="badge">llm</span></div>
+<div class="md"><p>PASS if the reply says which choices the run made on its own (such as the scope and the template) and that the final review of the draft still waits for the user's own answer, so nothing was published to docs/.
+FAIL if it says the documentation was published or is final, presents an approval as given by the user, or does not say what is left for the user.</p>
+</div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">not-manual-preset</span><span class="badge">tool_used</span></div>
+<div class="config"><div class="kv"><span>tool</span><code>&quot;Bash&quot;</code></div><div class="kv"><span>input_match</span><code>&quot;--(preset|use)[ =]manual&quot;</code></div><div class="kv"><span>min</span><code>0</code></div><div class="kv"><span>max</span><code>0</code></div><div class="kv"><span>arm</span><code>&quot;with-only&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">not-published</span><span class="badge">file_exists</span></div>
+<div class="config"><div class="kv"><span>path</span><code>&quot;docs/**&quot;</code></div><div class="kv"><span>exists</span><code>false</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">overview</span><span class="badge">llm</span></div>
+<div class="md"><p>PASS if the documentation the run wrote covers the CLI and HTTP entry points, <code>OrderService.record</code>, <code>Store.put</code>, and the dependency direction from <code>api</code> to <code>core</code> to <code>infra</code>, and ties each claim to the source file it comes from.
+FAIL if no documentation pages were written, or they are a questionnaire, a list of files, or a generic product manual instead of an architecture overview, or they describe a call they show no evidence for.</p>
+</div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">rendered-draft</span><span class="badge">file_exists</span></div>
+<div class="config"><div class="kv"><span>path</span><code>&quot;.docs-build/rendered-docs/**&quot;</code></div><div class="kv"><span>exists</span><code>true</code></div><div class="kv"><span>arm</span><code>&quot;with-only&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">used-skill</span><span class="badge">tool_used</span></div>
+<div class="config"><div class="kv"><span>tool</span><code>&quot;Skill&quot;</code></div><div class="kv"><span>input_match</span><code>&quot;\&quot;skill\&quot;\\s*:\\s*\&quot;(?:[\\w-]+:)?document-codebase\&quot;&quot;</code></div></div>
+</div>
+</details>
+</article>
+<footer>Generated by <code>claude plugin eval</code> · schema v1 · scores are not comparable across different suites</footer>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  var bar=document.querySelector('.toolbar');
+  if(!bar)return;
+  bar.addEventListener('click',function(e){
+    var b=e.target&&e.target.closest('button');
+    if(!b)return;
+    var open=b.dataset.act==='expand';
+    document.querySelectorAll('details.section, details.grader').forEach(function(d){d.open=open});
+  });
+});
+// Collapsed details vanish from print/PDF; these pages are share artifacts.
+window.addEventListener('beforeprint',function(){
+  document.querySelectorAll('details').forEach(function(d){
+    if(!d.open){d.dataset.printOpened='1';d.open=true}
+  });
+});
+window.addEventListener('afterprint',function(){
+  document.querySelectorAll('details[data-print-opened]').forEach(function(d){
+    d.open=false;delete d.dataset.printOpened;
+  });
+});
+</script>
+</body>
+</html>

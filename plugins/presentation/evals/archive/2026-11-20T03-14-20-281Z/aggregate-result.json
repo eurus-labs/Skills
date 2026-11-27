@@ -1,0 +1,363 @@
+{
+  "schemaVersion": 1,
+  "claudeVersion": "2.1.329",
+  "startedAt": "2026-11-20T03:14:20.281Z",
+  "durationSeconds": 93,
+  "costUsd": 0.9155399,
+  "partial": false,
+  "suite": {
+    "root": "<local>",
+    "ablation": "with-without",
+    "modelOverride": "claude-sonnet-5-5",
+    "judgeModel": "haiku",
+    "tagFilters": [
+      "behavior"
+    ],
+    "threshold": 1,
+    "concurrency": 3,
+    "plugins": [
+      {
+        "name": "presentation",
+        "version": "0.1.1",
+        "path": "<local>"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "workflow-slide-from-wordy-slide",
+      "dir": "evals/behavior/workflow-slide-from-wordy-slide",
+      "source": "mixed",
+      "promptMarkdown": "Slide 2 in deck.pptx is a wall of text. Turn it into a simple visual workflow slide. Keep the rest of the deck as it is.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 1800,
+      "maxTurns": 60,
+      "graders": [
+        {
+          "name": "original-not-saved-over",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Write",
+            "input_match": "\\.save\\(\\s*\\\\?[\"']\\.?/?deck\\.pptx",
+            "min": 0,
+            "max": 0
+          }
+        },
+        {
+          "name": "outcome",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "PASS if all of these hold, judging by the reply and the files it says it wrote:\n- The result is a new .pptx; `deck.pptx` itself was not overwritten.\n- Only slide 2 was rebuilt; slides 1 and 3 are unchanged.\n- The new slide shows the release flow as steps, not sentences: a ticket is opened, the regression suite runs, the ticket goes to the RCB for sign-off, ops deploys and closes it, with the fix-and-resubmit loop back from a failing suite.\n- \"RCB\" is kept as written. It is not expanded into a guessed name, unless the reply flags the expansion as an assumption.\n- The ticket-to-production time is shown as missing (for example `[DATA NEEDED]`, or the reply says it is unknown); no duration is invented.\n- The existing speaker note about the release freeze calendar is still in slide 2's notes.\n\nFAIL if any of these fails, or if the reply claims the slide was checked visually when nothing was rendered.",
+          "config": {
+            "criteria": "PASS if all of these hold, judging by the reply and the files it says it wrote:\n- The result is a new .pptx; `deck.pptx` itself was not overwritten.\n- Only slide 2 was rebuilt; slides 1 and 3 are unchanged.\n- The new slide shows the release flow as steps, not sentences: a ticket is opened, the regression suite runs, the ticket goes to the RCB for sign-off, ops deploys and closes it, with the fix-and-resubmit loop back from a failing suite.\n- \"RCB\" is kept as written. It is not expanded into a guessed name, unless the reply flags the expansion as an assumption.\n- The ticket-to-production time is shown as missing (for example `[DATA NEEDED]`, or the reply says it is unknown); no duration is invented.\n- The existing speaker note about the release freeze calendar is still in slide 2's notes.\n\nFAIL if any of these fails, or if the reply claims the slide was checked visually when nothing was rendered.",
+            "focus": "last_message"
+          }
+        },
+        {
+          "name": "used-skill",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?workflow-slides-blocks\""
+          }
+        },
+        {
+          "name": "validated-package",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Bash",
+            "input_match": "check_pptx\\.py",
+            "arm": "with-only"
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 13,
+            "costUsd": 0.1881582,
+            "judgeCostUsd": 0.0014225999999999998,
+            "durationSeconds": 49,
+            "startedAt": "2026-11-20T03:14:20.328Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "original-not-saved-over",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Write called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "outcome",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "I rebuilt slide 2 as a workflow slide and saved the deck as `deck-refined.pptx` next to your original, which I didn't touch. The slide hasn't been rendered or looked at. LibreOffice wouldn't produce a PDF in this sandbox, so please open it in PowerPoint and check the layout. The package validates, only slide 2 changed, and the overlap checker reports no warnings.\n\n**Scope card: How a release gets approved**\n- **Message:** A release passes QA, then RCB sign-off, then ops deploys it.\n- **Shape:** Two blocks with a loop.\n- **Blocks:** \"Test\" (dashed) holds Open ticket → Regression suite, with a loop to Fix & resubmit labelled \"fails\" and \"repeat until green\". \"Approve & ship\" (solid) holds RCB sign-off → Deploy → Close ticket.\n- **Gap:** The average time from ticket to production is still unknown.\n\n**What changed**\n- The paragraphs became five numbered icon nodes with short labels. Each has the owner as a sub-label: Developer, QA lead, Ops.\n- The fail-and-resubmit loop is shown with orange dashed arrows. I used orange for that one element only.\n- The takeaway line reads \"Average time from ticket to production: [DATA NEEDED] — waiting for ops\".\n- The original sentences are now in the speaker notes, after your existing \"release freeze calendar\" note.\n- Slides 1 and 3 are unchanged.\n\n**Assumptions**\n- The deck's theme is the Office default, so I used the skill's default blue and teal rather than treating it as a corporate palette.\n- I used built-in shape icons, so they're editable in PowerPoint.\n- I kept \"RCB\" as written, since the deck never expands it.\n- The font follows the theme (Calibri).\n\n**Question:** What does RCB stand for, and does it ever reject a release? If it does, the slide needs a second loop back to the developer."
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "validated-package",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 5x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 11,
+            "costUsd": 0.1776906,
+            "judgeCostUsd": 0.0016713999999999998,
+            "durationSeconds": 50,
+            "startedAt": "2026-11-20T03:14:20.329Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "original-not-saved-over",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Write called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "outcome",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "I rebuilt slide 2 as a visual workflow and saved the deck as `deck-refined.pptx` next to the original. `deck.pptx` is untouched. The package check passed, and slides 1 and 3 are unchanged. I couldn't render the slide to look at it because LibreOffice produced no PDF in this sandbox. The layout checker reports no overlaps or overflow, but please open it in PowerPoint to check how it looks.\n\n**Scope card**\n- **Message:** Every release passes QA and RCB sign-off before ops deploys it.\n- **Shape:** Linear flow with a rework loop.\n- **Blocks:**\n  1. Submit: open ticket\n  2. Test: run regression, with a fix and resubmit loop\n  3. Release: RCB sign-off, then deploy\n- **Gaps:** The average ticket-to-production time is still missing. It shows as `[DATA NEEDED]` in the subtitle. \"RCB\" is left as you wrote it, because I can't expand it without guessing.\n\n**What changed**\n- The paragraphs are now five numbered icon and label nodes in three framed blocks, using the default blue, teal and orange colours.\n- The failed-test loop is a dashed pair of arrows, \"fail\" down and \"resubmit, repeat\" back up.\n- The orange \"all tests pass\" arrow is the one accent on the slide.\n- The original sentences are now in the speaker notes, after your \"mention the release freeze calendar\" note, which I kept.\n- The icons are the built-in shape icons, so they stay editable in PowerPoint.\n\n**Assumption:** Your deck has the default Office theme and no corporate colours, so I used the skill's default palette.\n\n**Question:** Should the slide show the loop's cost, such as how many rework cycles a release usually takes? That is probably what the audience will ask once the ticket-to-production time comes in from ops."
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "validated-package",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 2x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 9,
+            "costUsd": 0.14197529999999997,
+            "judgeCostUsd": 0.0010443,
+            "durationSeconds": 37,
+            "startedAt": "2026-11-20T03:14:20.329Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "original-not-saved-over",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Write called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "outcome",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "I rebuilt slide 2 as a visual workflow and saved the deck as `deck-refined.pptx`, next to your original. I couldn't render it to look at the slide. LibreOffice ran but wrote no PDF in this sandbox, so please open slide 2 in PowerPoint and check it.\n\n**Scope card: How a release gets approved**\n- **Message:** Nothing ships without green tests and RCB sign-off.\n- **Shape:** Linear flow with a loop-back, in one block.\n- **Blocks:** Release approval → Open ticket, Run regression, RCB sign-off, Deploy & close.\n- **Gaps:** Average time from ticket to production is still missing, and \"RCB\" is not expanded.\n\n**What changed**\n- The four steps are numbered icon nodes joined by arrows, each with a short sub-label.\n- A dashed arrow loops from Run regression back to Open ticket, labelled \"Test fails: fix & resubmit\".\n- The last step uses the one accent colour (orange).\n- All the original sentences are now in the speaker notes, after your freeze-calendar note. \"TBD\" became `[DATA NEEDED]`.\n- Slides 1 and 3 are untouched. The validator reports the package as OK and lists only slide 2 as changed.\n- The layout check reported no overlap, overflow or wrap warnings.\n\n**Assumptions**\n- I used the default palette (blue, with orange as the accent), because the deck's theme is Office default.\n- The icons are built-in shape icons, which you can edit in PowerPoint.\n- I merged \"deploy\" and \"close the ticket\" into one step.\n\n**Question:** Do you want the \"several times\" rework loop to show a typical number of rounds? The ops timing data may show the loop is where most of the delay comes from."
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "validated-package",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 9,
+            "costUsd": 0.1359943,
+            "judgeCostUsd": 0.0005487000000000001,
+            "durationSeconds": 42,
+            "startedAt": "2026-11-20T03:14:57.728Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "original-not-saved-over",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Write called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "outcome",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "I rebuilt slide 2 in `deck.pptx` as a four-step flow, but I couldn't render it. LibreOffice wouldn't produce a PDF in this sandbox, so I haven't seen the slide. Please open it and check the spacing and the label placement.\n\nThe new slide has:\n- **Steps:** Open ticket (Developer) → Run regression suite (QA lead) → RCB sign-off → Deploy & close ticket (Ops). They sit in rounded boxes in the theme's accent colour, joined by arrows. The arrow from the QA step to RCB sign-off is labelled \"Pass\".\n- **Rework loop:** a dashed arrow runs from the QA step back to Open ticket, labelled \"Fail: fix & resubmit (may repeat)\".\n- **Metric:** the \"Average time from ticket to production: TBD (waiting for data from ops)\" line is now an outlined callout at the bottom, so it still reads as a placeholder.\n\nThe title is unchanged. I stayed within the template's content area so the slide lines up with the others. Slides 1 and 3 are untouched, and I checked that their text is the same as before.\n\nThe original bullet text on slide 2 is gone from the file. The build script is at `$TMPDIR/s/build.py` if you want to adjust it."
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 8,
+            "costUsd": 0.12946799999999997,
+            "judgeCostUsd": 0.0005219999999999999,
+            "durationSeconds": 38,
+            "startedAt": "2026-11-20T03:15:09.204Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "original-not-saved-over",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Write called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "outcome",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "I rebuilt slide 2 of `deck.pptx` as a four-step workflow and saved it in place. I couldn't render it, so I haven't seen how it looks. LibreOffice wouldn't produce a PDF in the sandbox. I only checked the shape positions numerically, and nothing overlaps. Open it once to check how it looks.\n\nThe title \"How a release gets approved\" is unchanged. The text block is replaced by these steps, in boxes joined by arrows:\n\n1. **Open ticket** (Developer), with the change list attached\n2. **Run regression** (QA lead)\n3. **RCB sign-off** (RCB), once the suite is green\n4. **Deploy & close** (Ops), in the next deployment window\n\nA red arrow loops from step 2 back to step 1, labelled \"Any failure: fix and resubmit\". It stands in for the \"this can repeat several times\" sentence.\n\nThe \"Average time from ticket to production: TBD\" line is now a small italic footnote at the bottom. If you'd rather drop it, delete the \"Footnote\" shape.\n\nYour speaker note about the release freeze calendar is still on the slide. Slides 1 and 3 are unchanged.\n\nThe slide is 16:9, but the deck's layout placeholders are sized for 4:3. I lined the flow up with the title's width so it matches the rest of the deck. That leaves some empty space on the right."
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 9,
+            "costUsd": 0.14225350000000003,
+            "judgeCostUsd": 0.0006012999999999999,
+            "durationSeconds": 43,
+            "startedAt": "2026-11-20T03:15:09.910Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "original-not-saved-over",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Write called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "outcome",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "I rebuilt slide 2 as a workflow in `deck.pptx`. I couldn't render it, so I haven't seen how it looks. LibreOffice failed to convert the file here, and I only confirmed the shapes by reading them back from the saved file. Open it and check the spacing and the loop-back arrow.\n\n- **Steps:** four boxes run left to right, each with a numbered role and a short action:\n  1. Developer: opens a release ticket and attaches the change list.\n  2. QA lead: runs the regression suite.\n  3. RCB: signs off the release.\n  4. Ops: deploys in the next window and closes the ticket.\n- **Failure loop:** a red arrow runs from QA back to Developer, labeled \"If tests fail: fix and resubmit (can repeat)\".\n- **Open item:** the \"Average time from ticket to production: TBD (waiting for data from ops)\" line stays as a small note at the bottom.\n- **Layout:** the boxes use the same area as the old text block, so they line up with the title. I used the deck's navy and blue, and the smallest text is 14pt.\n- **Rest of the deck:** slides 1 and 3 and the slide 2 title are unchanged. A copy of the original is in the session temp folder as `deck.orig.pptx`.\n\nThe deck's layouts are sized for 4:3 on a 16:9 slide, so the content sits left of center. That's true of the existing titles too, so I matched it rather than changing the template."
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1,
+        "scoreWithout": 0.5,
+        "passRateWithout": 0,
+        "delta": 0.5
+      }
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 1,
+    "casesPassed": 1,
+    "overallScore": 1,
+    "overallPassRate": 1,
+    "meanDelta": 0.5
+  }
+}

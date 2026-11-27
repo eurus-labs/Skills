@@ -1,0 +1,683 @@
+{
+  "schemaVersion": 1,
+  "claudeVersion": "2.1.329",
+  "startedAt": "2026-11-20T07:24:07.123Z",
+  "durationSeconds": 174,
+  "costUsd": 1.7795323,
+  "partial": false,
+  "suite": {
+    "root": "<local>",
+    "ablation": "with-without",
+    "modelOverride": "claude-sonnet-5-5",
+    "judgeModel": "haiku",
+    "tagFilters": [
+      "behavior"
+    ],
+    "threshold": 1,
+    "concurrency": 3,
+    "plugins": [
+      {
+        "name": "docs",
+        "version": "1.7.0",
+        "path": "<local>"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "architecture-overview-of-layered-repo",
+      "dir": "evals/behavior/architecture-overview-of-layered-repo",
+      "source": "mixed",
+      "promptMarkdown": "Write architecture documentation for this codebase, as pages under docs/: components, dependencies, entry points and the order flow.\n\nI won't be around to answer questions; make the choices you can make yourself, note them, and leave anything that needs my own answer for when I'm back.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 3600,
+      "maxTurns": 120,
+      "graders": [
+        {
+          "name": "architecture-preset",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Bash",
+            "input_match": "--(preset|use)[ =]architecture",
+            "arm": "with-only"
+          }
+        },
+        {
+          "name": "draft-architecture",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "The text is a drafted reStructuredText page. Its source references sit in `.. only:: audit` blocks as `path:line`.\n\nPASS if it describes the three parts `api`, `core` and `infra`, and shows that dependencies point from `api` to `core` and from `core` to `infra`, with `path:line` references.\nFAIL if the page is missing or empty, is only a list of files or directories with no dependencies, or gets the dependency direction wrong.",
+          "config": {
+            "criteria": "The text is a drafted reStructuredText page. Its source references sit in `.. only:: audit` blocks as `path:line`.\n\nPASS if it describes the three parts `api`, `core` and `infra`, and shows that dependencies point from `api` to `core` and from `core` to `infra`, with `path:line` references.\nFAIL if the page is missing or empty, is only a list of files or directories with no dependencies, or gets the dependency direction wrong.",
+            "focus": {
+              "source": "file",
+              "path": ".docs-build/rendered-docs/architecture.rst"
+            }
+          }
+        },
+        {
+          "name": "draft-flows",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "The text is a drafted reStructuredText page. Its source references sit in `.. only:: audit` blocks as `path:line`, and it names functions by module, for example `cli.main` for `main` in `api/cli.py`.\n\nPASS if it has a flow that starts at the CLI entry point (`cli.main`) and a flow that starts at the HTTP entry point (`Handler.post`), each reaching `OrderService.record` and then `Store.put`, and each step has a `path:line` reference.\nFAIL if the page is missing or empty, either flow is missing, either call is missing, or a step has no reference.",
+          "config": {
+            "criteria": "The text is a drafted reStructuredText page. Its source references sit in `.. only:: audit` blocks as `path:line`, and it names functions by module, for example `cli.main` for `main` in `api/cli.py`.\n\nPASS if it has a flow that starts at the CLI entry point (`cli.main`) and a flow that starts at the HTTP entry point (`Handler.post`), each reaching `OrderService.record` and then `Store.put`, and each step has a `path:line` reference.\nFAIL if the page is missing or empty, either flow is missing, either call is missing, or a step has no reference.",
+            "focus": {
+              "source": "file",
+              "path": ".docs-build/rendered-docs/flows.rst"
+            }
+          }
+        },
+        {
+          "name": "handoff",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "PASS if the reply says which choices the run made on its own (such as the scope and the template) and that the final review of the draft still waits for the user's own answer, so nothing was published to docs/.\nFAIL if it says the documentation was published or is final, presents an approval as given by the user, or does not say what is left for the user.",
+          "config": {
+            "criteria": "PASS if the reply says which choices the run made on its own (such as the scope and the template) and that the final review of the draft still waits for the user's own answer, so nothing was published to docs/.\nFAIL if it says the documentation was published or is final, presents an approval as given by the user, or does not say what is left for the user.",
+            "focus": "last_message"
+          }
+        },
+        {
+          "name": "not-manual-preset",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Bash",
+            "input_match": "--(preset|use)[ =]manual",
+            "min": 0,
+            "max": 0,
+            "arm": "with-only"
+          }
+        },
+        {
+          "name": "not-published",
+          "type": "file_exists",
+          "weight": 1,
+          "config": {
+            "path": "docs/**",
+            "exists": false
+          }
+        },
+        {
+          "name": "overview",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "PASS if the reply describes the architecture it documented: the CLI and HTTP entry points, `OrderService.record`, `Store.put`, and the dependency direction from `api` to `core` to `infra`.\nFAIL if it delivers a questionnaire, a list of files, or a generic product manual instead of an architecture overview, or describes a call it shows no evidence for.",
+          "config": {
+            "criteria": "PASS if the reply describes the architecture it documented: the CLI and HTTP entry points, `OrderService.record`, `Store.put`, and the dependency direction from `api` to `core` to `infra`.\nFAIL if it delivers a questionnaire, a list of files, or a generic product manual instead of an architecture overview, or describes a call it shows no evidence for.",
+            "focus": "last_message"
+          }
+        },
+        {
+          "name": "rendered-draft",
+          "type": "file_exists",
+          "weight": 1,
+          "config": {
+            "path": ".docs-build/rendered-docs/**",
+            "exists": true,
+            "arm": "with-only"
+          }
+        },
+        {
+          "name": "used-skill",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?document-codebase\""
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 0.8,
+            "passed": false,
+            "turns": 27,
+            "costUsd": 0.48176859999999994,
+            "judgeCostUsd": 0.006508499999999997,
+            "durationSeconds": 129,
+            "startedAt": "2026-11-20T07:24:07.178Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "architecture-preset",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "draft-architecture",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "Components and boundaries\n=========================\n\nEach row is an import edge that crosses a directory boundary -- the places where one part of the tree reaches into another. An import proves a reference, not a call.\n\n.. list-table::\n   :header-rows: 1\n\n   * - From\n     - Imports\n   * - src/app/api/cli.py\n     - src/app/core/service.py\n   * - src/app/api/http.py\n     - src/app/core/service.py\n   * - src/app/core/service.py\n     - src/app/infra/store.py\n\n.. only:: audit\n\n   Evidence:\n\n   - src/app/api/cli.py / src/app/core/service.py: ``src/app/api/cli.py:5``\n   - src/app/api/http.py / src/app/core/service.py: ``src/app/api/http.py:3``\n   - src/app/core/service.py / src/app/infra/store.py: ``src/app/core/service.py:4``\n\nWhy the boundary is here\n------------------------\n\nsrc/app/core/service.py -- The service constructs Store directly rather than receiving it, so the API layers depend on the service and the service on infra, never the reverse.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/core/service.py:3-4``\n   - ``src/app/core/service.py:9``\n   - ``src/app/core/service.py:3``\n\nWhat it is responsible for\n--------------------------\n\nsrc/app/api/cli.py -- main creates an OrderService and hands sys.argv[1:] to OrderService.record, treating every argument as one SKU.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/api/cli.py:9-10``\n   - ``src/app/api/cli.py:9``\n\nsrc/app/api/http.py -- Handler.post checks that the body contains 'sku' before calling OrderService.record, which is what the module docstring says this boundary is for.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/api/http.py:1``\n   - ``src/app/api/http.py:10-13``\n   - ``src/app/api/http.py:10``\n\nsrc/app/core/models.py -- Order extends Record and stores the sku it is constructed with; total() returns len(sku).\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/core/models.py:8-13``\n   - ``src/app/core/models.py:8``\n\nsrc/app/core/service.py -- OrderService.record wraps each SKU in an Order and calls Store.put; the docstring says the module owns no storage of its own.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/core/service.py:1``\n   - ``src/app/core/service.py:11-14``\n   - ``src/app/core/service.py:11``\n\nsrc/app/infra/config.py -- load() returns a dict with 'path' taken from the ORDERLOG_PATH environment variable, defaulting to 'orders.json'.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/infra/config.py:6-7``\n   - ``src/app/infra/config.py:6``\n\nsrc/app/infra/store.py -- Store.put appends an Order to self.rows; the docstring says orders are kept in memory until flushed.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/infra/store.py:1``\n   - ``src/app/infra/store.py:11-13``\n   - ``src/app/infra/store.py:11``\n\nWhat it owns\n------------\n\nsrc/app/api/cli.py -- main builds a fresh OrderService (and so a fresh Store) on each invocation and keeps nothing between runs.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/api/cli.py:9``\n\nsrc/app/api/http.py -- Handler holds one OrderService in self.service, created in __init_\\_, so every request handled by one Handler shares the same Store.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/api/http.py:7-8``\n   - ``src/app/api/http.py:7``\n\nsrc/app/core/models.py -- Order keeps only self.sku; Record contributes a class-level key = 0 shared by all subclasses.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/core/models.py:4-10``\n   - ``src/app/core/models.py:4``\n\nsrc/app/core/service.py -- OrderService holds a Store in self.store created in __init_\\_; the orders themselves live in that Store, not in the service.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/core/service.py:8-9``\n   - ``src/app/core/service.py:8``\n\nsrc/app/infra/config.py -- load() reads os.environ on every call and caches nothing, so Store gets the value current at its construction.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/infra/config.py:6-7``\n   - ``src/app/infra/config.py:6``\n\nsrc/app/infra/store.py -- Store keeps settings from config.load() and a rows list; the settings 'path' is read into self.settings but nothing in the repository writes rows to that path.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/infra/store.py:8-9``\n   - ``src/app/infra/store.py:8``\n\nHow it is used\n--------------\n\nsrc/app/api/cli.py -- main() returns 0 and the __main_\\_ guard passes that to sys.exit; this is the target of the orderlog console script declared in pyproject.toml.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/api/cli.py:8-15``\n   - ``src/app/api/cli.py:8``\n\nsrc/app/api/http.py -- Handler.post(body) takes a mapping with a 'sku' key and returns the count that OrderService.record returns.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/api/http.py:10-13``\n   - ``src/app/api/http.py:10``\n\nsrc/app/core/models.py -- Order(sku) is built by OrderService.record and total() is the only behaviour exposed besides the sku attribute.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/core/models.py:9-13``\n   - ``src/app/core/models.py:9``\n\nsrc/app/core/service.py -- record(skus) takes an iterable of SKU strings and returns len(skus), the number submitted, which both api.cli and api.http call.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/core/service.py:11-14``\n   - ``src/app/core/service.py:11``\n\nsrc/app/infra/config.py -- load() takes no arguments and returns a one-key dict; Store.__init_\\_ is its only caller in the repository.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/infra/config.py:6-7``\n   - ``src/app/infra/config.py:6``\n\nsrc/app/infra/store.py -- put(order) appends the Order and returns the new number of rows; OrderService.record is its caller.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/infra/store.py:11-13``\n   - ``src/app/infra/store.py:11``\n\nHow it fails\n------------\n\nsrc/app/api/http.py -- Handler.post raises ValueError('sku is required') when the body has no 'sku'; nothing else catches it in the repository, so the caller gets the exception.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/api/http.py:11-12``\n   - ``src/app/api/http.py:11``\n\n.. uml:: /_diagrams/full-repository.puml\n   :caption: Class diagram of the whole repository: 5 class(es) grouped by package and module, showing association and composition and inheritance relationships\n\nNext: :doc:`Dependency graph </dependencies>`\n"
+              },
+              {
+                "name": "draft-flows",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "Cross-component flows\n=====================\n\nRecording orders from the command line\n--------------------------------------\n\nStarts when: The orderlog console script runs main with the command-line arguments.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``pyproject.toml:6``\n\n.. list-table::\n   :header-rows: 1\n\n   * - From\n     - Calls\n     - What happens\n   * - cli.main\n     - service.OrderService.record\n     - main passes sys.argv[1:] to OrderService.record.\n   * - service.OrderService.record\n     - store.Store.put\n     - record builds an Order per SKU and passes it to Store.put.\n\n.. only:: audit\n\n   Evidence:\n\n   - cli.main / service.OrderService.record / main passes sys.argv[1:] to OrderService.record.: ``src/app/api/cli.py:10``\n   - service.OrderService.record / store.Store.put / record builds an Order per SKU and passes it to Store.put.: ``src/app/core/service.py:13``\n\nEnds with: Each order is appended to the Store's in-memory list and record returns the SKU count.\n\nRecording an order over HTTP\n----------------------------\n\nStarts when: A caller invokes Handler.post with a body; what routes requests to it is not in the repository.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/api/http.py:10``\n\n.. list-table::\n   :header-rows: 1\n\n   * - From\n     - Calls\n     - What happens\n   * - http.Handler.post\n     - service.OrderService.record\n     - post passes the validated sku to OrderService.record.\n   * - service.OrderService.record\n     - store.Store.put\n     - record builds an Order and passes it to Store.put.\n\n.. only:: audit\n\n   Evidence:\n\n   - http.Handler.post / service.OrderService.record / post passes the validated sku to OrderService.record.: ``src/app/api/http.py:13``\n   - service.OrderService.record / store.Store.put / record builds an Order and passes it to Store.put.: ``src/app/core/service.py:13``\n\nEnds with: The Order is appended to the Store's in-memory list and post returns 1.\n\nThe trace stops here; what follows was not observed at a call site: Nothing in the repository persists the rows.\n\nNext: :doc:`Coverage and limitations </limitations>`\n"
+              },
+              {
+                "name": "handoff",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "The architecture draft is written and rendered, but it isn't in `docs/` yet. Publishing is blocked on checkpoint P4, which needs your own answer. I didn't copy the draft into `docs/` by hand, because that would skip the gate.\n\n**Where the draft is:** `.docs-build/rendered-docs/` has seven pages:\n- `index`\n- `overview`\n- `architecture` (components and boundaries)\n- `dependencies`\n- `class-views`\n- `flows` (the order flow, with sequence diagrams)\n- `limitations`\n\n**Choices I made (you can change any of them):**\n- **Template:** I picked the `architecture` preset, since you asked for components, dependencies, entry points and order flow.\n- **Scope:** all 10 product files. The repo is small.\n- **Module roles (P2):** I read every file and recorded a role for each. The four empty `__init__.py` files are described as package markers.\n- **Components (P3):** I grouped the code into four components. They are Entry points (`cli.py`, `http.py`), Order workflow (`service.py`), Order domain types (`models.py`), and Storage and settings (`store.py`, `config.py`). I split `core/` in two on purpose so the components aren't just the folder tree. The reasons for the `domain` and `storage` boundaries are recorded as `unknown` because the repo doesn't say.\n- **Order flow:** there are two traced flows, from the `orderlog` CLI and from `Handler.post`. Both run through `OrderService.record` to `Store.put`. All 4 call claims passed verification at their call sites, and so did the 13 structural claims.\n- **Operations:** only the run command and the Python `>=3.9` requirement were recorded. There's no CI or test setup in the repo.\n\n**Waiting for you:**\n1. **P4:** one reading is queued for your answer. It says `OrderService.record` wraps each SKU in an `Order` and calls `Store.put`, and that the docstring says the service owns no storage. To approve it, run `pipeline.py decide --checkpoint P4 --user-response \"<answer>\" --p4-verdict accepted`. Then run `publish --docs docs`.\n2. **Template:** please confirm `architecture` was the right choice.\n3. **Review mode:** the review pass was `self_review`, not independent.\n\n**Things you may want to know:**\n- The prose check (`check_prose`) exited 1 on the first review pass. I didn't look into why.\n- The validation warnings about similar-sounding statements (A013, A014, A016) are advisory and I left them. Several statements are short and similar because the modules are tiny.\n- No Sphinx or docutils is installed here, so the RST markup was never built or parsed.\n- One code finding for you: `Store` loads the `ORDERLOG_PATH` setting but nothing ever writes rows to it, and the `Store` docstring mentions flushing that doesn't exist. Orders are therefore only held in memory, which seems to conflict with the README's \"history that outlives a spreadsheet\". I documented it as `unknown` rather than guessing at the intent.\n- `.docs-build/` is still there. I can remove it once you've published."
+              },
+              {
+                "name": "not-manual-preset",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 0x (expected 0..0)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "not-published",
+                "passed": true,
+                "weight": 1,
+                "explanation": "docs/** absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "overview",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "The architecture draft is written and rendered, but it isn't in `docs/` yet. Publishing is blocked on checkpoint P4, which needs your own answer. I didn't copy the draft into `docs/` by hand, because that would skip the gate.\n\n**Where the draft is:** `.docs-build/rendered-docs/` has seven pages:\n- `index`\n- `overview`\n- `architecture` (components and boundaries)\n- `dependencies`\n- `class-views`\n- `flows` (the order flow, with sequence diagrams)\n- `limitations`\n\n**Choices I made (you can change any of them):**\n- **Template:** I picked the `architecture` preset, since you asked for components, dependencies, entry points and order flow.\n- **Scope:** all 10 product files. The repo is small.\n- **Module roles (P2):** I read every file and recorded a role for each. The four empty `__init__.py` files are described as package markers.\n- **Components (P3):** I grouped the code into four components. They are Entry points (`cli.py`, `http.py`), Order workflow (`service.py`), Order domain types (`models.py`), and Storage and settings (`store.py`, `config.py`). I split `core/` in two on purpose so the components aren't just the folder tree. The reasons for the `domain` and `storage` boundaries are recorded as `unknown` because the repo doesn't say.\n- **Order flow:** there are two traced flows, from the `orderlog` CLI and from `Handler.post`. Both run through `OrderService.record` to `Store.put`. All 4 call claims passed verification at their call sites, and so did the 13 structural claims.\n- **Operations:** only the run command and the Python `>=3.9` requirement were recorded. There's no CI or test setup in the repo.\n\n**Waiting for you:**\n1. **P4:** one reading is queued for your answer. It says `OrderService.record` wraps each SKU in an `Order` and calls `Store.put`, and that the docstring says the service owns no storage. To approve it, run `pipeline.py decide --checkpoint P4 --user-response \"<answer>\" --p4-verdict accepted`. Then run `publish --docs docs`.\n2. **Template:** please confirm `architecture` was the right choice.\n3. **Review mode:** the review pass was `self_review`, not independent.\n\n**Things you may want to know:**\n- The prose check (`check_prose`) exited 1 on the first review pass. I didn't look into why.\n- The validation warnings about similar-sounding statements (A013, A014, A016) are advisory and I left them. Several statements are short and similar because the modules are tiny.\n- No Sphinx or docutils is installed here, so the RST markup was never built or parsed.\n- One code finding for you: `Store` loads the `ORDERLOG_PATH` setting but nothing ever writes rows to it, and the `Store` docstring mentions flushing that doesn't exist. Orders are therefore only held in memory, which seems to conflict with the README's \"history that outlives a spreadsheet\". I documented it as `unknown` rather than guessing at the intent.\n- `.docs-build/` is still there. I can remove it once you've published."
+              },
+              {
+                "name": "rendered-draft",
+                "passed": true,
+                "weight": 1,
+                "explanation": ".docs-build/rendered-docs/** exists as expected",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          },
+          {
+            "score": 0.8,
+            "passed": false,
+            "turns": 23,
+            "costUsd": 0.43285049999999997,
+            "judgeCostUsd": 0.0034146,
+            "durationSeconds": 111,
+            "startedAt": "2026-11-20T07:24:07.179Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "architecture-preset",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "draft-architecture",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "Components and boundaries\n=========================\n\nEach row is an import edge that crosses a directory boundary -- the places where one part of the tree reaches into another. An import proves a reference, not a call.\n\n.. list-table::\n   :header-rows: 1\n\n   * - From\n     - Imports\n   * - src/app/api/cli.py\n     - src/app/core/service.py\n   * - src/app/api/http.py\n     - src/app/core/service.py\n   * - src/app/core/service.py\n     - src/app/infra/store.py\n\n.. only:: audit\n\n   Evidence:\n\n   - src/app/api/cli.py / src/app/core/service.py: ``src/app/api/cli.py:5``\n   - src/app/api/http.py / src/app/core/service.py: ``src/app/api/http.py:3``\n   - src/app/core/service.py / src/app/infra/store.py: ``src/app/core/service.py:4``\n\nWhy the boundary is here\n------------------------\n\nsrc/app/core/service.py -- Inferred: Both entry modules (cli and http) construct OrderService and call record, which makes it the single shared path to Order and Store.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/core/service.py:7``\n   - ``src/app/api/cli.py:9-10``\n   - ``src/app/api/http.py:8-13``\n   - ``src/app/api/cli.py:9``\n   - ``src/app/api/http.py:8``\n\nWhat it is responsible for\n--------------------------\n\nsrc/app/__init_\\_.py -- Package marker: the empty app package that makes app.api, app.core and app.infra importable; it holds no code.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/__init__.py:1``\n\nsrc/app/api/__init_\\_.py -- Package marker: the empty app.api package that holds the cli and http entry modules.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/api/__init__.py:1``\n\nsrc/app/api/cli.py -- main creates an OrderService and passes the raw command-line arguments (sys.argv[1:]) to its record method, treating each argument as a SKU.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/api/cli.py:8-11``\n   - ``src/app/api/cli.py:8``\n\nsrc/app/api/http.py -- Handler.post checks that the body contains sku and then calls OrderService.record with that single SKU; the docstring says it validates input before anything else sees it.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/api/http.py:1``\n   - ``src/app/api/http.py:10-13``\n   - ``src/app/api/http.py:10``\n\nsrc/app/core/__init_\\_.py -- Package marker: the empty app.core package that holds the models and service modules.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/core/__init__.py:1``\n\nsrc/app/core/models.py -- Defines Order, a subclass of Record, built from a sku; the docstring calls the module domain types.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/core/models.py:1``\n   - ``src/app/core/models.py:8-10``\n   - ``src/app/core/models.py:8``\n\nsrc/app/core/service.py -- OrderService.record creates one Order per SKU and passes each to Store.put; the docstring says the service owns no storage of its own.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/core/service.py:1``\n   - ``src/app/core/service.py:11-14``\n   - ``src/app/core/service.py:11``\n\nsrc/app/infra/__init_\\_.py -- Package marker: the empty app.infra package that holds the config and store modules.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/infra/__init__.py:1``\n\nsrc/app/infra/config.py -- load returns a dict with one key, path, taken from the ORDERLOG_PATH environment variable and defaulting to orders.json.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/infra/config.py:1``\n   - ``src/app/infra/config.py:6-7``\n   - ``src/app/infra/config.py:6``\n\nsrc/app/infra/store.py -- Store keeps Order objects in an in-memory list (rows) and appends each one passed to put; the docstring says it keeps orders in memory until flushed.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/infra/store.py:1``\n   - ``src/app/infra/store.py:11-13``\n   - ``src/app/infra/store.py:11``\n\nWhat it owns\n------------\n\nsrc/app/api/cli.py -- Holds no state of its own; the OrderService it builds lives only for the duration of main.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/api/cli.py:9``\n\nsrc/app/api/http.py -- Handler.__init_\\_ creates one OrderService and keeps it as self.service for the handler's lifetime.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/api/http.py:7-8``\n   - ``src/app/api/http.py:7``\n\nsrc/app/core/models.py -- Order stores its sku; Record carries a class attribute key set to 0 that Order inherits and never changes.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/core/models.py:4-5``\n   - ``src/app/core/models.py:9-10``\n   - ``src/app/core/models.py:4``\n   - ``src/app/core/models.py:9``\n\nsrc/app/core/service.py -- OrderService.__init_\\_ constructs its own Store and keeps it as self.store, so each service instance has a separate store.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/core/service.py:8-9``\n   - ``src/app/core/service.py:8``\n\nsrc/app/infra/config.py -- Stateless: load reads os.environ on every call and caches nothing.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/infra/config.py:7``\n\nsrc/app/infra/store.py -- Store.__init_\\_ calls config.load into self.settings and starts self.rows as an empty list; settings is never read afterwards, and no method writes rows to the configured path.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/infra/store.py:7-9``\n   - ``src/app/infra/store.py:7``\n\nHow it is used\n--------------\n\nsrc/app/api/cli.py -- The module docstring names it the command line entry point; main takes no parameters and returns 0, and the __main_\\_ guard passes that to sys.exit.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/api/cli.py:1``\n   - ``src/app/api/cli.py:14-15``\n   - ``src/app/api/cli.py:14``\n\nsrc/app/api/http.py -- post(body) takes a mapping and returns the count OrderService.record returns (1 for a valid body).\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/api/http.py:10-13``\n   - ``src/app/api/http.py:10``\n\nsrc/app/core/models.py -- Order(sku) constructs an order and Order.total() returns len(sku), the length of the SKU string, not a price.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/core/models.py:9-13``\n   - ``src/app/core/models.py:9``\n\nsrc/app/core/service.py -- record(skus) takes a list of SKUs and returns len(skus), the number submitted, regardless of what the store did.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/core/service.py:11-14``\n   - ``src/app/core/service.py:11``\n\nsrc/app/infra/config.py -- load() takes no arguments and returns the settings dict; Store.__init_\\_ is the only caller.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/infra/config.py:6-7``\n   - ``src/app/infra/store.py:8``\n   - ``src/app/infra/config.py:6``\n\nsrc/app/infra/store.py -- put(order) appends the order and returns the new row count.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/infra/store.py:11-13``\n   - ``src/app/infra/store.py:11``\n\nHow it fails\n------------\n\nsrc/app/api/http.py -- A body without a sku key raises ValueError('sku is required') before the service is touched.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/api/http.py:11-12``\n   - ``src/app/api/http.py:11``\n\nsrc/app/infra/config.py -- A missing ORDERLOG_PATH is not an error; os.environ.get supplies the default orders.json.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/infra/config.py:7``\n\n.. uml:: /_diagrams/full-repository.puml\n   :caption: Class diagram of the whole repository: 5 class(es) grouped by package and module, showing association and composition and inheritance relationships\n\nNext: :doc:`Dependency graph </dependencies>`\n"
+              },
+              {
+                "name": "draft-flows",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  false
+                ],
+                "evidence": "Cross-component flows\n=====================\n\nRecording orders from the command line\n--------------------------------------\n\nStarts when: The orderlog console script runs app.api.cli:main.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``pyproject.toml:7``\n\n.. list-table::\n   :header-rows: 1\n\n   * - From\n     - Calls\n     - What happens\n   * - cli.main\n     - service.OrderService.record\n     - main passes sys.argv[1:] to OrderService.record.\n   * - service.OrderService.record\n     - store.Store.put\n     - record calls Store.put once per SKU, after building an Order.\n\n.. only:: audit\n\n   Evidence:\n\n   - cli.main / service.OrderService.record / main passes sys.argv[1:] to OrderService.record.: ``src/app/api/cli.py:10``\n   - service.OrderService.record / store.Store.put / record calls Store.put once per SKU, after building an Order.: ``src/app/core/service.py:13``\n\nEnds with: Each order is appended to the in-memory list Store.rows; record returns the count and main returns 0. Nothing is written to disk.\n\nRecording an order from an HTTP request\n---------------------------------------\n\nStarts when: Handler.post receives a request body; no server code in the repository calls it.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/api/http.py:10``\n\n.. list-table::\n   :header-rows: 1\n\n   * - From\n     - Calls\n     - What happens\n   * - http.Handler.post\n     - service.OrderService.record\n     - post calls OrderService.record with the single SKU after checking it exists.\n   * - service.OrderService.record\n     - store.Store.put\n     - record calls Store.put for the SKU.\n\n.. only:: audit\n\n   Evidence:\n\n   - http.Handler.post / service.OrderService.record / post calls OrderService.record with the single SKU after checking it exists.: ``src/app/api/http.py:13``\n   - service.OrderService.record / store.Store.put / record calls Store.put for the SKU.: ``src/app/core/service.py:13``\n\nEnds with: The order is appended to Store.rows and post returns 1.\n\nNext: :doc:`Coverage and limitations </limitations>`\n"
+              },
+              {
+                "name": "handoff",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "The architecture docs are drafted but not published. `docs/` doesn't exist yet. Publishing is blocked on two things that need you, and the review step also failed.\n\n**What exists**\n- The draft is at `.docs-build/rendered-docs/`. It has six pages: `overview`, `architecture`, `dependencies`, `flows`, `class-views` and `limitations`, plus `index`.\n- Every structural claim is verified against the source (17 of 17), including four call claims I wrote by hand.\n\n**Choices I made without you** (each is recorded as a checkpoint decision)\n- **Template:** the `architecture` preset, since you asked for components, dependencies, entry points and flow.\n- **P1 (scope):** all 10 files under `src/`.\n- **P2 (module roles):** I read the source myself.\n- **P3 (architecture):** I defined four components:\n  - Entry adapters (`cli`, `http`).\n  - Order recording (`service`, `models`).\n  - Storage and settings (`store`, `config`).\n  - Package markers (the empty `__init__.py` files).\n- **Flows:** I traced two, the CLI path and the HTTP path. Both go through `OrderService.record` to `Store.put`.\n- **Operations:** the `orderlog` console script, the `ORDERLOG_PATH` setting and the CI test step.\n\n**What's waiting on you**\n1. **P4:** two prose readings need your answer before publish. They are the `OrderService` responsibility statement and the inference that `OrderService` is the single shared path from both entry points. Reply with an accepted or changes-requested verdict, then run `pipeline.py decide --checkpoint P4 …`.\n2. **Review failure:** `review` exited 1. The prose check flagged sentences over 25 words, and an overview opening that describes itself instead of leading with the answer. The quality-docs stage then failed, and I didn't read its report. Repair these, re-render and re-review. I stopped at P4 rather than work around it.\n3. **Publish:** it will create `docs/`, which doesn't exist yet. I'm leaving that confirmation to you.\n\n**Things in the code you may want to check** (the docs state them as findings)\n- Nothing ever persists. `Store` keeps orders in a list, and there is no flush despite its docstring.\n- The `ORDERLOG_PATH` setting is loaded but never used.\n- The CLI always exits 0 and does no validation, while the HTTP handler requires `sku`.\n- Nothing in the repo starts an HTTP server that calls `Handler.post`.\n- CI runs pytest, but no tests exist.\n\nThe `.docs-build/` directory is still there, and I can remove it when you're done."
+              },
+              {
+                "name": "not-manual-preset",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 0x (expected 0..0)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "not-published",
+                "passed": true,
+                "weight": 1,
+                "explanation": "docs/** absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "overview",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "The architecture docs are drafted but not published. `docs/` doesn't exist yet. Publishing is blocked on two things that need you, and the review step also failed.\n\n**What exists**\n- The draft is at `.docs-build/rendered-docs/`. It has six pages: `overview`, `architecture`, `dependencies`, `flows`, `class-views` and `limitations`, plus `index`.\n- Every structural claim is verified against the source (17 of 17), including four call claims I wrote by hand.\n\n**Choices I made without you** (each is recorded as a checkpoint decision)\n- **Template:** the `architecture` preset, since you asked for components, dependencies, entry points and flow.\n- **P1 (scope):** all 10 files under `src/`.\n- **P2 (module roles):** I read the source myself.\n- **P3 (architecture):** I defined four components:\n  - Entry adapters (`cli`, `http`).\n  - Order recording (`service`, `models`).\n  - Storage and settings (`store`, `config`).\n  - Package markers (the empty `__init__.py` files).\n- **Flows:** I traced two, the CLI path and the HTTP path. Both go through `OrderService.record` to `Store.put`.\n- **Operations:** the `orderlog` console script, the `ORDERLOG_PATH` setting and the CI test step.\n\n**What's waiting on you**\n1. **P4:** two prose readings need your answer before publish. They are the `OrderService` responsibility statement and the inference that `OrderService` is the single shared path from both entry points. Reply with an accepted or changes-requested verdict, then run `pipeline.py decide --checkpoint P4 …`.\n2. **Review failure:** `review` exited 1. The prose check flagged sentences over 25 words, and an overview opening that describes itself instead of leading with the answer. The quality-docs stage then failed, and I didn't read its report. Repair these, re-render and re-review. I stopped at P4 rather than work around it.\n3. **Publish:** it will create `docs/`, which doesn't exist yet. I'm leaving that confirmation to you.\n\n**Things in the code you may want to check** (the docs state them as findings)\n- Nothing ever persists. `Store` keeps orders in a list, and there is no flush despite its docstring.\n- The `ORDERLOG_PATH` setting is loaded but never used.\n- The CLI always exits 0 and does no validation, while the HTTP handler requires `sku`.\n- Nothing in the repo starts an HTTP server that calls `Handler.post`.\n- CI runs pytest, but no tests exist.\n\nThe `.docs-build/` directory is still there, and I can remove it when you're done."
+              },
+              {
+                "name": "rendered-draft",
+                "passed": true,
+                "weight": 1,
+                "explanation": ".docs-build/rendered-docs/** exists as expected",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 29,
+            "costUsd": 0.5285318,
+            "judgeCostUsd": 0.005569699999999997,
+            "durationSeconds": 134,
+            "startedAt": "2026-11-20T07:24:07.179Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "architecture-preset",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "draft-architecture",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "Components and boundaries\n=========================\n\nEach row is an import edge that crosses a directory boundary -- the places where one part of the tree reaches into another. An import proves a reference, not a call.\n\n.. list-table::\n   :header-rows: 1\n\n   * - From\n     - Imports\n   * - src/app/api/cli.py\n     - src/app/core/service.py\n   * - src/app/api/http.py\n     - src/app/core/service.py\n   * - src/app/core/service.py\n     - src/app/infra/store.py\n\n.. only:: audit\n\n   Evidence:\n\n   - src/app/api/cli.py / src/app/core/service.py: ``src/app/api/cli.py:5``\n   - src/app/api/http.py / src/app/core/service.py: ``src/app/api/http.py:3``\n   - src/app/core/service.py / src/app/infra/store.py: ``src/app/core/service.py:4``\n\nWhat it is responsible for\n--------------------------\n\nsrc/app/__init_\\_.py -- The top-level app package marker is empty; its subpackages api, core and infra are imported by full path.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/__init__.py:1``\n\nsrc/app/api/__init_\\_.py -- The api package marker is empty; cli.py and http.py are imported directly, and it re-exports neither.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/api/__init__.py:1``\n\nsrc/app/api/cli.py -- main constructs an OrderService and passes sys.argv[1:] to OrderService.record, treating every argument as one sku, then returns 0.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/api/cli.py:8-11``\n   - ``src/app/api/cli.py:8``\n\nsrc/app/api/http.py -- Handler.post checks that the body contains sku before calling OrderService.record, as the module docstring says validation happens before anything else sees the input.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/api/http.py:1``\n   - ``src/app/api/http.py:10-13``\n   - ``src/app/api/http.py:10``\n\nsrc/app/core/__init_\\_.py -- The core package marker is empty; models.py and service.py are imported directly, and it re-exports neither.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/core/__init__.py:1``\n\nsrc/app/core/models.py -- Order extends Record and stores a sku; Order.total returns len(self.sku), per the Domain types docstring.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/core/models.py:1``\n   - ``src/app/core/models.py:8-13``\n   - ``src/app/core/models.py:8``\n\nsrc/app/core/service.py -- OrderService.record builds an Order per sku and passes it to Store.put; the docstring says the service owns no storage of its own.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/core/service.py:1``\n   - ``src/app/core/service.py:11-14``\n   - ``src/app/core/service.py:11``\n\nsrc/app/infra/__init_\\_.py -- The infra package marker is empty; config.py and store.py are imported directly, and it re-exports neither.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/infra/__init__.py:1``\n\nsrc/app/infra/config.py -- load returns a dict with the key path, taken from os.environ ORDERLOG_PATH and defaulting to orders.json.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/infra/config.py:6-7``\n   - ``src/app/infra/config.py:6``\n\nsrc/app/infra/store.py -- Store.put appends each Order to self.rows and returns the new row count; the docstring says orders stay in memory until flushed.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/infra/store.py:1``\n   - ``src/app/infra/store.py:11-13``\n   - ``src/app/infra/store.py:11``\n\nWhat it owns\n------------\n\nsrc/app/api/cli.py -- The module keeps no state; the OrderService created in main lives only for one invocation.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/api/cli.py:9-10``\n   - ``src/app/api/cli.py:9``\n\nsrc/app/api/http.py -- Handler holds one OrderService in self.service, created in Handler.__init_\\_.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/api/http.py:7-8``\n   - ``src/app/api/http.py:7``\n\nsrc/app/core/models.py -- Order carries only self.sku, and Record declares a class attribute key = 0 that nothing in the repository reads.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/core/models.py:4-5``\n   - ``src/app/core/models.py:9-10``\n   - ``src/app/core/models.py:4``\n   - ``src/app/core/models.py:9``\n\nsrc/app/core/service.py -- OrderService holds a Store in self.store, created in OrderService.__init_\\_, so each service instance has its own private Store.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/core/service.py:7-9``\n   - ``src/app/core/service.py:7``\n\nsrc/app/infra/config.py -- load reads os.environ on each call and caches nothing; Store.__init_\\_ calls it once per Store.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/infra/config.py:6-7``\n   - ``src/app/infra/config.py:6``\n\nsrc/app/infra/store.py -- Store holds self.rows, an in-memory list, and self.settings from config.load, so contents last only as long as the Store instance.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/infra/store.py:6-9``\n   - ``src/app/infra/store.py:6``\n\nHow it is used\n--------------\n\nsrc/app/api/cli.py -- main is the console script orderlog declared in pyproject.toml, and the module's main guard calls sys.exit(main()).\n\n.. only:: audit\n\n   Evidence:\n\n   - ``pyproject.toml:7``\n   - ``src/app/api/cli.py:14-15``\n   - ``src/app/api/cli.py:14``\n\nsrc/app/api/http.py -- Handler.post takes a body mapping and returns the count that OrderService.record returns for the single sku.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/api/http.py:10-13``\n   - ``src/app/api/http.py:10``\n\nsrc/app/core/models.py -- Order(sku) is constructed by OrderService.record; Order.total is defined but called nowhere in the scanned source.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/core/models.py:8-13``\n   - ``src/app/core/models.py:8``\n\nsrc/app/core/service.py -- OrderService.record takes a list of skus and returns len(skus), the number submitted rather than anything the Store reports.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/core/service.py:11-14``\n   - ``src/app/core/service.py:11``\n\nsrc/app/infra/config.py -- load takes no arguments and returns a dict; its only consumer is Store.__init_\\_.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/infra/config.py:6-7``\n   - ``src/app/infra/config.py:6``\n\nsrc/app/infra/store.py -- Store.put(order) is the only operation; there is no read, flush or save method.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/infra/store.py:6-13``\n   - ``src/app/infra/store.py:6``\n\nHow it fails\n------------\n\nsrc/app/api/http.py -- Handler.post raises ValueError('sku is required') when the body lacks sku; it does not translate that into an HTTP status.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/api/http.py:11-12``\n   - ``src/app/api/http.py:11``\n\n.. uml:: /_diagrams/full-repository.puml\n   :caption: Class diagram of the whole repository: 5 class(es) grouped by package and module, showing association and composition and inheritance relationships\n\nNext: :doc:`Dependency graph </dependencies>`\n"
+              },
+              {
+                "name": "draft-flows",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "Cross-component flows\n=====================\n\nRecording orders from the command line\n--------------------------------------\n\nStarts when: The orderlog console script runs main with the argument tokens.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``pyproject.toml:7``\n   - ``src/app/api/cli.py:8``\n\n.. list-table::\n   :header-rows: 1\n\n   * - From\n     - Calls\n     - What happens\n   * - cli.main\n     - service.OrderService.record\n     - main passes sys.argv[1:] to OrderService.record.\n   * - service.OrderService.record\n     - store.Store.put\n     - record builds an Order per sku and calls Store.put for each.\n\n.. only:: audit\n\n   Evidence:\n\n   - cli.main / service.OrderService.record / main passes sys.argv[1:] to OrderService.record.: ``src/app/api/cli.py:10``\n   - service.OrderService.record / store.Store.put / record builds an Order per sku and calls Store.put for each.: ``src/app/core/service.py:13``\n\nEnds with: Orders are appended to Store.rows in memory and main returns 0; nothing is written to disk.\n\nThe trace stops here; what follows was not observed at a call site: Store has no flush or save method, so what happens to the rows after put is not recorded.\n\nRecording an order from an HTTP request\n---------------------------------------\n\nStarts when: Handler.post receives a request body; nothing in the repository calls it.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/api/http.py:10``\n\n.. list-table::\n   :header-rows: 1\n\n   * - From\n     - Calls\n     - What happens\n   * - http.Handler.post\n     - service.OrderService.record\n     - post validates that sku is present, then calls OrderService.record with it.\n   * - service.OrderService.record\n     - store.Store.put\n     - record builds an Order and calls Store.put.\n\n.. only:: audit\n\n   Evidence:\n\n   - http.Handler.post / service.OrderService.record / post validates that sku is present, then calls OrderService.record with it.: ``src/app/api/http.py:13``\n   - service.OrderService.record / store.Store.put / record builds an Order and calls Store.put.: ``src/app/core/service.py:13``\n\nEnds with: post returns the count from record, which is 1; the order is held in memory only.\n\nThe trace stops here; what follows was not observed at a call site: No server or router in the repository instantiates Handler.\n\nStore reading its settings\n--------------------------\n\nStarts when: Constructing a Store, which OrderService.__init_\\_ does.\n\n.. only:: audit\n\n   Evidence:\n\n   - ``src/app/core/service.py:9``\n\n.. list-table::\n   :header-rows: 1\n\n   * - From\n     - Calls\n     - What happens\n   * - store.Store.__init_\\_\n     - config.load\n     - Store.__init_\\_ calls load to get its settings.\n\n.. only:: audit\n\n   Evidence:\n\n   - store.Store.__init_\\_ / config.load / Store.__init_\\_ calls load to get its settings.: ``src/app/infra/store.py:8``\n\nEnds with: settings holds the path from ORDERLOG_PATH or orders.json, but nothing reads it afterwards.\n\nNext: :doc:`Coverage and limitations </limitations>`\n"
+              },
+              {
+                "name": "handoff",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "The architecture docs are drafted but not published, so `docs/` doesn't exist yet. The pipeline stops at checkpoint P4, which only you can answer.\n\nThe draft is six pages in `.docs-build/rendered-docs/`:\n- **`overview`**: the module table, with each module's role and import counts.\n- **`architecture`**: four components in three layers, each with its modules and the reasoning behind the boundary.\n- **`dependencies`**: import edges, with `api` → `core` → `infra` as the layering.\n- **`flows`**: the order flow, as traced calls.\n- **`class-views`**: class diagrams.\n- **`limitations`**: what the run couldn't verify.\n\n**What the docs say about the code**\n- **Entry points:** the only wired entry point is the `orderlog` console script (`app.api.cli:main`). `Handler.post` in `api/http.py` is never instantiated by anything in the repo.\n- **Order flow:** `main` (or `Handler.post`) calls `OrderService.record`, which builds an `Order` per sku and calls `Store.put`, which appends it to an in-memory list. I confirmed each of those calls at its call site.\n- **Nothing is persisted:** `Store` never flushes, even though its docstring says \"until flushed\". The `ORDERLOG_PATH` setting is loaded but never read, and the docs flag this as unknown rather than guessing intent.\n- **Unused code:** `Order.total` and `Record.key` aren't used anywhere in the scanned code.\n\n**Choices I made without you**\n- I chose the `architecture` template, because you asked for architecture docs.\n- I recorded P1–P3 myself: all 10 files under `src/app` in scope, module roles from the source, and the component, flow and operations boundaries as written. Unattended runs may record these.\n- I grouped `store.py` and `config.py` into one persistence component because they share the `infra` package. The repo gives no reason either way, and the docs say so.\n- I left the empty `__init__.py` files out of every component.\n- No Sphinx or docutils is installed, so the RST markup was not parsed or built. The pages passed only the pipeline's own edition check.\n\n**What I need from you**\n1. Answer P4: do you accept the reading \"`OrderService` owns no storage of its own\", which comes from the service docstring? Then run:\n   `python3 <local> decide --checkpoint P4 --user-response '<your answer>' --p4-verdict accepted`\n2. Confirm the template, since `publish` waits on that. Run `review --review` and then `publish --docs docs` once both are done.\n3. Decide whether the missing flush is a bug or intended. The docs only report it.\n\n`.docs-build/` is still in place and is gitignored. I can remove it when you're done."
+              },
+              {
+                "name": "not-manual-preset",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 0x (expected 0..0)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "not-published",
+                "passed": true,
+                "weight": 1,
+                "explanation": "docs/** absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "overview",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "The architecture docs are drafted but not published, so `docs/` doesn't exist yet. The pipeline stops at checkpoint P4, which only you can answer.\n\nThe draft is six pages in `.docs-build/rendered-docs/`:\n- **`overview`**: the module table, with each module's role and import counts.\n- **`architecture`**: four components in three layers, each with its modules and the reasoning behind the boundary.\n- **`dependencies`**: import edges, with `api` → `core` → `infra` as the layering.\n- **`flows`**: the order flow, as traced calls.\n- **`class-views`**: class diagrams.\n- **`limitations`**: what the run couldn't verify.\n\n**What the docs say about the code**\n- **Entry points:** the only wired entry point is the `orderlog` console script (`app.api.cli:main`). `Handler.post` in `api/http.py` is never instantiated by anything in the repo.\n- **Order flow:** `main` (or `Handler.post`) calls `OrderService.record`, which builds an `Order` per sku and calls `Store.put`, which appends it to an in-memory list. I confirmed each of those calls at its call site.\n- **Nothing is persisted:** `Store` never flushes, even though its docstring says \"until flushed\". The `ORDERLOG_PATH` setting is loaded but never read, and the docs flag this as unknown rather than guessing intent.\n- **Unused code:** `Order.total` and `Record.key` aren't used anywhere in the scanned code.\n\n**Choices I made without you**\n- I chose the `architecture` template, because you asked for architecture docs.\n- I recorded P1–P3 myself: all 10 files under `src/app` in scope, module roles from the source, and the component, flow and operations boundaries as written. Unattended runs may record these.\n- I grouped `store.py` and `config.py` into one persistence component because they share the `infra` package. The repo gives no reason either way, and the docs say so.\n- I left the empty `__init__.py` files out of every component.\n- No Sphinx or docutils is installed, so the RST markup was not parsed or built. The pages passed only the pipeline's own edition check.\n\n**What I need from you**\n1. Answer P4: do you accept the reading \"`OrderService` owns no storage of its own\", which comes from the service docstring? Then run:\n   `python3 <local> decide --checkpoint P4 --user-response '<your answer>' --p4-verdict accepted`\n2. Confirm the template, since `publish` waits on that. Run `review --review` and then `publish --docs docs` once both are done.\n3. Decide whether the missing flush is a bug or intended. The docs only report it.\n\n`.docs-build/` is still in place and is gitignored. I can remove it when you're done."
+              },
+              {
+                "name": "rendered-draft",
+                "passed": true,
+                "weight": 1,
+                "explanation": ".docs-build/rendered-docs/** exists as expected",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0.4,
+            "passed": false,
+            "turns": 10,
+            "costUsd": 0.1254563,
+            "judgeCostUsd": 0.0016514000000000008,
+            "durationSeconds": 47,
+            "startedAt": "2026-11-20T07:25:58.555Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "draft-architecture",
+                "passed": false,
+                "weight": 1,
+                "explanation": "grader threw: case \"architecture-overview-of-layered-repo\" grader focus file \".docs-build/rendered-docs/architecture.rst\": path \".docs-build/rendered-docs/architecture.rst\" does not exist",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "draft-flows",
+                "passed": false,
+                "weight": 1,
+                "explanation": "grader threw: case \"architecture-overview-of-layered-repo\" grader focus file \".docs-build/rendered-docs/flows.rst\": path \".docs-build/rendered-docs/flows.rst\" does not exist",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "handoff",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "I wrote six architecture pages under `docs/`. I didn't run any code, and I didn't change any source files.\n\n- **`README.md`:** index and layout.\n- **`components.md`:** the `api`, `core` and `infra` layers and each module in them.\n- **`dependencies.md`:** the import graph. Dependencies run `api → core → infra`, with no cycles and no third-party packages.\n- **`entry-points.md`:** the `orderlog` CLI and `Handler.post` in `src/app/api/http.py`.\n- **`order-flow.md`:** the path from input through `OrderService.record` to `Store.put`, and what each step returns.\n- **`open-questions.md`:** the decisions I made and the questions that need you.\n\n**Decisions I made**\n- I documented the code as it is, not as the README or docstrings describe it. Where they disagree, the page says both.\n- I put the docs in a top-level `docs/` directory with an index.\n\n**Questions for you** (the full list of seven is in `docs/open-questions.md`)\n- **Persistence:** orders are never saved. `Store` keeps them in memory, and `ORDERLOG_PATH` is read but never used. Each CLI run loses its orders on exit.\n- **Reporting:** the README says the tool prints orders back, but nothing reads or prints them. Is that a missing feature or outdated wording?\n- **HTTP:** `Handler` has no server or routing. Is it meant to ship?\n- **Validation:** only the HTTP path validates input.\n- **Tests:** CI runs `pytest`, but the repo has no tests and doesn't declare `pytest` as a dependency.\n\nThe remaining two are smaller: `Record.key` is unused, and `Order.total()` just returns the length of the SKU string."
+              },
+              {
+                "name": "not-published",
+                "passed": false,
+                "weight": 1,
+                "explanation": "docs/** exists (expected absent)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "overview",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS FAIL PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  false,
+                  true
+                ],
+                "evidence": "I wrote six architecture pages under `docs/`. I didn't run any code, and I didn't change any source files.\n\n- **`README.md`:** index and layout.\n- **`components.md`:** the `api`, `core` and `infra` layers and each module in them.\n- **`dependencies.md`:** the import graph. Dependencies run `api → core → infra`, with no cycles and no third-party packages.\n- **`entry-points.md`:** the `orderlog` CLI and `Handler.post` in `src/app/api/http.py`.\n- **`order-flow.md`:** the path from input through `OrderService.record` to `Store.put`, and what each step returns.\n- **`open-questions.md`:** the decisions I made and the questions that need you.\n\n**Decisions I made**\n- I documented the code as it is, not as the README or docstrings describe it. Where they disagree, the page says both.\n- I put the docs in a top-level `docs/` directory with an index.\n\n**Questions for you** (the full list of seven is in `docs/open-questions.md`)\n- **Persistence:** orders are never saved. `Store` keeps them in memory, and `ORDERLOG_PATH` is read but never used. Each CLI run loses its orders on exit.\n- **Reporting:** the README says the tool prints orders back, but nothing reads or prints them. Is that a missing feature or outdated wording?\n- **HTTP:** `Handler` has no server or routing. Is it meant to ship?\n- **Validation:** only the HTTP path validates input.\n- **Tests:** CI runs `pytest`, but the repo has no tests and doesn't declare `pytest` as a dependency.\n\nThe remaining two are smaller: `Record.key` is unused, and `Order.total()` just returns the length of the SKU string."
+              }
+            ]
+          },
+          {
+            "score": 0.2,
+            "passed": false,
+            "turns": 4,
+            "costUsd": 0.1067185,
+            "judgeCostUsd": 0.0013773999999999974,
+            "durationSeconds": 38,
+            "startedAt": "2026-11-20T07:26:16.196Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "draft-architecture",
+                "passed": false,
+                "weight": 1,
+                "explanation": "grader threw: case \"architecture-overview-of-layered-repo\" grader focus file \".docs-build/rendered-docs/architecture.rst\": path \".docs-build/rendered-docs/architecture.rst\" does not exist",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "draft-flows",
+                "passed": false,
+                "weight": 1,
+                "explanation": "grader threw: case \"architecture-overview-of-layered-repo\" grader focus file \".docs-build/rendered-docs/flows.rst\": path \".docs-build/rendered-docs/flows.rst\" does not exist",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "handoff",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: FAIL PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  true,
+                  true
+                ],
+                "evidence": "I wrote the architecture docs as six pages under `docs/`. I only read the code and ran nothing. The repo has no tests.\n\n- `index.md` lists the pages and states the scope.\n- `components.md` covers the three layers (`api`, `core`, `infra`) and what each module owns.\n- `dependencies.md` has the internal import graph, which has no cycles. `core` imports the concrete `Store` from `infra`, so there is no injection point. External dependencies are the standard library only, plus the `ORDERLOG_PATH` environment variable.\n- `entry-points.md` covers the `orderlog` CLI (`app.api.cli:main`) and `Handler.post`. Nothing in the repo exposes the handler over a network.\n- `order-flow.md` traces recording an order through the CLI and through the handler, and the order's lifecycle.\n- `decisions-and-open-questions.md` lists the choices I made and the questions for you.\n\nThe docs describe what the code does, and several things differ from the README and docstrings:\n- Orders are only held in memory and are lost when the process exits.\n- Nothing reads orders back or reports on them.\n- `ORDERLOG_PATH` is read but never used.\n- `Order.total()` returns `len(sku)`, which looks like a placeholder.\n- CI runs pytest, but pytest isn't installed and no tests exist, so CI will fail as written.\n\n**Choices I made:**\n- I documented the code as it is.\n- I changed no code.\n- I treated the `core` to `infra` dependency as an observation, not a defect.\n\n**Questions waiting for you** (full list on the last page):\n1. How and when should orders be written to disk?\n2. What should reporting look like?\n3. Should the CLI validate input the way the HTTP handler does?\n4. Which framework, if any, will host the handler?\n5. Where do real order totals come from?\n6. Should I add tests and a pytest dev dependency so CI passes?"
+              },
+              {
+                "name": "not-published",
+                "passed": false,
+                "weight": 1,
+                "explanation": "docs/** exists (expected absent)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "overview",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "I wrote the architecture docs as six pages under `docs/`. I only read the code and ran nothing. The repo has no tests.\n\n- `index.md` lists the pages and states the scope.\n- `components.md` covers the three layers (`api`, `core`, `infra`) and what each module owns.\n- `dependencies.md` has the internal import graph, which has no cycles. `core` imports the concrete `Store` from `infra`, so there is no injection point. External dependencies are the standard library only, plus the `ORDERLOG_PATH` environment variable.\n- `entry-points.md` covers the `orderlog` CLI (`app.api.cli:main`) and `Handler.post`. Nothing in the repo exposes the handler over a network.\n- `order-flow.md` traces recording an order through the CLI and through the handler, and the order's lifecycle.\n- `decisions-and-open-questions.md` lists the choices I made and the questions for you.\n\nThe docs describe what the code does, and several things differ from the README and docstrings:\n- Orders are only held in memory and are lost when the process exits.\n- Nothing reads orders back or reports on them.\n- `ORDERLOG_PATH` is read but never used.\n- `Order.total()` returns `len(sku)`, which looks like a placeholder.\n- CI runs pytest, but pytest isn't installed and no tests exist, so CI will fail as written.\n\n**Choices I made:**\n- I documented the code as it is.\n- I changed no code.\n- I treated the `core` to `infra` dependency as an observation, not a defect.\n\n**Questions waiting for you** (full list on the last page):\n1. How and when should orders be written to disk?\n2. What should reporting look like?\n3. Should the CLI validate input the way the HTTP handler does?\n4. Which framework, if any, will host the handler?\n5. Where do real order totals come from?\n6. Should I add tests and a pytest dev dependency so CI passes?"
+              }
+            ]
+          },
+          {
+            "score": 0.2,
+            "passed": false,
+            "turns": 4,
+            "costUsd": 0.1042066,
+            "judgeCostUsd": 0.0021207999999999973,
+            "durationSeconds": 39,
+            "startedAt": "2026-11-20T07:26:21.236Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "draft-architecture",
+                "passed": false,
+                "weight": 1,
+                "explanation": "grader threw: case \"architecture-overview-of-layered-repo\" grader focus file \".docs-build/rendered-docs/architecture.rst\": path \".docs-build/rendered-docs/architecture.rst\" does not exist",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "draft-flows",
+                "passed": false,
+                "weight": 1,
+                "explanation": "grader threw: case \"architecture-overview-of-layered-repo\" grader focus file \".docs-build/rendered-docs/flows.rst\": path \".docs-build/rendered-docs/flows.rst\" does not exist",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "handoff",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "I wrote six pages under `docs/`. I only read the code, the README, `pyproject.toml` and the CI file, and I didn't run anything.\n\n- `index.md` links to the other pages.\n- `components.md` covers the three layers (`api`, `core`, `infra`) and what each module does.\n- `dependencies.md` has the import graph and the layering. The standard library is the only runtime dependency. It also notes that `core` imports the concrete `Store` from `infra`.\n- `entry-points.md` covers the `orderlog` CLI script and the `Handler.post` class. `Handler` isn't attached to any web server.\n- `order-flow.md` follows an order from input through validation, `OrderService.record` and `Order` to `Store.put`.\n- `open-questions.md` lists the choices I made and the questions for you.\n\nThe code doesn't do everything the README and docstrings suggest, and the docs say so:\n- **Persistence:** nothing writes orders to disk. `Store` keeps them in memory and never uses the `ORDERLOG_PATH` setting, so orders recorded from the CLI are lost when the process exits.\n- **Reporting:** the README says the tool \"reports on\" orders, but no such code exists.\n- **Tests:** CI runs `pytest`, but there are no tests and `pytest` isn't declared as a dependency.\n\nI documented the code as it is and didn't assume these are planned. I used the code's own layer names for grouping, and I described the `core` → `infra` import as a coupling note, not a defect.\n\nThese are left for you in `docs/open-questions.md`:\n1. Whether orders should be written to `ORDERLOG_PATH`, and where the write should happen.\n2. Whether reporting is planned, or the README should change.\n3. What serves `Handler`.\n4. What `Order.total()` and `Record.key` are meant to be.\n5. Whether tests and a declared `pytest` dependency should be added."
+              },
+              {
+                "name": "not-published",
+                "passed": false,
+                "weight": 1,
+                "explanation": "docs/** exists (expected absent)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "overview",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "I wrote six pages under `docs/`. I only read the code, the README, `pyproject.toml` and the CI file, and I didn't run anything.\n\n- `index.md` links to the other pages.\n- `components.md` covers the three layers (`api`, `core`, `infra`) and what each module does.\n- `dependencies.md` has the import graph and the layering. The standard library is the only runtime dependency. It also notes that `core` imports the concrete `Store` from `infra`.\n- `entry-points.md` covers the `orderlog` CLI script and the `Handler.post` class. `Handler` isn't attached to any web server.\n- `order-flow.md` follows an order from input through validation, `OrderService.record` and `Order` to `Store.put`.\n- `open-questions.md` lists the choices I made and the questions for you.\n\nThe code doesn't do everything the README and docstrings suggest, and the docs say so:\n- **Persistence:** nothing writes orders to disk. `Store` keeps them in memory and never uses the `ORDERLOG_PATH` setting, so orders recorded from the CLI are lost when the process exits.\n- **Reporting:** the README says the tool \"reports on\" orders, but no such code exists.\n- **Tests:** CI runs `pytest`, but there are no tests and `pytest` isn't declared as a dependency.\n\nI documented the code as it is and didn't assume these are planned. I used the code's own layer names for grouping, and I described the `core` → `infra` import as a coupling note, not a defect.\n\nThese are left for you in `docs/open-questions.md`:\n1. Whether orders should be written to `ORDERLOG_PATH`, and where the write should happen.\n2. Whether reporting is planned, or the README should change.\n3. What serves `Handler`.\n4. What `Order.total()` and `Record.key` are meant to be.\n5. Whether tests and a declared `pytest` dependency should be added."
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 0.8666666666666667,
+        "passRate": 0.3333333333333333,
+        "scoreWithout": 0.26666666666666666,
+        "passRateWithout": 0,
+        "delta": 0.6000000000000001
+      }
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 1,
+    "casesPassed": 0,
+    "overallScore": 0.8666666666666667,
+    "overallPassRate": 0.3333333333333333,
+    "meanDelta": 0.6000000000000001
+  }
+}
