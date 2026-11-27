@@ -161,6 +161,18 @@ class LiveResults(Server):
         self.write_result(repo, "20260102-000000")
         self.assertEqual(self.request("GET", "/api/results")[1]["count"], 2)
 
+    def test_the_signature_covers_the_archive_folder(self):
+        repo = self.make_repo()
+        self.write_result(repo, "20260101-000000")
+        before = ebs.results_signature(repo)
+        folder = os.path.join(repo, "plugins", "verification", "evals", "archive", "20260102-000000")
+        os.makedirs(folder)
+        with open(os.path.join(folder, "aggregate-result.json"), "w", encoding="utf-8") as fh:
+            fh.write('{"schemaVersion": 1, "cases": []}')
+        after = ebs.results_signature(repo)
+        self.assertEqual((before[1], after[1]), (1, 2), "an archived run is counted")
+        self.assertNotEqual(before[0], after[0], "archiving a run changes the signature")
+
     def test_a_file_that_vanishes_before_its_stat_is_left_out(self):
         repo = self.make_repo()
         keep = self.write_result(repo, "20260101-000000")
