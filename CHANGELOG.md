@@ -7,6 +7,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-11-27
+
+Contributor tooling only: eval results can now be kept in the repository. No plugin version changes, so installed
+plugins behave exactly as in 0.6.0.
+
 ### Changed
 
 - Contributors can keep eval runs in the repository: `tools/archive_eval_results.py` copies a run's
