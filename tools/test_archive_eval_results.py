@@ -194,6 +194,24 @@ class Refusals(Base):
                 self.assert_refused(code, out, name, "aggregate-result.json" if where == "json" else "report.html",
                                     forbidden=("ZZZZ",))
 
+    def test_a_secret_hidden_by_escaping_is_refused(self):
+        def doc_with(value):
+            doc = sample(self.repo)
+            doc["cases"][0]["note"] = value
+            return json.dumps(doc, indent=2) + "\n"
+
+        cases = [
+            ("Authorization: Bearer token", doc_with("Authorization:\tBearer\tabcdefghijklmnopqrstuvwxyz0123"), None, "tab"),
+            ("sk-ant-", doc_with("x").replace('"x"', '"sk\\u002dant-ZZZZsecretvalue"'), None, "unicode escape"),
+            ("ghp_", None, "<p>ghp&#95;ZZZZsecretvalue1234</p>", "html entity"),
+            ("sk-ant-", None, "<p>sk&#x2d;ant-ZZZZsecretvalue</p>", "html hex entity"),
+        ]
+        for name, raw, html, _why in cases:
+            shutil.rmtree(self.src, ignore_errors=True)
+            self.make_run(raw=raw, html=html if html is not None else "<p>clean</p>")
+            code, out = self.run_tool(self.src)
+            self.assert_refused(code, out, name, forbidden=("ZZZZ", "abcdefghij"))
+
     def test_a_private_key_block_is_refused(self):
         key = "-----BEGIN RSA PRIVATE KEY-----\nMIIZZZZkeybody\n-----END RSA PRIVATE KEY-----"
         doc = sample(self.repo)
@@ -245,6 +263,36 @@ class Refusals(Base):
         self.assertEqual(code, 0, out)
         self.assertIn("replaced", out)
         self.assertEqual(json.loads(slurp(self.archived()))["cases"][0]["name"], "other")
+
+    def test_replace_removes_a_report_the_new_source_lacks(self):
+        self.make_run()
+        self.assertEqual(self.run_tool(self.src)[0], 0)
+        self.assertTrue(os.path.exists(self.archived(name="report.html")))
+        shutil.rmtree(self.src)
+        changed = sample(self.repo)
+        changed["cases"][0]["name"] = "other"
+        self.make_run(doc=changed, html=None)
+        code, out = self.run_tool(self.src)
+        self.assertEqual(code, 1, "a differing run still needs --replace")
+        self.assertTrue(os.path.exists(self.archived(name="report.html")))
+        code, out = self.run_tool(self.src, replace=True)
+        self.assertEqual(code, 0, out)
+        self.assertFalse(os.path.exists(self.archived(name="report.html")), "the stale report is gone")
+        self.assertIn("removed", out)
+        self.assertIn("report.html", out)
+        self.assertEqual(json.loads(slurp(self.archived()))["cases"][0]["name"], "other")
+
+    def test_replace_with_both_files_keeps_both(self):
+        self.make_run()
+        self.run_tool(self.src)
+        shutil.rmtree(self.src)
+        changed = sample(self.repo)
+        changed["cases"][0]["name"] = "other"
+        self.make_run(doc=changed, html="<p>new report</p>")
+        code, out = self.run_tool(self.src, replace=True)
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("removed", out)
+        self.assertEqual(slurp(self.archived(name="report.html")), "<p>new report</p>")
 
     def test_an_unknown_plugin_is_refused_with_the_reason(self):
         self.make_run(plugin="vanished")
@@ -318,6 +366,29 @@ class Check(Base):
             with open(path, "w", encoding="utf-8") as fh:
                 fh.write(original)
         self.assertEqual(self.run_check()[0], 0)
+
+    def test_a_planted_escaped_secret_fails_and_is_named_never_shown(self):
+        self.make_run()
+        self.run_tool(self.src)
+        for planted in ('"sk\\u002dant-ZZZZsecretvalue"', '"Authorization:\\tBearer\\tabcdefghijklmnop0123"'):
+            path = self.archived()
+            original = slurp(path)
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(original.replace('"schemaVersion": 1', '"schemaVersion": 1, "leak": ' + planted))
+            code, out = self.run_check()
+            self.assertEqual(code, 1, planted)
+            self.assertIn("aggregate-result.json: secret pattern", out)
+            self.assertNotIn("ZZZZ", out)
+            self.assertNotIn("abcdefghij", out)
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(original)
+        with open(self.archived(name="report.html"), "a", encoding="utf-8") as fh:
+            fh.write("<p>ghp&#95;ZZZZsecretvalue1234 and &#x2F;root&#x2F;x</p>")
+        code, out = self.run_check()
+        self.assertEqual(code, 1)
+        self.assertIn("report.html: secret pattern 'ghp_'", out)
+        self.assertIn("report.html: absolute local path", out)
+        self.assertNotIn("ZZZZ", out)
 
     def test_a_planted_path_in_the_html_and_the_repository_path_fail(self):
         self.make_run()

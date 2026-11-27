@@ -26,6 +26,7 @@ Writes only under `plugins/*/evals/archive/`.
 
 import argparse
 import glob
+import html
 import json
 import os
 import re
@@ -146,6 +147,20 @@ def secret_hits(text, email=None):
     return hits
 
 
+def scan_texts(name, text, doc=None):
+    """Every form of a file's content a pattern must be tried on. JSON escaping can hide a match from the
+    serialized text (a tab becomes `\\t`, `-` can be `\\u002d`), so a JSON file is also scanned as decoded
+    keys and string values. HTML entities can hide one in a report, so it is also scanned entity-decoded."""
+    forms = [text]
+    if name.endswith(".json"):
+        if doc is None:
+            doc = json.loads(text)
+        forms += list(strings_of(doc))
+    elif name.endswith(".html"):
+        forms.append(html.unescape(text))
+    return forms
+
+
 def read_text(path):
     with open(path, encoding="utf-8") as fh:
         return fh.read()
@@ -211,17 +226,22 @@ def prepare(folder, repo, email):
     except ValueError as exc:
         return None, ["refused %s/aggregate-result.json: %s" % (label, exc)]
     texts = {"aggregate-result.json": dump_json(scrubbed, original)}
+    docs = {"aggregate-result.json": scrubbed}
+    before = {"aggregate-result.json": scan_texts("aggregate-result.json", original, doc)}
     counts = {"aggregate-result.json": replaced}
     html_path = os.path.join(folder, "report.html")
     if os.path.isfile(html_path):
         if os.path.getsize(html_path) > MAX_BYTES:
             return None, ["refused %s/report.html: over 5 MB" % label]
-        texts["report.html"], counts["report.html"] = scrub_text(read_text(html_path), repo)
+        raw_html = read_text(html_path)
+        before["report.html"] = scan_texts("report.html", raw_html)
+        texts["report.html"], counts["report.html"] = scrub_text(raw_html, repo)
     problems = []
     for name, text in texts.items():
         if len(text.encode("utf-8")) > MAX_BYTES:
             problems.append("refused %s/%s: over 5 MB" % (label, name))
-        for hit in secret_hits(text, email):
+        forms = before[name] + scan_texts(name, text, docs.get(name))
+        for hit in dict.fromkeys(h for form in forms for h in secret_hits(form, email)):
             problems.append("refused %s/%s: matches secret pattern '%s'" % (label, name, hit))
     if problems:
         return None, problems
@@ -263,9 +283,11 @@ def archive(sources, repo=REPO, replace=False, email=None, out=print):
         target = archive_dir(repo, plan["plugin"], plan["stamp"])
         plan["target"] = target
         plan["state"] = "new"
-        existing = {n: os.path.join(target, n) for n in plan["texts"] if os.path.isfile(os.path.join(target, n))}
+        # The supported file set is reconciled as a whole: a file the source lacks is part of the difference.
+        existing = {n: os.path.join(target, n) for n in FILES if os.path.isfile(os.path.join(target, n))}
+        plan["stale"] = [n for n in existing if n not in plan["texts"]]
         if existing:
-            same = len(existing) == len(plan["texts"]) and all(
+            same = set(existing) == set(plan["texts"]) and all(
                 read_text(p) == plan["texts"][n] for n, p in existing.items())
             if same:
                 plan["state"] = "same"
@@ -292,6 +314,9 @@ def archive(sources, repo=REPO, replace=False, email=None, out=print):
         for name, text in plan["texts"].items():
             with open(os.path.join(plan["target"], name), "w", encoding="utf-8", newline="") as fh:
                 fh.write(text)
+        for name in plan["stale"]:
+            os.remove(os.path.join(plan["target"], name))
+            out("removed %s%s (the source has no %s)" % (rel, name, name))
         written += 1
         out("%s %s (%s; %d path(s) scrubbed)" % (
             "replaced" if plan["state"] == "replace" else "archived", rel, ", ".join(plan["texts"]),
@@ -328,16 +353,15 @@ def check(repo=REPO, email=None, out=print):
             offenders.append("%s: over 5 MB" % rel)
             continue
         text = read_text(path)
-        scanned = [text]
-        if path.endswith(".json"):
-            try:
-                scanned = list(strings_of(json.loads(text)))
-            except ValueError:
-                offenders.append("%s: not valid JSON" % rel)
+        try:
+            forms = scan_texts(path, text)
+        except ValueError:
+            forms = [text]
+            offenders.append("%s: not valid JSON" % rel)
         # Scrubbed text holds `<local>`, so a remaining match is a path that was never scrubbed.
-        if any(pattern.search(s) for s in scanned) or pattern.search(text):
+        if any(pattern.search(form) for form in forms):
             offenders.append("%s: absolute local path" % rel)
-        for hit in secret_hits(text, email):
+        for hit in dict.fromkeys(h for form in forms for h in secret_hits(form, email)):
             offenders.append("%s: secret pattern '%s'" % (rel, hit))
     for line in offenders:
         out("offender " + line)
