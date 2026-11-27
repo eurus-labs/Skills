@@ -1,6 +1,6 @@
 # Plan 26 — keep eval results in the repository, with local paths scrubbed
 
-Status: draft
+Status: approved
 Date: 2026-11-27
 Branch: `feat/tools-archive-eval-results`
 Baseline: `origin/main` at `8056c02b64394b7ce80accc60ce1cd7496594a0f` (marketplace 0.6.0)
