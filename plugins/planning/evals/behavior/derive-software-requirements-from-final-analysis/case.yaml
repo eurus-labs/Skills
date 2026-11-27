@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: derive-software-requirements-from-final-analysis
+context:
+  scaffold_script: scaffold.sh

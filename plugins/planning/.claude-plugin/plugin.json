@@ -1,0 +1,23 @@
+{
+  "name": "planning",
+  "description": "Turn a requirement into work in three steps that share one ID scheme and one check script: analyze-requirements compares a requirement with its previous version and the code, checks it against the DoD, and settles every unclear point with the PO through one DoU file, giving system requirements; derive-software-requirements derives testable software requirements from the final analysis; group-epics groups them into epics. Reads files and writes Markdown in a topic folder; never changes code.",
+  "version": "0.1.0",
+  "keywords": [
+    "requirements",
+    "dou",
+    "dod",
+    "software-requirements",
+    "epics",
+    "planning"
+  ],
+  "author": {
+    "name": "eurus-labs"
+  },
+  "repository": "https://github.com/eurus-labs/Skills",
+  "license": "MIT",
+  "skills": [
+    "./skills/analyze-requirements/",
+    "./skills/derive-software-requirements/",
+    "./skills/group-epics/"
+  ]
+}

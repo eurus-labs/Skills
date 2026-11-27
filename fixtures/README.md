@@ -38,7 +38,8 @@ resolves it independently.
 | [`14-local-verify-skill/`](14-local-verify-skill/) | triggering | A repository that already has its own verify skill. Which skill answers "verify my branch"? Built as a git repository. |
 | [`15-shared-code-change/`](15-shared-code-change/) | `verify-change` | A branch that changes a helper two areas share, with a green suite. Does the agent check the area the issue does not name? Built as a git repository. |
 | [`16-flawed-skill/`](16-flawed-skill/) | `evaluate-skill` | A small plugin of two skills. Does the evaluation report what is wrong with them, without inventing problems or editing the skills? Not installable from any marketplace. |
-| [`17-requirement-change/`](17-requirement-change/) | `analyze-requirements` | A requirement in two versions (`.md` and `.rst`) and the module it describes. Does the analysis find every difference, check it against the code, and leave the questions for the Product Owner open? |
+| [`17-requirement-change/`](17-requirement-change/) | `analyze-requirements` | A requirement in two versions (`.md` and `.rst`), a DoD and the module it describes. Does the analysis find every difference, check each against the DoD and the code, and leave the questions for the Product Owner open? |
+| [`18-final-analysis/`](18-final-analysis/) | `derive-software-requirements`, `group-epics` | Three workspaces of one finished analysis (final, blocked, and with software requirements). Does the skill derive and group every requirement once, and write nothing while a blocking point is open? |
 | [`../tests/contracts/layered-repo/`](../tests/contracts/layered-repo/) | `document-codebase` | For "write an architecture overview", does it choose an architecture preset and explain the real layers and flow instead of producing the default manual? |
 
 ## Running a demo

@@ -343,30 +343,80 @@ folder name is not an invented defect: the scaffold's folder name is arbitrary.
 ## 17 — requirement-change → `analyze-requirements`
 
 A report-export requirement in two versions, `requirements/v1.md` and `requirements/v2.rst` (so both formats are
-read), and a small module, `src/exporter.py`. Exactly five things differ between the versions. Nothing else in
-v2 is a change; the other seven units are word for word the same.
+read), a Definition of Done, `requirements/dod.md`, and a small module, `src/exporter.py`. Exactly five things
+differ between the versions. Nothing else in v2 is a change; the other seven units are word for word the same.
 
 | # | Planted change | Where |
 | - | -------------- | ----- |
 | 1 | **Added requirement:** "A user can schedule an export to run every night." Nothing in the code implements it, so its impact is `new` | `v2.rst:20` |
 | 2 | **Removed requirement:** "Every export is recorded in the audit log." Dropped from v2, but the code still logs every export, so the removal changes existing behavior or needs a decision | `v1.md:16` |
 | 3 | **Changed number:** the limit goes from 50 to 100 reports per request. The code still enforces 50 (`MAX_REPORTS_PER_REQUEST`) | `v1.md:10` to `v2.rst:13`; `src/exporter.py:8` |
-| 4 | **Ambiguous new sentence:** "Exports of large reports should finish quickly." No size, no time, no way to test it | `v2.rst:21` |
+| 4 | **Ambiguous new sentence that fails the DoD:** "Exports of large reports should finish quickly." No size, no time, no way to test it, so it fails `dod.md` criterion 2 (a time or speed target needs a number, its unit and the input size) and criterion 3 | `v2.rst:21`; `dod.md:6` |
 | 5 | **Requirement that contradicts the code:** v2 says a request from anyone but the owner is rejected, and the code lets any teammate of the owner export (`_may_export`) | `v2.rst:19`; `src/exporter.py:17-19` |
 
-The prompt is unattended: the PO cannot be asked. The skill must write `analysis.md` with every difference, a
-`path:line` for the code it read, and the open points it needs the PO to answer (at least the limit, the
-ownership contradiction, and the meaning of "quickly"). It must not write `epics.md`, because blocking open
-points remain, and it must not answer any open point itself.
+The prompt is unattended: the PO cannot be asked. The skill must write `analysis.md` (system requirements `SYS-001…`,
+each with a DoD verdict, and `Status: draft`) and `dou.md` (points `DOU-001…`), with every difference, a `path:line`
+for the code it read, and the points it needs the PO to answer (at least the ownership contradiction and the meaning of
+"quickly"; a question about the limit is allowed, since the limit change is a code impact, not a required point). It must not write `software-requirements.md` or `epics.md`, and it must not answer any
+point itself.
 
 **Pass:** all five found, each tied to its requirement text; the contradiction cited with the `src/exporter.py`
-line; the ambiguous sentence raised as a question for the PO rather than given a number; open points left
-`open`; `analysis.md` written and `scripts/requirements.py check` run on it; `epics.md` not written; no code
-edited.
+line; the ambiguous sentence marked `gap` against the DoD, quoting `dod.md`, and raised as a `DOU-` point rather than
+given a number; every point left `open`; `analysis.md` and `dou.md` written and `scripts/requirements.py check` run on
+them; neither `software-requirements.md` nor `epics.md` written; no `dou-NNN.md`; no code edited.
 
 **Fail:** any of the five missing; an unchanged requirement reported as changed (for example a formatting
 difference between `.md` and `.rst`); a claim about the code with no line; an invented PO answer, a number for
-"quickly", or a resolved open point; `epics.md` written; `src/exporter.py` or a requirement file edited.
+"quickly", or a closed point; no DoD verdict; `software-requirements.md` or `epics.md` written; `src/exporter.py`,
+`dod.md` or a requirement file edited.
+
+---
+
+## 18 — final-analysis → `derive-software-requirements` and `group-epics`
+
+Three workspaces of the same report-export analysis, each with `requirements/v1.md`, `requirements/v2.rst`,
+`requirements/dod.md`, `src/exporter.py`, and an analysis in `requirements/export/`. The system requirements are
+`SYS-001` (limit 100), `SYS-003` (owner only), `SYS-004` (nightly export), `SYS-006` (audit log kept) and `SYS-007`
+(10,000 rows within 30 seconds) in scope; `SYS-002` and `SYS-005` are superseded and `SYS-008` is unchanged, all out
+of scope.
+
+| Variant | What it holds | Used by |
+| ------- | ------------- | ------- |
+| `final/` | `analysis.md` with `Status: final`; `dou.md` with `DOU-001…005` all closed | `derive-software-requirements-from-final-analysis` |
+| `blocked/` | `analysis.md` with `Status: draft`; `dou.md` where `DOU-003` (what "finish quickly" means) is open and blocking; no `SYS-007` | `derive-software-requirements-refuses-while-blocked` |
+| `with-software-requirements/` | the `final/` files plus a `software-requirements.md` with `SWR-001…005`, one per in-scope `SYS-` | `group-epics-from-software-requirements` |
+
+Run `python3 shared/scripts/requirements/requirements.py check` on each `requirements/export/`: `final` and
+`with-software-requirements` pass. `blocked` passes as it stands; with `software-requirements.md` copied in from the
+third variant it fails on the file not being `Provisional` over a draft analysis.
+
+**`final/` — derive.** The skill must write `software-requirements.md` with one `SWR-` per in-scope requirement, each
+"The software shall …" and traced to its `SYS-`: the limit (`src/exporter.py:8`, changes existing behavior), owner-only
+export (`src/exporter.py:17-19`, changes existing behavior), the nightly export (new), the audit record
+(`src/exporter.py:42`, already met) and the export time (`src/exporter.py:22-27`, non-functional, with 10,000 rows and
+30 seconds in its criteria, which is what the DoD asks for). Each has testable verification criteria, with a negative
+case where a request can be refused.
+
+**Pass:** all five in-scope requirements derived, each traced and with criteria that meet the DoD and a code area; the
+superseded and unchanged rows not derived; no requirement invented; `check` run and passing; `analysis.md` and
+`dou.md` untouched; no `epics.md`.
+
+**Fail:** an in-scope requirement missing or traced to nothing; a statement that says how (a class, a library, a
+table) instead of what; a criterion with no number where the DoD asks for one; a requirement no `SYS-` supports (for
+example a retry limit, an export format, or a limit on the nightly job size); a superseded row derived; `analysis.md`
+or `dou.md` edited; `epics.md` written.
+
+**`blocked/` — refuse.** `DOU-003` is blocking and open. The skill must write nothing, list `DOU-003` (the question
+about "finish quickly" for a large report, concerning `SYS-005`), and say the Product Owner has to answer it first
+(or that a `Provisional` file is available only if asked). **Fail:** `software-requirements.md` written; an answer to
+`DOU-003` invented; the reply names no blocking point.
+
+**`with-software-requirements/` — group.** The skill must write `epics.md` that states its grouping basis first
+(the user outcome by default), puts each of `SWR-001…005` in exactly one epic, and gives each epic a goal, acceptance
+criteria drawn from the verification criteria and the DoD with a negative case, dependencies, risks and code areas,
+and ends with a `SYS-` to `SWR-` to `E-` table. **Pass:** `check` passes with `epics.md` present; earlier files
+untouched. **Fail:** an `SWR-` in no epic or in two; an epic for something no `SWR-` states; an earlier file edited;
+`epics.md` headed `Provisional`.
 
 ---
 

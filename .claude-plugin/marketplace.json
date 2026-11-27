@@ -33,10 +33,16 @@
       "version": "0.5.2"
     },
     {
+      "name": "planning",
+      "source": "./plugins/planning",
+      "description": "Turn a requirement into work in three steps that share one ID scheme and one check script: analyze-requirements compares a requirement with its previous version and the code, checks it against the DoD, and settles every unclear point with the PO through one DoU file, giving system requirements; derive-software-requirements derives testable software requirements from the final analysis; group-epics groups them into epics. Reads files and writes Markdown in a topic folder; never changes code.",
+      "version": "0.1.0"
+    },
+    {
       "name": "reasoning",
       "source": "./plugins/reasoning",
-      "description": "Plan a change for review and hand-off, without touching code: analyze-requirements compares a new requirement with its previous version, tracks the open points for the PO through DoU files, and splits the result into epics; design-solution answers advice and comparison questions in the conversation, write-plan saves a plan on its own branch, and coder-handoff dispatches the approved plan to a coder subagent, reviews the branch, and opens the pull request. Meant for sessions on a high-tier model.",
-      "version": "0.4.0"
+      "description": "Plan a change for review and hand-off, without touching code: design-solution answers advice and comparison questions in the conversation, write-plan saves a plan on its own branch, and coder-handoff dispatches the approved plan to a coder subagent, reviews the branch, and opens the pull request. Requirement analysis, software requirements and epics are in the planning plugin. Meant for sessions on a high-tier model.",
+      "version": "0.5.0"
     },
     {
       "name": "verification",

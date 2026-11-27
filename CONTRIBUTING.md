@@ -344,6 +344,7 @@ an author from a subject, so any rule placed there contaminates the measurement 
   the same rule as `EXPECTED.md`: never inside a scenario, never reachable from one. A behavior case's
   `scaffold.sh` leaves the scenario's README out for the same reason. After editing a fixture, run
   `python3 tools/build_eval_scaffolds.py`; `tools/test_eval_scaffolds.py` fails until you do.
+- **`type: regex` graders run as JavaScript RegExp, not Python:** no inline flags such as `(?i)`, no `\Z` or `\A`; use character classes for case and `$` for the end of input.
 - **See every skill's evals and their latest results** with `python3 tools/build_eval_board.py`. It writes
   `eval-board.html` (git-ignored): one card per skill with the cases that must fire it, keep it quiet, or
   grade its behavior, and each case's latest score from the local `plugins/*/evals/results/`. A score from
