@@ -7,6 +7,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Contributors can keep eval runs in the repository: `tools/archive_eval_results.py` copies a run's
+  `aggregate-result.json` and `report.html` to the tracked `plugins/<plugin>/evals/archive/<timestamp>/`, with
+  local paths scrubbed and secrets refused. The eval board and the skill manager read `archive/` with
+  `results/`. The 46 runs of plans 10 to 25 are archived. No plugin version changes.
+
 ## [0.6.0] — 2026-11-27
 
 Adds the **`planning`** plugin (0.1.0), which takes a requirement from analysis with a DoD and one living DoU, through
