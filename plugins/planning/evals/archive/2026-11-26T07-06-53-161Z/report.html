@@ -1,0 +1,1070 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Eval report — planning v0.1.0</title>
+</head>
+<body>
+<style>
+:root{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme:dark){:root{--plane:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink-2:#c3c2b7;--ink-3:#898781;--hairline:rgba(255,255,255,.10);--grid:#2c2c2a;--inset:rgba(255,255,255,.05);--accent:#3987e5;--base-fill:#898781;--delta-good:#0ca30c;--good:#0ca30c;--warning:#fab219;--critical:#e06c6c;color-scheme:dark}}
+:root[data-theme="dark"]{--plane:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink-2:#c3c2b7;--ink-3:#898781;--hairline:rgba(255,255,255,.10);--grid:#2c2c2a;--inset:rgba(255,255,255,.05);--accent:#3987e5;--base-fill:#898781;--delta-good:#0ca30c;--good:#0ca30c;--warning:#fab219;--critical:#e06c6c;color-scheme:dark}
+:root[data-theme="light"]{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--plane);color:var(--ink);
+  font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:880px;margin:0 auto;padding:40px 24px 64px;display:flex;flex-direction:column;gap:20px}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+header h1{margin:2px 0 0;font-size:24px;font-weight:600;line-height:1.25;text-wrap:balance}
+.meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;color:var(--ink-2);font-size:13px}
+.meta .num{font-variant-numeric:tabular-nums lining-nums}
+.banner{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;
+  border:1px solid var(--hairline);background:var(--surface);font-size:13px}
+.banner .chip-warn{color:var(--warning);font-weight:600}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--hairline);border-radius:10px;padding:14px 16px;
+  display:flex;flex-direction:column;gap:4px}
+.tile .label{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.tile .value{font-size:26px;font-weight:600;font-variant-numeric:tabular-nums lining-nums;line-height:1.1}
+.tile.hero .value{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:48px}
+.tile .sub{font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.tile .value.delta-pos{color:var(--delta-good)}
+.tile .value.delta-neg{color:var(--critical)}
+.toolbar{display:flex;gap:8px;justify-content:flex-end}
+.toolbar button{font:12px system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink-2);
+  background:var(--surface);border:1px solid var(--hairline);border-radius:6px;padding:4px 10px;cursor:pointer}
+.toolbar button:hover{color:var(--ink)}
+.toolbar button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.case{background:var(--surface);border:1px solid var(--hairline);border-radius:10px;padding:18px 20px;
+  display:flex;flex-direction:column;gap:10px}
+.case-regressed{border-left:3px solid var(--critical)}
+.verdict{margin:6px 0 0;font-size:15px}
+.verdict .delta{font-size:15px}
+.flag{font-size:11px;font-weight:600;color:var(--warning);white-space:nowrap}
+.star{color:var(--warning);font-size:.45em;vertical-align:super;line-height:0;cursor:help}
+.legend summary{cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
+.legend-list{margin:8px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--ink-2)}
+.case-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.case-head h2{margin:0;font-size:16px;font-weight:600}
+.case-head .spacer{flex:1}
+.case-score{font-size:15px;font-weight:600}
+.mono{font:12px "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.num{font-variant-numeric:tabular-nums lining-nums}
+.muted{color:var(--ink-3);font-size:12px}
+.meter{display:inline-block;position:relative;width:120px;height:6px;border-radius:4px;background:var(--grid);
+  vertical-align:middle}
+.meter>span{display:block;height:100%;border-radius:4px;max-width:100%}
+.meter .tick{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink-3);border-radius:1px}
+.m-accent>span{background:var(--accent)}
+.m-base>span{background:var(--base-fill)}
+.delta{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.delta-pos{color:var(--delta-good)}
+.delta-neg{color:var(--critical)}
+.delta-zero{color:var(--ink-3)}
+details.section{border-top:1px solid var(--grid);padding-top:10px}
+details.section>summary{cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--ink-2);list-style-position:outside;margin-left:2px}
+details.section>summary:hover{color:var(--ink)}
+details.section[open]>summary{margin-bottom:8px}
+.md{display:flex;flex-direction:column;gap:8px;background:var(--inset);border-radius:8px;
+  padding:12px 14px;overflow-wrap:break-word}
+.md>:first-child{margin-top:0}
+.md h1,.md h2,.md h3,.md h4,.md h5,.md h6{margin:4px 0 0;font-size:1em;font-weight:600;line-height:1.3}
+.md p,.md ul,.md ol,.md blockquote,.md table,.md pre,.md hr{margin:0}
+.md ul,.md ol{display:flex;flex-direction:column;gap:4px;padding-left:20px}
+.md blockquote{border-left:2px solid var(--hairline);padding-left:10px;color:var(--ink-2)}
+.md :not(pre)>code{background:var(--inset);padding:1px 4px;border-radius:4px;
+  font:.92em "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.md pre{background:var(--inset);border:1px solid var(--hairline);padding:10px 12px;border-radius:6px;
+  overflow-x:auto;font:12px/1.5 "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.md pre code{background:none;padding:0;font:inherit}
+.md table{width:100%;border-collapse:collapse}
+.md th,.md td{padding:5px 8px;text-align:left;vertical-align:top;border-bottom:1px solid var(--grid)}
+.md th{font-weight:600;color:var(--ink-2)}
+.md a{color:var(--accent);text-decoration:none}
+.md a:hover{text-decoration:underline}
+.grader-def{display:flex;flex-direction:column;gap:6px;padding:8px 0}
+.grader-def+.grader-def{border-top:1px solid var(--grid)}
+.grader-def-head{display:flex;align-items:baseline;gap:8px}
+.grader-name{font:13px "SF Mono",ui-monospace,Menlo,Consolas,monospace;font-weight:600}
+.badge{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);
+  border:1px solid var(--hairline);border-radius:999px;padding:1px 8px}
+.config{display:flex;flex-direction:column;gap:2px;background:var(--inset);border-radius:8px;padding:10px 14px}
+.config code{font:12px "SF Mono",ui-monospace,Menlo,Consolas,monospace;overflow-wrap:anywhere}
+.arm{display:flex;flex-direction:column;gap:8px;padding:6px 0}
+.arm+.arm{border-top:1px dashed var(--grid);margin-top:4px;padding-top:12px}
+.arm-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.arm-label{font-size:13px;font-weight:600}
+.run{border:1px solid var(--grid);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.run-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.run-title{font-size:12px;font-weight:600;color:var(--ink-2)}
+.run-error .explanation{color:var(--ink-2)}
+.note{font-size:12px;color:var(--ink-2)}
+.graders{display:flex;flex-direction:column;gap:4px}
+details.grader{border-radius:6px}
+details.grader>summary{cursor:pointer;display:flex;align-items:baseline;gap:8px;padding:3px 4px;
+  border-radius:6px;list-style:none}
+details.grader>summary::-webkit-details-marker{display:none}
+details.grader>summary::before{content:'▸';font-size:10px;color:var(--ink-3);flex:none;
+  transition:transform .12s ease}
+details.grader[open]>summary::before{transform:rotate(90deg)}
+details.grader>summary:hover{background:var(--inset)}
+details.grader>summary:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.grader-body{padding:6px 8px 8px 24px;display:flex;flex-direction:column;gap:6px}
+.chip{font-size:11px;font-weight:600;border-radius:999px;padding:1px 8px;white-space:nowrap}
+.chip-pass{color:var(--good);border:1px solid currentColor}
+.chip-fail{color:var(--critical);border:1px solid currentColor}
+.chip.chip-warn{color:var(--warning);border:1px solid currentColor}
+.explanation{margin:0;font-size:13px;color:var(--ink-2);white-space:pre-wrap;overflow-wrap:break-word}
+.kv{display:flex;gap:8px;font-size:12px;color:var(--ink-3)}
+.votes{font-variant-numeric:tabular-nums;letter-spacing:.1em}
+pre.evidence{margin:0;background:var(--inset);border:1px solid var(--hairline);border-radius:6px;
+  padding:8px 10px;overflow-x:auto;max-height:320px;
+  font:12px/1.5 "SF Mono",ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-wrap:break-word}
+footer{color:var(--ink-3);font-size:12px;text-align:center;padding-top:8px}
+@media (prefers-reduced-motion:no-preference){
+  details.grader>summary,.toolbar button{transition:background .12s ease,color .12s ease}
+}
+@media (prefers-reduced-motion:reduce){
+  details.grader>summary::before{transition:none}
+}
+@media print{
+  :root,:root[data-theme="dark"],:root[data-theme="light"]{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;color-scheme:light}
+  body{background:#fff}
+  .toolbar{display:none}
+  .case,.run,.grader-def{break-inside:avoid}
+  pre.evidence{max-height:none}
+}
+</style>
+<div class="wrap">
+<header>
+<div class="eyebrow">Plugin eval report</div>
+<h1>planning v0.1.0</h1>
+
+<div class="meta">
+<span class="mono">.</span>
+<span>Claude Code v2.1.332</span>
+<span class="num">2026-11-26 07:06 UTC</span>
+<span class="num">1m 33s</span>
+<span class="num">$0.88</span>
+<span class="num">6 runs</span>
+<span class="num">3 in flight</span>
+
+<span>model claude-sonnet-5-5</span>
+<span>judge haiku</span>
+<span class="num">threshold 100%</span>
+<span>filtered: --case analyze-requirements-* --tag behavior</span>
+</div>
+</header>
+
+<section class="tiles">
+<div class="tile hero"><span class="label">Suite score · with plugin</span><span class="value">90.5%</span><span class="sub">mean of per-case scores</span></div>
+
+<div class="tile"><span class="label">Cases</span><span class="value num">1</span><span class="sub">0 of 1 ≥ 100% threshold</span></div>
+<div class="tile"><span class="label">Perfect runs</span><span class="value num">66.7%</span><span class="sub">runs where every grader passed</span></div>
+</section>
+<details class="section legend">
+<summary>How to read this report</summary>
+<ul class="legend-list">
+<li>A run's score is the weighted fraction of its graders that passed; a "perfect" run passed every grader.</li>
+<li>A case's score is the mean of its runs; a case passes when its score is at or above the 100% threshold (the tick on each case bar).</li>
+<li>The suite score is the mean of the per-case scores.</li>
+<li>Judge votes are independent samples of the LLM judge; the majority decides pass or fail.</li>
+<li>"With plugin" and "Baseline" runs are identical except for the plugin being loaded; Δ is the with-plugin score minus the baseline score.</li>
+
+</ul>
+</details>
+<div class="toolbar"><button type="button" data-act="expand">Expand all</button><button type="button" data-act="collapse">Collapse all</button></div>
+<article class="case" id="case-1">
+<div class="case-head">
+<h2>analyze-requirements-flags-planted-changes</h2>
+<span class="muted mono">evals/behavior/analyze-requirements-flags-planted-changes</span>
+<span class="spacer"></span>
+
+
+<span class="muted">with plugin</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:90.5%"></span><i class="tick" style="left:100.0%"></i></span>
+<span class="num case-score">90.5%</span>
+</div>
+
+<details class="section" open>
+<summary>Results</summary>
+<section class="arm">
+<div class="arm-head">
+<span class="arm-label">With plugin</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:90.5%"></span></span>
+<span class="num">90.5%</span>
+<span class="muted num">66.7% of runs perfect</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">9 turns · $0.20 · 07:06:53 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">analysis-findings</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence"># Requirement analysis — Report Export Requirements (v2 against v1)
+
+Status: draft
+
+The points for the PO are in `dou.md`. All of them are open because the PO could not be reached. Four of them block (DOU-001, DOU-002, DOU-004, DOU-005).
+
+## Sources
+
+Unattended run: every role is the workspace (hard rule 10). The repository has no commit yet, so there is no sha.
+
+| Role | Repository | Ref | Commit | Local path | Path in repository |
+| ---- | ---------- | --- | ------ | ---------- | ------------------ |
+| Current requirement | workspace | `main` | none: no commits yet | `.` | `requirements/v2.rst` |
+| Previous requirement | workspace | `main` | none: no commits yet | `.` | `requirements/v1.md` |
+| DoD | workspace | `main` | none: no commits yet | `.` | `requirements/dod.md` |
+| Code | workspace | `main` | none: no commits yet | `.` | `src/exporter.py` (the only source file listed) |
+
+Choice of sources: DOU-008.
+
+## System requirements
+
+| ID | Status | Scope | Previous (path:line) | Current (path:line) | Code impact | DoD | Note |
+| -- | ------ | ----- | -------------------- | ------------------- | ----------- | --- | ---- |
+| SYS-001 | changed | in | &quot;A user can export at most 50 reports in one request.&quot; `requirements/v1.md:10` | &quot;A user can export at most 100 reports in one request.&quot; `requirements/v2.rst:13` | changes existing behavior: `src/exporter.py:8` | met | limit 50 to 100; scope of users: DOU-006 |
+| SYS-002 | changed | in | &quot;Only the owner of a report can export it.&quot; `requirements/v1.md:15` | &quot;Only the owner of a report can export it; a request from anyone else is rejected with an error.&quot; `requirements/v2.rst:19` | changes existing behavior: `src/exporter.py:19` allows teammates; error raised at `src/exporter.py:40` | gap: DOU-003 | the code contradicts the requirement: DOU-002 |
+| SYS-003 | removed | in | &quot;Every export is recorded in the audit log.&quot; `requirements/v1.md:16` | — | already met: `src/exporter.py:42` | met | removal may be an omission: DOU-001. Scope stays `in` until the PO answers |
+| SYS-004 | added | in | — | &quot;A user can schedule an export to run every night.&quot; `requirements/v2.rst:20` | new: nothing in `src/exporter.py` schedules work | gap: DOU-004 (DoD 1: no single observable behavior; time zone, failure and limits missing) | |
+| SYS-005 | added | in | — | &quot;Exports of large reports should finish quickly.&quot; `requirements/v2.rst:21` | new: no timing in `src/exporter.py` | gap: DOU-005 (DoD 2 and 3) | |
+| SYS-006 | unchanged | out (no change in v2) | &quot;The system exports a saved report as CSV.&quot; `requirements/v1.md:5` | &quot;The system exports a saved report as CSV.&quot; `requirements/v2.rst:7` | already met: `src/exporter.py:9`, `src/exporter.py:26` | met | |
+| SYS-007 | unchanged | out (no change in v2) | &quot;The system exports a saved report as PDF.&quot; `requirements/v1.md:6` | &quot;The system exports a saved report as PDF.&quot; `requirements/v2.rst:8` | not met: `src/exporter.py:22-27` writes CSV text for any format | met | pre-existing defect, scope for the PO: DOU-007 |
+| SYS-008 | unchanged | out (no change in v2) | &quot;An export request is rejected when the report has no rows.&quot; `requirements/v1.md:11` | &quot;An export request is rejected when the report has no rows.&quot; `requirements/v2.rst:14` | already met: `src/exporter.py:37-38` | met | |
+
+## Findings
+
+- **SYS-001** — conflicting: the code rejects more than 50 reports (`src/exporter.py:33`). A change is needed. See DOU-006.
+- **SYS-002** — conflicting: &quot;Only the owner of a report can export it&quot; against the team check `report.team == user.team` (`src/exporter.py:19`). Ambiguous: &quot;rejected with an error&quot; does not say what the caller sees. See DOU-002, DOU-003.
+- **SYS-003** — ambiguous: a line vanishing between versions with no statement. The code still logs (`src/exporter.py:42`). See DOU-001.
+- **SYS-004** — missing: time zone, failure handling, report and format set, limit, audit, cancellation. Fails DoD criterion 1 (one behavior a test can observe). See DOU-004.
+- **SYS-005** — untestable, non-functional gap: &quot;quickly&quot; and &quot;large&quot; have no number, unit or input size. Fails DoD criteria 2 and 3. See DOU-005.
+- **SYS-007** — conflicting with the code: PDF output is CSV text (`src/exporter.py:22-27`). See DOU-007.
+- Also in the code, not in the requirement: an unsupported format is rejected (`src/exporter.py:31-32`). The requirements do not state this.
+
+## Assumptions
+
+| Assumption | Owner | Risk if wrong |
+| ---------- | ----- | ------------- |
+| `v1.md` is the previous approved version and `v2.rst` the current one. | PO | The comparison is made against the wrong baseline. |
+| `src/exporter.py` is the whole codebase for this requirement. | PO | Impact on other modules is missed. |
+| The 100-report limit applies to all users. | PO | Wrong limit enforced for some roles. |
+
+## Revision history
+
+- 2026-11-26 — first analysis of `v2.rst` against `v1.md`; DOU-001 to DOU-008 raised, all open. Status `draft`.
+</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">dou-points</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence"># DoU — Report Export Requirements (v2 against v1)
+
+Discussion of Understanding: the points for the Product Owner (PO). The PO was not reachable when this was written,
+so every point is `open`; nothing here is an answer. Source paths are relative to the workspace root.
+
+## DOU-001 — Audit log dropped from v2
+
+- Question: v1 says &quot;Every export is recorded in the audit log.&quot; (`requirements/v1.md:16`). v2 no longer has this line, and nothing in v2 says it was removed on purpose. Is the audit log requirement dropped, or is it still in force and was left out by mistake? The code still writes an audit entry per export (`src/exporter.py:42`).
+- Concerns: SYS-003
+- Blocks: yes
+- Status: open
+- Raised: 2026-11-26
+- PO answer (as given): not given
+- Date: —
+- Confirmed by: —
+
+## DOU-002 — Owner-only access against team access in the code
+
+- Question: Both versions say &quot;Only the owner of a report can export it&quot; (`requirements/v2.rst:19`). The code also lets teammates export (`report.owner == user.name or report.team == user.team`, `src/exporter.py:19`). Is the requirement right, so team access must be removed? Or is team access wanted, so the requirement must change? What should happen to teammates who export today?
+- Concerns: SYS-002
+- Blocks: yes
+- Status: open
+- Raised: 2026-11-26
+- PO answer (as given): not given
+- Date: —
+- Confirmed by: —
+
+## DOU-003 — Error for a rejected request
+
+- Question: v2 adds &quot;a request from anyone else is rejected with an error&quot; (`requirements/v2.rst:19`). What must the caller observe: an error type, a code, a message text? Must the message reveal that the report exists? The code raises `ExportError(&quot;not allowed to export report %s&quot;)` (`src/exporter.py:40`). Is that enough?
+- Concerns: SYS-002
+- Blocks: no
+- Status: open
+- Raised: 2026-11-26
+- PO answer (as given): not given
+- Date: —
+- Confirmed by: —
+
+## DOU-004 — Nightly scheduled export
+
+- Question: &quot;A user can schedule an export to run every night.&quot; (`requirements/v2.rst:20`) leaves these unstated. (a) Which time zone, and what time is &quot;night&quot;? (b) What happens when a run fails: retry, notify, skip? (c) Which reports and formats does it export, and where does the result go? (d) Does the 100-report limit apply? (e) Is a run recorded in the audit log? (f) How does the user cancel or change the schedule? (g) What if the user stops being the owner of the report?
+- Concerns: SYS-004
+- Blocks: yes
+- Status: open
+- Raised: 2026-11-26
+- PO answer (as given): not given
+- Date: —
+- Confirmed by: —
+
+## DOU-005 — &quot;Finish quickly&quot; has no number (DoD criteria 2 and 3)
+
+- Question: &quot;Exports of large reports should finish quickly.&quot; (`requirements/v2.rst:21`) fails the DoD: &quot;A time or speed target gives a number, its unit, and the size of the input it applies to.&quot; (`requirements/dod.md:5`) and &quot;&apos;fast&apos;, &apos;easy&apos; and similar words are not criteria.&quot; (`requirements/dod.md:6`). What is &quot;large&quot; (rows or MB)? What time limit, in seconds, applies to that size, and in which format (CSV, PDF)? Is it a hard limit or a target? Under what load?
+- Concerns: SYS-005
+- Blocks: yes
+- Status: open
+- Raised: 2026-11-26
+- PO answer (as given): not given
+- Date: —
+- Confirmed by: —
+
+## DOU-006 — Is 100 per request intended for every user?
+
+- Question: v1 says 50, v2 says 100 (`requirements/v2.rst:13`). Does 100 apply to all users and roles, and is there any other limit (rows, size)? The code rejects more than 50 (`src/exporter.py:8`) and must change.
+- Concerns: SYS-001
+- Blocks: no
+- Status: open
+- Raised: 2026-11-26
+- PO answer (as given): not given
+- Date: —
+- Confirmed by: —
+
+## DOU-007 — PDF export writes CSV text
+
+- Question: The requirement says the system exports a report as PDF (`requirements/v2.rst:8`). The code writes comma-separated text into the file whatever the format, only the extension changes (`src/exporter.py:22-27`). Is it a known gap to fix in this release, or is it out of scope?
+- Concerns: SYS-007
+- Blocks: no
+- Status: open
+- Raised: 2026-11-26
+- PO answer (as given): not given
+- Date: —
+- Confirmed by: —
+
+## DOU-008 — Sources chosen without the user (unattended run)
+
+- Question: The user could not be asked, so the workspace was used for the requirement, the DoD and the code. Is that right? The repository has no commit yet, so no commit sha is recorded, and `v1.md` is a separate file rather than an earlier revision. Is `v1.md` the approved previous version? Is `src/exporter.py` the codebase this requirement applies to? Is `requirements/dod.md` the DoD to use?
+- Concerns: SYS-001, SYS-002, SYS-003, SYS-004, SYS-005, SYS-006, SYS-007, SYS-008
+- Blocks: no
+- Status: open
+- Raised: 2026-11-26
+- PO answer (as given): not given
+- Date: —
+- Confirmed by: —
+</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/epics.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-numbered-dou-files</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/dou-001.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-software-requirements</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/software-requirements.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">wrote-analysis</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/analysis.md exists as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">wrote-dou</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/dou.md exists as expected</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 2</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:71.4%"></span></span>
+<span class="num">71.4%</span>
+<span class="muted num">10 turns · $0.20 · 07:06:53 UTC</span>
+</div>
+
+<div class="graders"><details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">analysis-findings</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: FAIL FAIL FAIL</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✗ ✗ ✗</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence"># Requirement analysis — Report Export
+
+Status: draft
+
+The points for the PO are in `dou.md`; this file refers to them by `DOU-` ID. Nothing here was answered by the PO.
+The run was unattended (no user, PO not reachable), so nothing was cloned and every role uses the workspace.
+
+## Sources
+
+| Role | Repository | Ref | Commit | Local path | Path in repository |
+| ---- | ---------- | --- | ------ | ---------- | ------------------ |
+| Current requirement | workspace | `main` | none (the repository has no commit yet) | `.` | `requirements/v2.rst` |
+| Previous requirement | workspace | `main` | none (no commit yet) | `.` | `requirements/v1.md` |
+| DoD | workspace | `main` | none (no commit yet) | `.` | `requirements/dod.md` |
+| Code | code not checked | — | — | — | Workspace listed (`git ls-files`, then Glob `**/*`): only `requirements/dod.md`, `requirements/v1.md`, `requirements/v2.rst`; no source file. See DOU-006. |
+
+## System requirements
+
+| ID | Status | Scope | Previous (path:line) | Current (path:line) | Code impact | DoD | Note |
+| -- | ------ | ----- | -------------------- | ------------------- | ----------- | --- | ---- |
+| SYS-001 | unchanged | out (no change) | &quot;The system exports a saved report as CSV.&quot; `requirements/v1.md:5` | &quot;The system exports a saved report as CSV.&quot; `requirements/v2.rst:7` | not checked | met | |
+| SYS-002 | unchanged | out (no change) | &quot;The system exports a saved report as PDF.&quot; `requirements/v1.md:6` | &quot;The system exports a saved report as PDF.&quot; `requirements/v2.rst:8` | not checked | met | |
+| SYS-003 | changed | in | &quot;A user can export at most 50 reports in one request.&quot; `requirements/v1.md:10` | &quot;A user can export at most 100 reports in one request.&quot; `requirements/v2.rst:13` | not checked | met | limit 50 to 100; scope of users to confirm (DOU-005) |
+| SYS-004 | unchanged | out (no change) | &quot;An export request is rejected when the report has no rows.&quot; `requirements/v1.md:11` | &quot;An export request is rejected when the report has no rows.&quot; `requirements/v2.rst:14` | not checked | gap: DOU-004 | the error is not specified |
+| SYS-005 | changed | in | &quot;Only the owner of a report can export it.&quot; `requirements/v1.md:15` | &quot;Only the owner of a report can export it; a request from anyone else is rejected with an error.&quot; `requirements/v2.rst:19` | not checked | gap: DOU-004 | adds the rejection; the error is not specified |
+| SYS-006 | removed | in (to confirm: dropped on purpose or by mistake) | &quot;Every export is recorded in the audit log.&quot; `requirements/v1.md:16` | — | not checked | gap: DOU-001 | silent removal, no reason given |
+| SYS-007 | added | in | — | &quot;A user can schedule an export to run every night.&quot; `requirements/v2.rst:20` | not checked | gap: DOU-002 | |
+| SYS-008 | added | in | — | &quot;Exports of large reports should finish quickly.&quot; `requirements/v2.rst:21` | not checked | gap: DOU-003 | |
+
+## Findings
+
+- **SYS-003** — &quot;100&quot; against &quot;50&quot;: the change is clear and testable (a number, `requirements/dod.md:7`). Whether it covers every user is unconfirmed, see DOU-005.
+- **SYS-004** — fails the DoD: &quot;is rejected&quot; does not say how a test can observe the rejection (`requirements/dod.md:5`, `requirements/dod.md:7`). See DOU-004.
+- **SYS-005** — ambiguous: &quot;rejected with an error&quot; does not name the error. See DOU-004.
+- **SYS-006** — missing: the audit-log sentence of v1 (`requirements/v1.md:16`) is not in v2, and nothing says it was dropped on purpose. Treated as in scope until the PO says otherwise. See DOU-001.
+- **SYS-007** — missing and untestable: time zone and time, failure handling, the limit, cancellation, owner check, audit, empty report and format are not stated; this is a new behavior placed under the &quot;Access&quot; heading, which does not fit it. It also touches SYS-003, SYS-004, SYS-005 and SYS-006. See DOU-002.
+- **SYS-008** — untestable, non-functional gap: &quot;finish quickly&quot; and &quot;large&quot; have no number, unit or input size (`requirements/dod.md:6`), and &quot;should&quot; is weaker than &quot;shall&quot;. See DOU-003.
+- **Code** — not checked for any requirement: the workspace has no source file. See DOU-006.
+
+## Assumptions
+
+| Assumption | Owner | Risk if wrong |
+| ---------- | ----- | ------------- |
+| SYS-006 is still in scope (the removal is treated as an omission) until the PO says otherwise. | PO | Audit recording is built when it was meant to be dropped, or is dropped when compliance needs it. |
+| The 100 limit of SYS-003 applies to every user. | PO | A wrong limit is applied to some roles. |
+| `requirements/v1.md` is the version that is currently implemented. | PO | The effect of the change on the code is judged against the wrong baseline. |
+| The wording change in SYS-005 (added rejection) is a clarification of existing behavior, not a new rule. | PO | Rejection behavior is built twice or differently from what exists. |
+
+## Revision history
+
+- 2026-11-26 — first analysis of `requirements/v2.rst` against `requirements/v1.md`, DoD `requirements/dod.md`; unattended run; DOU-001 to DOU-006 raised, all open; DOU-001, DOU-002 and DOU-003 block, so the status is draft.
+</pre>
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">dou-points</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: FAIL FAIL FAIL</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✗ ✗ ✗</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence"># DoU — Report Export
+
+Discussion of Understanding: the one file of points for the Product Owner (PO). The PO was not reachable and the
+user was absent during this analysis, so every point is `open` and no answer is recorded. Nothing here is a
+decision. Nothing is deleted: a point the PO later changes is answered by a new point that names the old one in
+`Supersedes:`.
+
+## DOU-001 — Audit log dropped from v2?
+
+- Question: v1 says &quot;Every export is recorded in the audit log.&quot; (`requirements/v1.md:16`). v2 does not contain it. Is the audit requirement dropped on purpose, or left out by mistake? If it is dropped, should exports still be recorded (for example because of a compliance rule)? If it stays, v2 should state it again.
+- Concerns: SYS-006
+- Blocks: yes
+- Status: open
+- Raised: 2026-11-26
+- PO answer (as given): not given
+- Date: —
+- Confirmed by: —
+
+## DOU-002 — Nightly export: what exactly is required?
+
+- Question: v2 says &quot;A user can schedule an export to run every night.&quot; (`requirements/v2.rst:20`). The DoD says &quot;It states one behavior that a test can observe from outside the system.&quot; (`requirements/dod.md:5`) and &quot;It can be checked with a number or an example&quot; (`requirements/dod.md:7`). To meet them, please answer:
+    (a) Which time zone and what time does &quot;every night&quot; mean (user&apos;s, server&apos;s, fixed hour)?
+    (b) What happens when a scheduled export fails (retry count, notification, none)?
+    (c) Does the 100-report limit of SYS-003 apply to one scheduled run?
+    (d) Can the user cancel or change a schedule, and how many schedules can one user have?
+    (e) Is a scheduled run still owner-only (SYS-005), and does it still count as an export for the audit log (DOU-001)?
+    (f) What happens when the report has no rows on the night (SYS-004)?
+    (g) Which format (CSV, PDF, or both) does a scheduled export use, and where does the user get the result?
+- Concerns: SYS-007
+- Blocks: yes
+- Status: open
+- Raised: 2026-11-26
+- PO answer (as given): not given
+- Date: —
+- Confirmed by: —
+
+## DOU-003 — &quot;Finish quickly&quot; has no target
+
+- Question: v2 says &quot;Exports of large reports should finish quickly.&quot; (`requirements/v2.rst:21`). The DoD says &quot;A time or speed target gives a number, its unit, and the size of the input it applies to.&quot; (`requirements/dod.md:6`) and &quot;&apos;fast&apos;, &apos;easy&apos; and similar words are not criteria.&quot; (`requirements/dod.md:7`). What is the target: the time limit in seconds, for how many rows or what file size counts as &quot;large&quot;, for CSV, PDF, or both? Is it a hard requirement (&quot;shall&quot;) or only a wish (&quot;should&quot;)?
+- Concerns: SYS-008
+- Blocks: yes
+- Status: open
+- Raised: 2026-11-26
+- PO answer (as given): not given
+- Date: —
+- Confirmed by: —
+
+## DOU-004 — Which error is returned to a non-owner?
+
+- Question: v2 adds &quot;a request from anyone else is rejected with an error.&quot; (`requirements/v2.rst:19`). The DoD asks for something observable and checkable with an example (`requirements/dod.md:5`, `requirements/dod.md:7`). Which error should a test expect (error code or status, message text, or only &quot;rejected&quot;)? The same question applies to the existing no-rows rejection (SYS-004, `requirements/v2.rst:14`), which also gives no error.
+- Concerns: SYS-004, SYS-005
+- Blocks: no
+- Status: open
+- Raised: 2026-11-26
+- PO answer (as given): not given
+- Date: —
+- Confirmed by: —
+
+## DOU-005 — Limit of 100: confirm scope
+
+- Question: The limit changed from 50 (`requirements/v1.md:10`) to 100 (`requirements/v2.rst:13`). Does 100 apply to every user and role, and is the change intended? Does it apply per request only, or is there also a daily or total limit?
+- Concerns: SYS-003
+- Blocks: no
+- Status: open
+- Raised: 2026-11-26
+- PO answer (as given): not given
+- Date: —
+- Confirmed by: —
+
+## DOU-006 — Where are the code and the earlier versions?
+
+- Question: The workspace holds only `requirements/dod.md`, `requirements/v1.md` and `requirements/v2.rst`; it has no source file and no git commit. Which repository and ref hold the export code (so that the effect of each change can be checked), and is `v1.md` the version currently implemented? In an unattended run no repository is cloned (rule 10), so this question was written instead of asked.
+- Concerns: SYS-001, SYS-002, SYS-003, SYS-004, SYS-005, SYS-006, SYS-007, SYS-008
+- Blocks: no
+- Status: open
+- Raised: 2026-11-26
+- PO answer (as given): not given
+- Date: —
+- Confirmed by: —
+</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/epics.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-numbered-dou-files</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/dou-001.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-software-requirements</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/software-requirements.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">wrote-analysis</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/analysis.md exists as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">wrote-dou</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/dou.md exists as expected</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 3</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">8 turns · $0.20 · 07:06:53 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">analysis-findings</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence"># Requirement analysis — Report Export (v2 vs v1)
+
+Status: draft
+
+Unattended run: the user and the PO could not be asked. The points for the PO are in `dou.md` (DOU-001…DOU-007).
+
+## Sources
+
+| Role | Repository | Ref | Commit | Local path | Path in repository |
+| ---- | ---------- | --- | ------ | ---------- | ------------------ |
+| Current requirement | workspace | `main` | none: repository has no commit yet | `.` | `requirements/v2.rst` |
+| Previous requirement | workspace | `main` | none: repository has no commit yet | `.` | `requirements/v1.md` |
+| DoD | workspace | `main` | none: repository has no commit yet | `.` | `requirements/dod.md` |
+| Code | workspace | `main` | none: repository has no commit yet | `.` | `src/exporter.py` |
+
+The workspace listing held `requirements/{dod.md,v1.md,v2.rst}` and `src/exporter.py`. See DOU-001.
+
+## System requirements
+
+| ID | Status | Scope | Previous (path:line) | Current (path:line) | Code impact | DoD | Note |
+| -- | ------ | ----- | -------------------- | ------------------- | ----------- | --- | ---- |
+| SYS-001 | changed | in | &quot;A user can export at most 50 reports in one request.&quot; `requirements/v1.md:10` | &quot;A user can export at most 100 reports in one request.&quot; `requirements/v2.rst:13` | changes existing behavior: `src/exporter.py:8`, `src/exporter.py:33` | met | limit 50 to 100 (DOU-002) |
+| SYS-002 | changed | in | &quot;Only the owner of a report can export it.&quot; `requirements/v1.md:15` | &quot;Only the owner of a report can export it; a request from anyone else is rejected with an error.&quot; `requirements/v2.rst:19` | changes existing behavior: `src/exporter.py:19` lets teammates export | gap: DOU-003 (DoD 1: the error is not observable as stated) | similarity 0.6; the wording added the rejection |
+| SYS-003 | removed | in | &quot;Every export is recorded in the audit log.&quot; `requirements/v1.md:16` | — | already met by `src/exporter.py:42`; removing it would change behavior | met | dropped or omitted? (DOU-004) |
+| SYS-004 | added | in | — | &quot;A user can schedule an export to run every night.&quot; `requirements/v2.rst:20` | new: nothing in `src/exporter.py` schedules work | gap: DOU-005 (DoD 1) | |
+| SYS-005 | added | in | — | &quot;Exports of large reports should finish quickly.&quot; `requirements/v2.rst:21` | new: no timing or size handling in `src/exporter.py` | gap: DOU-006 (DoD 2 and 3: `requirements/dod.md:6-7`) | |
+| SYS-006 | unchanged | out (unchanged) | &quot;The system exports a saved report as PDF.&quot; `requirements/v1.md:6` | &quot;The system exports a saved report as PDF.&quot; `requirements/v2.rst:8` | contradicts code: `src/exporter.py:22-27` writes CSV text for any format | met | see DOU-007 |
+| SYS-007 | unchanged | out (unchanged) | &quot;The system exports a saved report as CSV.&quot; `requirements/v1.md:5`; &quot;An export request is rejected when the report has no rows.&quot; `requirements/v1.md:11` | same text `requirements/v2.rst:7`, `requirements/v2.rst:14` | already met: `src/exporter.py:22-27`, `src/exporter.py:37-38` | met | two unchanged units in one row |
+
+## Findings
+
+- **SYS-001** — fine as a number; the code still enforces 50 (`src/exporter.py:8`). DOU-002 confirms scope.
+- **SYS-002** — conflicting: the code allows teammates (`src/exporter.py:18-19`) while v1 and v2 say owner only. The error is not specified, so a test cannot observe it. See DOU-003.
+- **SYS-003** — ambiguous: the sentence vanished without a note. See DOU-004.
+- **SYS-004** — missing: time zone, format, report set, failure handling, limit and audit rules. See DOU-005.
+- **SYS-005** — untestable, fails the DoD: &quot;finish quickly&quot;, &quot;large&quot;, and &quot;should&quot; have no number, unit or input size. See DOU-006.
+- **SYS-006** — conflicting with the code: the PDF output is CSV text. See DOU-007.
+- The Formats item of CSV and the empty-report rule are unchanged and match the code.
+
+## Assumptions
+
+| Assumption | Owner | Risk if wrong |
+| ---------- | ----- | ------------- |
+| The workspace files are the intended sources (no commits exist to pin). | PO | The analysis compares the wrong versions or code. |
+| The audit-log sentence&apos;s absence from v2 is not yet read as a removal; it stays in scope until DOU-004 is answered. | PO | Audit recording is removed or kept wrongly. |
+| &quot;Every night&quot; and &quot;large&quot; are not interpreted; no value is assumed. | PO | A scheduler or timing target is built on a guess. |
+
+## Revision history
+
+- 2026-11-26 — first analysis of `requirements/v2.rst` against `requirements/v1.md`; DOU-001 to DOU-007 raised, all open; DOU-003 to DOU-006 block.
+</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">dou-points</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence"># DoU — Report Export (v2 vs v1)
+
+Discussion of Understanding: the one file of points for the Product Owner (PO). The run was unattended and the
+PO was not reachable, so every point below is open: these are the questions the analyst would have asked.
+Nothing here is a PO answer.
+
+## DOU-001 — Sources chosen without asking
+
+- Question: The analysis used the current workspace for the requirement (`requirements/v2.rst`), the previous version (`requirements/v1.md`), the DoD (`requirements/dod.md`) and the code (`src/exporter.py`). No repository was cloned. Are these the right sources, or should another repository or ref be used?
+- Concerns: SYS-001, SYS-002, SYS-003, SYS-004, SYS-005, SYS-006, SYS-007
+- Blocks: no
+- Status: open
+- Raised: 2026-11-26
+- PO answer (as given): not given
+- Date: —
+- Confirmed by: —
+
+## DOU-002 — Limit raised from 50 to 100
+
+- Question: Is 100 reports per request intended for every user? The code rejects more than 50 (`src/exporter.py:8`, `:33`). Is there any size or time expectation for a request of 100 reports?
+- Concerns: SYS-001
+- Blocks: no
+- Status: open
+- Raised: 2026-11-26
+- PO answer (as given): not given
+- Date: —
+- Confirmed by: —
+
+## DOU-003 — Owner only, versus teammates
+
+- Question: v2 says &quot;Only the owner of a report can export it; a request from anyone else is rejected with an error.&quot; The code also lets teammates export (`src/exporter.py:18-19`, &quot;Teammates may export each other&apos;s reports.&quot;). Is the teammate access to be removed? Which error must the caller see (message or code), so a test can observe it?
+- Concerns: SYS-002
+- Blocks: yes
+- Status: open
+- Raised: 2026-11-26
+- PO answer (as given): not given
+- Date: —
+- Confirmed by: —
+
+## DOU-004 — Audit log requirement missing from v2
+
+- Question: v1 says &quot;Every export is recorded in the audit log.&quot; (`requirements/v1.md:16`). v2 does not contain it. Was it dropped on purpose (stop recording exports), or left out by mistake? The code records every export (`src/exporter.py:42`).
+- Concerns: SYS-003
+- Blocks: yes
+- Status: open
+- Raised: 2026-11-26
+- PO answer (as given): not given
+- Date: —
+- Confirmed by: —
+
+## DOU-005 — Nightly scheduled export is under-specified
+
+- Question: &quot;A user can schedule an export to run every night.&quot; (`requirements/v2.rst:20`). Please state: the time zone and the time of &quot;every night&quot;; the format (CSV or PDF) and which reports; whether the 100-report limit and the owner-only rule apply; what happens when a run fails (retry, notice to the user); how a user cancels or lists schedules; whether scheduled runs are recorded in the audit log. The DoD says: &quot;It states one behavior that a test can observe from outside the system.&quot; (`requirements/dod.md:5`). The sentence mixes scheduling and exporting; which observable behavior is meant? The code has no scheduler.
+- Concerns: SYS-004
+- Blocks: yes
+- Status: open
+- Raised: 2026-11-26
+- PO answer (as given): not given
+- Date: —
+- Confirmed by: —
+
+## DOU-006 — &quot;Finish quickly&quot; has no number
+
+- Question: &quot;Exports of large reports should finish quickly.&quot; (`requirements/v2.rst:21`). The DoD says: &quot;A time or speed target gives a number, its unit, and the size of the input it applies to.&quot; (`requirements/dod.md:6`) and &quot;&apos;fast&apos;, &apos;easy&apos; and similar words are not criteria.&quot; (`requirements/dod.md:7`). What is &quot;large&quot; (rows or MB), and what time limit in seconds applies, for which format? Is &quot;should&quot; a requirement or a wish?
+- Concerns: SYS-005
+- Blocks: yes
+- Status: open
+- Raised: 2026-11-26
+- PO answer (as given): not given
+- Date: —
+- Confirmed by: —
+
+## DOU-007 — PDF export is not implemented
+
+- Question: &quot;The system exports a saved report as PDF.&quot; is unchanged in v2 (`requirements/v2.rst:8`), but the code writes comma-separated text for any accepted format (`src/exporter.py:22-27`), so a &quot;pdf&quot; export is a CSV with a .pdf name. Is PDF a missing feature to be built under this version, or known and out of scope?
+- Concerns: SYS-006
+- Blocks: no
+- Status: open
+- Raised: 2026-11-26
+- PO answer (as given): not given
+- Date: —
+- Confirmed by: —
+</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/epics.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-numbered-dou-files</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/dou-001.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-software-requirements</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/software-requirements.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">wrote-analysis</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/analysis.md exists as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">wrote-dou</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/dou.md exists as expected</p>
+
+</div>
+</details></div>
+</div>
+</section><section class="arm">
+<div class="arm-head">
+<span class="arm-label">Baseline (no plugin)</span>
+<span class="muted">aggregate not comparable — a run in one of the arms was not fully graded</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:42.9%"></span></span>
+<span class="num">42.9%</span>
+<span class="muted num">4 turns · $0.09 · 07:07:55 UTC</span>
+</div>
+
+<div class="graders"><details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">analysis-findings</span>  </summary>
+<div class="grader-body">
+<p class="explanation">grader threw: case &quot;analyze-requirements-flags-planted-changes&quot; grader focus file &quot;requirements/export/analysis.md&quot;: path &quot;requirements/export/analysis.md&quot; does not exist</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">dou-points</span>  </summary>
+<div class="grader-body">
+<p class="explanation">grader threw: case &quot;analyze-requirements-flags-planted-changes&quot; grader focus file &quot;requirements/export/dou.md&quot;: path &quot;requirements/export/dou.md&quot; does not exist</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/epics.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-numbered-dou-files</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/dou-001.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-software-requirements</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/software-requirements.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">wrote-analysis</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/analysis.md missing (expected present)</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">wrote-dou</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/dou.md missing (expected present)</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 2</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:42.9%"></span></span>
+<span class="num">42.9%</span>
+<span class="muted num">4 turns · $0.10 · 07:07:55 UTC</span>
+</div>
+<div class="note">⚠ Cost ceiling hit during this run — LLM/baseline graders were marked fail without judging; the run still counts toward the averages with the score shown.</div>
+<div class="graders"><details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">analysis-findings</span>  </summary>
+<div class="grader-body">
+<p class="explanation">skipped: cost ceiling</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">dou-points</span>  </summary>
+<div class="grader-body">
+<p class="explanation">skipped: cost ceiling</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/epics.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-numbered-dou-files</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/dou-001.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-software-requirements</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/software-requirements.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">wrote-analysis</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/analysis.md missing (expected present)</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">wrote-dou</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/dou.md missing (expected present)</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 3</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:42.9%"></span></span>
+<span class="num">42.9%</span>
+<span class="muted num">4 turns · $0.10 · 07:07:57 UTC</span>
+</div>
+
+<div class="graders"><details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">analysis-findings</span>  </summary>
+<div class="grader-body">
+<p class="explanation">grader threw: case &quot;analyze-requirements-flags-planted-changes&quot; grader focus file &quot;requirements/export/analysis.md&quot;: path &quot;requirements/export/analysis.md&quot; does not exist</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">dou-points</span>  </summary>
+<div class="grader-body">
+<p class="explanation">grader threw: case &quot;analyze-requirements-flags-planted-changes&quot; grader focus file &quot;requirements/export/dou.md&quot;: path &quot;requirements/export/dou.md&quot; does not exist</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/epics.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-numbered-dou-files</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/dou-001.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-software-requirements</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/software-requirements.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">wrote-analysis</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/analysis.md missing (expected present)</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">wrote-dou</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/dou.md missing (expected present)</p>
+
+</div>
+</details></div>
+</div>
+</section>
+</details>
+<details class="section" open>
+<summary>Prompt</summary>
+<div class="md"><p>Analyze requirements/v2.rst against requirements/v1.md, using requirements/dod.md as the Definition of Done, and keep the analysis in requirements/export/. I won't be around to answer questions, and the Product Owner is not reachable, so write down what you would ask instead of answering it yourself.</p>
+</div>
+</details>
+<details class="section" open>
+<summary>Graders — what "good" means for this case</summary>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">analysis-findings</span><span class="badge">llm</span></div>
+<div class="md"><p>The text is the <code>analysis.md</code> the run wrote for a report-export requirement, comparing <code>requirements/v2.rst</code> with <code>requirements/v1.md</code>, the Definition of Done in <code>requirements/dod.md</code> and the code in <code>src/exporter.py</code>.</p>
+<p>PASS if all of these hold:</p>
+<ul>
+<li>It reports all five differences between the versions as system requirements (<code>SYS-</code> rows): the added requirement to schedule an export every night, with nothing in the code implementing it; the removed requirement that every export is recorded in the audit log; the limit changed from 50 to 100 reports per request; the new sentence that exports of large reports "should finish quickly"; and the ownership requirement, which says a request from anyone but the owner is rejected.</li>
+<li>The ownership requirement is shown to contradict <code>src/exporter.py</code>, with a <code>path:line</code> citation of the code that lets a teammate export.</li>
+<li>Each in-scope requirement has a DoD verdict, and the "finish quickly" requirement is marked as failing the DoD (no number, unit or input size), pointing at a <code>DOU-</code> point. No number or time is given for "quickly".</li>
+<li>The file has a <code>Status:</code> line that says <code>draft</code>, not <code>final</code>, and refers to the questions for the Product Owner by <code>DOU-</code> ID without an open-point table.
+FAIL if any of the five is missing, if the contradiction is claimed without a <code>src/exporter.py</code> line, if a requirement that did not change is reported as changed, if the "quickly" requirement is not tied to the DoD, if a number or time is given for "quickly", or if the status is <code>final</code>.</li>
+</ul>
+</div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">dou-points</span><span class="badge">llm</span></div>
+<div class="md"><p>The text is the <code>dou.md</code> the run wrote: the one file of points for the Product Owner (PO), for a report-export requirement analysed unattended, with the PO unreachable.</p>
+<p>PASS if all of these hold:</p>
+<ul>
+<li>It has <code>DOU-</code> points, each with a question, the <code>SYS-</code> IDs it concerns, a <code>Blocks:</code> value and a <code>Status:</code> value.</li>
+<li>Points cover at least the ownership contradiction with the code, and what "finish quickly" means for a large report; the latter quotes or names the DoD criterion it fails. A point about the 50 to 100 limit may be present but is not required.</li>
+<li>Every point is <code>Status: open</code>, and each answer line says it was not given. No answer, decision or date is attributed to the PO, and no number is proposed as the answer for "quickly".
+FAIL if a point is closed, if an answer or a confirmation by the PO is written, if one of the two required questions is missing, or if the file holds anything the PO did not say presented as an answer.</li>
+</ul>
+</div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">no-epics</span><span class="badge">file_exists</span></div>
+<div class="config"><div class="kv"><span>path</span><code>&quot;requirements/export/epics.md&quot;</code></div><div class="kv"><span>exists</span><code>false</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">no-numbered-dou-files</span><span class="badge">file_exists</span></div>
+<div class="config"><div class="kv"><span>path</span><code>&quot;requirements/export/dou-001.md&quot;</code></div><div class="kv"><span>exists</span><code>false</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">no-software-requirements</span><span class="badge">file_exists</span></div>
+<div class="config"><div class="kv"><span>path</span><code>&quot;requirements/export/software-requirements.md&quot;</code></div><div class="kv"><span>exists</span><code>false</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">used-skill</span><span class="badge">tool_used</span></div>
+<div class="config"><div class="kv"><span>tool</span><code>&quot;Skill&quot;</code></div><div class="kv"><span>input_match</span><code>&quot;\&quot;skill\&quot;\\s*:\\s*\&quot;(?:[\\w-]+:)?analyze-requirements\&quot;&quot;</code></div><div class="kv"><span>arm</span><code>&quot;with-only&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">wrote-analysis</span><span class="badge">file_exists</span></div>
+<div class="config"><div class="kv"><span>path</span><code>&quot;requirements/export/analysis.md&quot;</code></div><div class="kv"><span>exists</span><code>true</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">wrote-dou</span><span class="badge">file_exists</span></div>
+<div class="config"><div class="kv"><span>path</span><code>&quot;requirements/export/dou.md&quot;</code></div><div class="kv"><span>exists</span><code>true</code></div></div>
+</div>
+</details>
+</article>
+<footer>Generated by <code>claude plugin eval</code> · schema v1 · scores are not comparable across different suites</footer>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  var bar=document.querySelector('.toolbar');
+  if(!bar)return;
+  bar.addEventListener('click',function(e){
+    var b=e.target&&e.target.closest('button');
+    if(!b)return;
+    var open=b.dataset.act==='expand';
+    document.querySelectorAll('details.section, details.grader').forEach(function(d){d.open=open});
+  });
+});
+// Collapsed details vanish from print/PDF; these pages are share artifacts.
+window.addEventListener('beforeprint',function(){
+  document.querySelectorAll('details').forEach(function(d){
+    if(!d.open){d.dataset.printOpened='1';d.open=true}
+  });
+});
+window.addEventListener('afterprint',function(){
+  document.querySelectorAll('details[data-print-opened]').forEach(function(d){
+    d.open=false;delete d.dataset.printOpened;
+  });
+});
+</script>
+</body>
+</html>

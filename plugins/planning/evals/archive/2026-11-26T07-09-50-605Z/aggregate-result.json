@@ -1,0 +1,580 @@
+{
+  "schemaVersion": 1,
+  "claudeVersion": "2.1.332",
+  "startedAt": "2026-11-26T07:09:50.605Z",
+  "durationSeconds": 55,
+  "costUsd": 0.5965527,
+  "partial": false,
+  "suite": {
+    "root": "<local>",
+    "ablation": "with-without",
+    "modelOverride": "claude-sonnet-5-5",
+    "judgeModel": "haiku",
+    "caseFilter": "group-epics-*",
+    "tagFilters": [
+      "behavior"
+    ],
+    "threshold": 1,
+    "concurrency": 3,
+    "plugins": [
+      {
+        "name": "planning",
+        "version": "0.1.0",
+        "path": "<local>"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "group-epics-from-software-requirements",
+      "dir": "evals/behavior/group-epics-from-software-requirements",
+      "source": "mixed",
+      "promptMarkdown": "Group the software requirements in requirements/export/ into epics. I won't be around to answer questions, so do not wait for me.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 1200,
+      "maxTurns": 40,
+      "graders": [
+        {
+          "name": "analysis-untouched",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": {
+              "source": "file",
+              "path": "requirements/export/analysis.md"
+            },
+            "pattern": "superseded by SYS-006 and SYS-007\\.\\s*$",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "epics",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "The text is the `epics.md` the run wrote from a `software-requirements.md` with five software requirements for a report export: SWR-001 (accept up to 100 reports per request), SWR-002 (owner-only export), SWR-003 (nightly export), SWR-004 (audit record of every export) and SWR-005 (export of 10,000 rows within 30 seconds).\n\nPASS if all of these hold:\n- The grouping basis is stated first, before the epics (the user outcome by default).\n- Each of SWR-001 to SWR-005 is on the `Covers:` line of exactly one epic, no software requirement is in two epics, and there is no list of requirements left out.\n- Every epic has a goal, the `SWR-` IDs it covers, acceptance criteria that state observable behavior with at least one negative case (for example the 101st report rejected, or a teammate's request rejected), dependencies, risks and code areas.\n- The acceptance criteria come from the verification criteria of the epic's software requirements, and an epic that holds the export-time requirement keeps 10,000 rows and 30 seconds in its criteria.\n- A traceability table maps each `SYS-` to its `SWR-` and its `E-`.\n- No epic states something that none of the five software requirements states.\nFAIL if any of these is missing, if a software requirement is in no epic or in two, if the file is headed `Provisional`, or if an epic is invented.",
+          "config": {
+            "criteria": "The text is the `epics.md` the run wrote from a `software-requirements.md` with five software requirements for a report export: SWR-001 (accept up to 100 reports per request), SWR-002 (owner-only export), SWR-003 (nightly export), SWR-004 (audit record of every export) and SWR-005 (export of 10,000 rows within 30 seconds).\n\nPASS if all of these hold:\n- The grouping basis is stated first, before the epics (the user outcome by default).\n- Each of SWR-001 to SWR-005 is on the `Covers:` line of exactly one epic, no software requirement is in two epics, and there is no list of requirements left out.\n- Every epic has a goal, the `SWR-` IDs it covers, acceptance criteria that state observable behavior with at least one negative case (for example the 101st report rejected, or a teammate's request rejected), dependencies, risks and code areas.\n- The acceptance criteria come from the verification criteria of the epic's software requirements, and an epic that holds the export-time requirement keeps 10,000 rows and 30 seconds in its criteria.\n- A traceability table maps each `SYS-` to its `SWR-` and its `E-`.\n- No epic states something that none of the five software requirements states.\nFAIL if any of these is missing, if a software requirement is in no epic or in two, if the file is headed `Provisional`, or if an epic is invented.",
+            "focus": {
+              "source": "file",
+              "path": "requirements/export/epics.md"
+            }
+          }
+        },
+        {
+          "name": "grouping-basis",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": {
+              "source": "file",
+              "path": "requirements/export/epics.md"
+            },
+            "pattern": "[Gg]rouping [Bb]asis",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "not-provisional",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": {
+              "source": "file",
+              "path": "requirements/export/epics.md"
+            },
+            "pattern": "(^|\\n)# [^\\n]*[Pp]rovisional",
+            "flags": "",
+            "match": "not_contains"
+          }
+        },
+        {
+          "name": "software-requirements-untouched",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": {
+              "source": "file",
+              "path": "requirements/export/software-requirements.md"
+            },
+            "pattern": "## Gaps found\\s+None\\.\\s*$",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "used-skill",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?group-epics\"",
+            "arm": "with-only"
+          }
+        },
+        {
+          "name": "wrote-epics",
+          "type": "file_exists",
+          "weight": 1,
+          "config": {
+            "path": "requirements/export/epics.md",
+            "exists": true
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 10,
+            "costUsd": 0.1150017,
+            "judgeCostUsd": 0.0046421000000000006,
+            "durationSeconds": 32,
+            "startedAt": "2026-11-26T07:09:50.672Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "analysis-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched superseded by SYS-006 and SYS-007\\.\\s*$",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "epics",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "# Epics — export\n\nGrouping basis: the user outcome each epic delivers.\n\n## E-01 — Export request rules\n\n- Goal: a user can export up to 100 reports in one request, and only reports the user owns.\n- Covers: SWR-001, SWR-002\n- Acceptance criteria:\n  - A request for 100 reports succeeds and returns 100 outputs.\n  - A request for 101 reports is rejected with an error, and no output is written.\n  - A request from the owner of a report succeeds.\n  - A request from a teammate of the owner is rejected with an error, and no output is written.\n- Depends on epics: none\n- Risks: other limits in the service may still assume 50; the owner-only rule removes teammate access that users have today, so teammates need to be told.\n- Code areas: `src/exporter.py:8`, `src/exporter.py:33`, `src/exporter.py:17-19`\n\n## E-02 — Nightly export\n\n- Goal: a user can schedule an export that runs every night, in UTC.\n- Covers: SWR-003\n- Acceptance criteria:\n  - A scheduled export that is due runs once between 00:00 and 24:00 UTC, and its output is written.\n  - A scheduled export that fails is reported to the user and runs again the next night.\n- Depends on epics: E-01\n- Risks: no scheduler exists, so one must be added; scheduled runs must obey the limit and owner rules from E-01.\n- Code areas: new, beside `src/exporter.py`\n\n## E-03 — Audit trail\n\n- Goal: every export is recorded in the audit log.\n- Covers: SWR-004\n- Acceptance criteria:\n  - After an export of 3 reports, the audit log holds 3 new entries, one per report.\n  - An export that is rejected adds no entry for the report it rejected.\n- Depends on epics: none\n- Risks: the requirement is already met; the work is to verify it, and to keep it true when E-01 and E-02 change the export path.\n- Code areas: `src/exporter.py:42`\n\n## E-04 — Export speed\n\n- Goal: a user gets a report of up to 10,000 rows exported within 30 seconds.\n- Covers: SWR-005\n- Acceptance criteria:\n  - A report of 10,000 rows is exported in 30 seconds or less, measured from the request to the written output.\n  - A report of 10,000 rows that takes 31 seconds fails the criterion.\n- Depends on epics: none\n- Risks: the time depends on the environment, so the measurement setup must be fixed before the criterion is trusted.\n- Code areas: `src/exporter.py:22-27`\n\n## Traceability\n\n| System requirement | Software requirement | Epic |\n| ------------------ | -------------------- | ---- |\n| SYS-001 | SWR-001 | E-01 |\n| SYS-003 | SWR-002 | E-01 |\n| SYS-004 | SWR-003 | E-02 |\n| SYS-006 | SWR-004 | E-03 |\n| SYS-007 | SWR-005 | E-04 |\n"
+              },
+              {
+                "name": "grouping-basis",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched [Gg]rouping [Bb]asis",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "not-provisional",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "software-requirements-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched ## Gaps found\\s+None\\.\\s*$",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-epics",
+                "passed": true,
+                "weight": 1,
+                "explanation": "requirements/export/epics.md exists as expected",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.8333333333333334,
+            "passed": false,
+            "turns": 8,
+            "costUsd": 0.12339240000000001,
+            "judgeCostUsd": 0.004651400000000001,
+            "durationSeconds": 36,
+            "startedAt": "2026-11-26T07:09:50.672Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "analysis-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched superseded by SYS-006 and SYS-007\\.\\s*$",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "epics",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  true
+                ],
+                "evidence": "# Epics — export\n\nGrouping basis: the user outcome each epic delivers.\n\n## E-01 — Controlled export requests\n\n- Goal: a user can export up to 100 reports in one request, and only reports they own.\n- Covers: SWR-001, SWR-002\n- Acceptance criteria:\n  - A request for 100 reports succeeds and returns 100 outputs.\n  - A request for 101 reports is rejected with an error, and no output is written.\n  - A request from the owner of a report succeeds.\n  - A request from a teammate of the owner is rejected with an error, and no output is written.\n- Depends on epics: none\n- Risks: other limits in the service may still assume 50; removing the teammate rule at `src/exporter.py:19` may break teammates who rely on it today (the PO settled owner-only in DOU-002). Both checks sit in `export_reports`, so the change is made and tested together.\n- Code areas: `src/exporter.py:8`, `src/exporter.py:33`, `src/exporter.py:17-19`\n\n## E-02 — Nightly export\n\n- Goal: a user can schedule an export that runs once every night, in UTC.\n- Covers: SWR-003\n- Acceptance criteria:\n  - A scheduled export that is due runs once between 00:00 and 24:00 UTC, and its output is written.\n  - A scheduled export that fails is reported to the user and runs again the next night.\n- Depends on epics: E-01 (a scheduled run goes through the same limit and owner checks)\n- Risks: no scheduler exists, so one must be chosen and operated; a failed run must not affect the next night's run.\n- Code areas: new, beside `src/exporter.py` (no scheduler exists in `src/exporter.py`)\n\n## E-03 — Trustworthy exports: audit and speed\n\n- Goal: every export is audited, and a report of up to 10,000 rows is exported within 30 seconds.\n- Covers: SWR-004, SWR-005\n- Acceptance criteria:\n  - After an export of 3 reports, the audit log holds 3 new entries, one per report.\n  - An export that is rejected adds no entry for the report it rejected.\n  - A report of 10,000 rows is exported in 30 seconds or less, measured from the request to the written output.\n  - A report of 10,000 rows that takes 31 seconds fails the criterion.\n- Depends on epics: E-01 (the rejection rules decide which exports are audited)\n- Risks: SWR-004 is already met, so it is only verified here. In `export_reports` the audit entry is written per report inside the loop (`src/exporter.py:42`), so a request rejected at a later report leaves entries for earlier ones that were exported; confirm this is intended. The 30-second criterion needs a measured baseline, because the row-by-row write may be too slow.\n- Code areas: `src/exporter.py:42`, `src/exporter.py:22-27`\n\n## Traceability\n\n| System requirement | Software requirement | Epic |\n| ------------------ | -------------------- | ---- |\n| SYS-001 | SWR-001 | E-01 |\n| SYS-003 | SWR-002 | E-01 |\n| SYS-004 | SWR-003 | E-02 |\n| SYS-006 | SWR-004 | E-03 |\n| SYS-007 | SWR-005 | E-03 |\n"
+              },
+              {
+                "name": "grouping-basis",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched [Gg]rouping [Bb]asis",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "not-provisional",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "software-requirements-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched ## Gaps found\\s+None\\.\\s*$",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-epics",
+                "passed": true,
+                "weight": 1,
+                "explanation": "requirements/export/epics.md exists as expected",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 7,
+            "costUsd": 0.1049569,
+            "judgeCostUsd": 0.0034749,
+            "durationSeconds": 30,
+            "startedAt": "2026-11-26T07:09:50.672Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "analysis-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched superseded by SYS-006 and SYS-007\\.\\s*$",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "epics",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "# Epics — export\n\nGrouping basis: the user outcome each epic delivers.\n\n## E-01 — Controlled export requests\n\n- Goal: a user can export up to 100 reports in one request, and only reports they own.\n- Covers: SWR-001, SWR-002\n- Acceptance criteria:\n  - A request for 100 reports succeeds and returns 100 outputs.\n  - A request for 101 reports is rejected with an error, and no output is written.\n  - A request from the owner of a report succeeds.\n  - A request from a teammate of the owner is rejected with an error, and no output is written.\n- Depends on epics: none\n- Risks: other limits in the service may still assume 50; the owner check and the limit change the same request path, so they should be tested together.\n- Code areas: `src/exporter.py:8`, `src/exporter.py:33`, `src/exporter.py:17-19`\n\n## E-02 — Fast and audited export\n\n- Goal: every export finishes quickly and leaves an audit record.\n- Covers: SWR-004, SWR-005\n- Acceptance criteria:\n  - A report of 10,000 rows is exported in 30 seconds or less, measured from the request to the written output.\n  - A report of 10,000 rows that takes 31 seconds fails the criterion.\n  - After an export of 3 reports, the audit log holds 3 new entries, one per report.\n  - An export that is rejected adds no entry for the report it rejected.\n- Depends on epics: E-01\n- Risks: the audit write (already met, to be verified only) could slow large exports and break the 30-second target; raising the limit to 100 reports multiplies the load.\n- Code areas: `src/exporter.py:42`, `src/exporter.py:22-27`\n\n## E-03 — Nightly export\n\n- Goal: a user can schedule an export that runs every night, in UTC.\n- Covers: SWR-003\n- Acceptance criteria:\n  - A scheduled export that is due runs once between 00:00 and 24:00 UTC, and its output is written.\n  - A scheduled export that fails is reported to the user and runs again the next night.\n- Depends on epics: E-01\n- Risks: no scheduler exists today, so this is new infrastructure; scheduled runs must obey the same limit and owner rules as manual ones.\n- Code areas: new, beside `src/exporter.py`\n\n## Traceability\n\n| System requirement | Software requirement | Epic |\n| ------------------ | -------------------- | ---- |\n| SYS-001 | SWR-001 | E-01 |\n| SYS-003 | SWR-002 | E-01 |\n| SYS-004 | SWR-003 | E-03 |\n| SYS-006 | SWR-004 | E-02 |\n| SYS-007 | SWR-005 | E-02 |\n"
+              },
+              {
+                "name": "grouping-basis",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched [Gg]rouping [Bb]asis",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "not-provisional",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "software-requirements-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched ## Gaps found\\s+None\\.\\s*$",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-epics",
+                "passed": true,
+                "weight": 1,
+                "explanation": "requirements/export/epics.md exists as expected",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0.6666666666666666,
+            "passed": false,
+            "turns": 6,
+            "costUsd": 0.0852032,
+            "judgeCostUsd": 0.0005863999999999999,
+            "durationSeconds": 16,
+            "startedAt": "2026-11-26T07:10:20.731Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "analysis-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched superseded by SYS-006 and SYS-007\\.\\s*$",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "epics",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "# Epics — export\n\nGrouping of the software requirements in `software-requirements.md`. Each SWR is in exactly one epic.\n\n## EPIC-01 — Export control and compliance\n\nGoal: an export request is allowed only within the agreed limits and for the report's owner, and every export leaves an audit trace.\n\n| SWR | Title | Status |\n| --- | ----- | ------ |\n| SWR-001 | Limit per request | changes existing behavior |\n| SWR-002 | Owner-only export | changes existing behavior |\n| SWR-004 | Audit record | already met |\n\nTraces to: SYS-001, SYS-003, SYS-006 (DOU-001, DOU-002, DOU-004)\n\n## EPIC-02 — Scheduled export\n\nGoal: a user can schedule an export that runs every night in UTC and recovers from failure.\n\n| SWR | Title | Status |\n| --- | ----- | ------ |\n| SWR-003 | Nightly export | new |\n\nTraces to: SYS-004 (DOU-005)\n\nNote: this is the only epic that needs a new component (a scheduler); the other epics change `src/exporter.py`.\n\n## EPIC-03 — Export performance\n\nGoal: large reports export within a stated time.\n\n| SWR | Title | Status |\n| --- | ----- | ------ |\n| SWR-005 | Export time | new |\n\nTraces to: SYS-007 (DOU-003)\n\n## Coverage\n\n| SWR | Epic |\n| --- | ---- |\n| SWR-001 | EPIC-01 |\n| SWR-002 | EPIC-01 |\n| SWR-003 | EPIC-02 |\n| SWR-004 | EPIC-01 |\n| SWR-005 | EPIC-03 |\n\nAll 5 software requirements are assigned.\n"
+              },
+              {
+                "name": "grouping-basis",
+                "passed": false,
+                "weight": 1,
+                "explanation": "pattern not found in file requirements/export/epics.md",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "not-provisional",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "software-requirements-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched ## Gaps found\\s+None\\.\\s*$",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "wrote-epics",
+                "passed": true,
+                "weight": 1,
+                "explanation": "requirements/export/epics.md exists as expected",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.6666666666666666,
+            "passed": false,
+            "turns": 4,
+            "costUsd": 0.0800201,
+            "judgeCostUsd": 0.0006760999999999998,
+            "durationSeconds": 16,
+            "startedAt": "2026-11-26T07:10:22.918Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "analysis-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched superseded by SYS-006 and SYS-007\\.\\s*$",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "epics",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "# Epics — export\n\nGrouping of the software requirements in `software-requirements.md`. Every SWR is in exactly one epic.\n\n## EPIC-001 — Export governance\n\n- Goal: Control who may export and how much, and keep a record of every export.\n- Software requirements: SWR-001 (limit per request), SWR-002 (owner-only export), SWR-004 (audit record)\n- System requirements: SYS-001, SYS-003, SYS-006\n- Status: two change existing behavior (SWR-001, SWR-002); SWR-004 is already met\n\n## EPIC-002 — Scheduled export\n\n- Goal: Let a user have an export run on its own every night.\n- Software requirements: SWR-003 (nightly export)\n- System requirements: SYS-004\n- Status: new; no scheduler exists\n\n## EPIC-003 — Export performance\n\n- Goal: Large reports export in a bounded time.\n- Software requirements: SWR-005 (export time)\n- System requirements: SYS-007\n- Status: new\n\n## Coverage\n\n| SWR | Epic |\n| --- | ---- |\n| SWR-001 | EPIC-001 |\n| SWR-002 | EPIC-001 |\n| SWR-003 | EPIC-002 |\n| SWR-004 | EPIC-001 |\n| SWR-005 | EPIC-003 |\n\n## Notes\n\n- Grouping is by theme, chosen without asking the PO. SWR-004 could stand as its own compliance epic; it sits in EPIC-001 because it is a single, already-met requirement about the same export action.\n"
+              },
+              {
+                "name": "grouping-basis",
+                "passed": false,
+                "weight": 1,
+                "explanation": "pattern not found in file requirements/export/epics.md",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "not-provisional",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "software-requirements-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched ## Gaps found\\s+None\\.\\s*$",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "wrote-epics",
+                "passed": true,
+                "weight": 1,
+                "explanation": "requirements/export/epics.md exists as expected",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.6666666666666666,
+            "passed": false,
+            "turns": 6,
+            "costUsd": 0.08797840000000001,
+            "judgeCostUsd": 0.0006246000000000003,
+            "durationSeconds": 20,
+            "startedAt": "2026-11-26T07:10:26.236Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "analysis-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched superseded by SYS-006 and SYS-007\\.\\s*$",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "epics",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "# Epics — export\n\nGrouping of the software requirements in `software-requirements.md`. Every SWR is in exactly one epic.\n\n## EPIC-1 — Export request rules\n\nWho may export and how much in one request.\n\n| SWR | Title | Status |\n| --- | ----- | ------ |\n| SWR-001 | Limit per request (100) | changes existing behavior |\n| SWR-002 | Owner-only export | changes existing behavior |\n\nBoth change checks in `src/exporter.py` (lines 8, 33 and 17-19), so one team can do them together.\n\n## EPIC-2 — Scheduled export\n\nA user schedules an export that runs every night.\n\n| SWR | Title | Status |\n| --- | ----- | ------ |\n| SWR-003 | Nightly export (UTC, retry next night) | new |\n\nNothing schedules work today, so this is the only epic that needs a new component.\n\n## EPIC-3 — Export assurance (compliance and performance)\n\nExports stay auditable and fast.\n\n| SWR | Title | Status |\n| --- | ----- | ------ |\n| SWR-004 | Audit record | already met |\n| SWR-005 | Export time (10,000 rows in 30 s) | new |\n\nSWR-004 needs only verification, not new code. SWR-005 needs a change to the row-by-row writing at `src/exporter.py:22-27`.\n\n## Coverage\n\n| Epic | SWRs |\n| ---- | ---- |\n| EPIC-1 | SWR-001, SWR-002 |\n| EPIC-2 | SWR-003 |\n| EPIC-3 | SWR-004, SWR-005 |\n\n5 of 5 software requirements are assigned.\n"
+              },
+              {
+                "name": "grouping-basis",
+                "passed": false,
+                "weight": 1,
+                "explanation": "pattern not found in file requirements/export/epics.md",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "not-provisional",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "software-requirements-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched ## Gaps found\\s+None\\.\\s*$",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "wrote-epics",
+                "passed": true,
+                "weight": 1,
+                "explanation": "requirements/export/epics.md exists as expected",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 0.9444444444444445,
+        "passRate": 0.6666666666666666,
+        "scoreWithout": 0.6666666666666666,
+        "passRateWithout": 0,
+        "delta": 0.2777777777777779
+      }
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 1,
+    "casesPassed": 0,
+    "overallScore": 0.9444444444444445,
+    "overallPassRate": 0.6666666666666666,
+    "meanDelta": 0.2777777777777779
+  }
+}

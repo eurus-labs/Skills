@@ -1,0 +1,187 @@
+{
+  "schemaVersion": 1,
+  "claudeVersion": "2.1.329",
+  "startedAt": "2026-11-20T03:10:27.115Z",
+  "durationSeconds": 35,
+  "costUsd": 0.2643104,
+  "partial": false,
+  "suite": {
+    "root": "<local>",
+    "ablation": "with-without",
+    "modelOverride": "claude-sonnet-5-5",
+    "judgeModel": "haiku",
+    "tagFilters": [
+      "behavior"
+    ],
+    "threshold": 1,
+    "concurrency": 2,
+    "plugins": [
+      {
+        "name": "presentation",
+        "version": "0.1.1",
+        "path": "<local>"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "workflow-slide-from-wordy-slide",
+      "dir": "evals/behavior/workflow-slide-from-wordy-slide",
+      "source": "mixed",
+      "promptMarkdown": "Slide 2 in deck.pptx is a wall of text. Turn it into a simple visual workflow slide. Keep the rest of the deck as it is.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 1800,
+      "maxTurns": 60,
+      "graders": [
+        {
+          "name": "original-not-saved-over",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Write",
+            "input_match": "\\.save\\(\\s*\\\\?[\"']\\.?/?deck\\.pptx",
+            "min": 0,
+            "max": 0
+          }
+        },
+        {
+          "name": "outcome",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "PASS if all of these hold, judging by the reply and the files it says it wrote:\n- The result is a new .pptx; `deck.pptx` itself was not overwritten.\n- Only slide 2 was rebuilt; slides 1 and 3 are unchanged.\n- The new slide shows the release flow as steps, not sentences: a ticket is opened, the regression suite runs, the ticket goes to the RCB for sign-off, ops deploys and closes it, with the fix-and-resubmit loop back from a failing suite.\n- \"RCB\" is kept as written. It is not expanded into a guessed name, unless the reply flags the expansion as an assumption.\n- The ticket-to-production time is shown as missing (for example `[DATA NEEDED]`, or the reply says it is unknown); no duration is invented.\n- The existing speaker note about the release freeze calendar is still in slide 2's notes.\n\nFAIL if any of these fails, or if the reply claims the slide was checked visually when nothing was rendered.",
+          "config": {
+            "criteria": "PASS if all of these hold, judging by the reply and the files it says it wrote:\n- The result is a new .pptx; `deck.pptx` itself was not overwritten.\n- Only slide 2 was rebuilt; slides 1 and 3 are unchanged.\n- The new slide shows the release flow as steps, not sentences: a ticket is opened, the regression suite runs, the ticket goes to the RCB for sign-off, ops deploys and closes it, with the fix-and-resubmit loop back from a failing suite.\n- \"RCB\" is kept as written. It is not expanded into a guessed name, unless the reply flags the expansion as an assumption.\n- The ticket-to-production time is shown as missing (for example `[DATA NEEDED]`, or the reply says it is unknown); no duration is invented.\n- The existing speaker note about the release freeze calendar is still in slide 2's notes.\n\nFAIL if any of these fails, or if the reply claims the slide was checked visually when nothing was rendered.",
+            "focus": "last_message"
+          }
+        },
+        {
+          "name": "used-skill",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?workflow-slides-blocks\""
+          }
+        },
+        {
+          "name": "validated-package",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Bash",
+            "input_match": "check_pptx\\.py",
+            "arm": "with-only"
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 10,
+            "costUsd": 0.1524753,
+            "judgeCostUsd": 0.0005914,
+            "durationSeconds": 34,
+            "startedAt": "2026-11-20T03:10:27.155Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "original-not-saved-over",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Write called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "outcome",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "I couldn't build the slide because every location I'm allowed to write to is read-only in this session. I haven't changed anything, and `deck.pptx` is untouched.\n\n- **What failed:** The working directory (`<local>`) is mounted read-only. So are `$TMPDIR` (`<local>`) and `<local>`. Even a `touch` fails with \"Read-only file system\". The skill needs somewhere to write the refined copy, my build script and a render.\n- **What I didn't do:** I didn't try to remount anything or write outside the sandbox. Changing the sandbox is your decision.\n\n**What I read:** The deck has three slides, and slide 2 (\"How a release gets approved\") is the only one I'd touch. Slides 1 and 3 and your speaker note about the release freeze calendar would stay as they are.\n\n**The slide I'd build** (the build script is ready, and I haven't run it):\n- **Message:** nothing ships until the suite is green and the RCB signs off.\n- **Block 1, \"Checks\" (dashed):**\n  - ① Open ticket (Developer)\n  - ② Regression suite (QA lead)\n  - ③ RCB sign-off\n  - An orange dashed loop-back from ② to ① labelled \"Fail: fix, resubmit\".\n- **Block 2, \"Release\" (solid):**\n  - ④ Deploy (Ops, next window)\n  - \"Avg. ticket to production: [DATA NEEDED]\". I'd keep the average as a placeholder rather than invent a number.\n- **Look:** Calibri from your theme, blue `0F4C81` and teal `12807A` with one orange accent, and outlined icons.\n- **Notes:** The full paragraphs move into the speaker notes, after your existing note.\n- **Output:** A new `deck-refined.pptx` next to the original.\n\n**What I need from you:** Either make a writable location available (for example, remount the working directory read-write), or tell me a path I can write to. I'll then build it, check that only slide 2 changed, and render it to look at it.\n\n**A question about the story:** \"RCB\" isn't expanded anywhere in the deck, so I'll leave it as written. Should the slide spell it out for the audience? The fail loop can also repeat several times. Do you want to show how often it repeats, or leave it as a single loop?"
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "validated-package",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 6,
+            "costUsd": 0.11183509999999999,
+            "judgeCostUsd": 0.0006939,
+            "durationSeconds": 35,
+            "startedAt": "2026-11-20T03:10:27.155Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "original-not-saved-over",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Write called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "outcome",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "I couldn't change `deck.pptx`. The sandbox mounts every directory I'm allowed to write to as read-only, including the working directory, so my first attempt to save the file failed with \"Read-only file system\". The deck is unchanged.\n\nSlide 2 (\"How a release gets approved\") has five dense paragraphs. Here's the layout I built for it:\n\n- **Four step boxes in a row, joined by arrows:**\n  1. Developer: opens a release ticket and attaches the change list\n  2. QA lead: runs the regression suite\n  3. RCB: signs off the release\n  4. Ops: deploys in the next window and closes the ticket\n- **Green label** on the arrow from QA to RCB.\n- **Rework loop:** an accent-colored arrow runs from the QA box back to the Developer box, labelled \"Any failure: fix and resubmit (can repeat)\".\n- **Footer note:** \"Average time from ticket to production: TBD (waiting for data from ops)\".\n\nThe new shapes would use the theme's colors and the title's left edge and width. Slides 1 and 3 and the slide 2 title would stay as they are.\n\nTo get this done, either of these would work:\n- Make the working directory or `$TMPDIR` writable, or add it to the sandbox's write allowlist, and I'll build the slide and render it to check the layout.\n- Tell me where I can write, such as a copy like `deck_v2.pptx` in a writable folder.\n\nThe slide size is 16:9, but the template's placeholders are laid out for a 4:3 width, so the right quarter of every slide is empty. I'd match the title's alignment rather than fix that, since you asked me to leave the rest of the deck alone."
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 0.5,
+        "passRate": 0,
+        "scoreWithout": 0.5,
+        "passRateWithout": 0,
+        "delta": 0
+      }
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 1,
+    "casesPassed": 0,
+    "overallScore": 0.5,
+    "overallPassRate": 0,
+    "meanDelta": 0
+  }
+}

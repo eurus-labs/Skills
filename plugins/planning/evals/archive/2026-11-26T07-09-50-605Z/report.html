@@ -1,0 +1,905 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Eval report — planning v0.1.0</title>
+</head>
+<body>
+<style>
+:root{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme:dark){:root{--plane:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink-2:#c3c2b7;--ink-3:#898781;--hairline:rgba(255,255,255,.10);--grid:#2c2c2a;--inset:rgba(255,255,255,.05);--accent:#3987e5;--base-fill:#898781;--delta-good:#0ca30c;--good:#0ca30c;--warning:#fab219;--critical:#e06c6c;color-scheme:dark}}
+:root[data-theme="dark"]{--plane:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink-2:#c3c2b7;--ink-3:#898781;--hairline:rgba(255,255,255,.10);--grid:#2c2c2a;--inset:rgba(255,255,255,.05);--accent:#3987e5;--base-fill:#898781;--delta-good:#0ca30c;--good:#0ca30c;--warning:#fab219;--critical:#e06c6c;color-scheme:dark}
+:root[data-theme="light"]{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--plane);color:var(--ink);
+  font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:880px;margin:0 auto;padding:40px 24px 64px;display:flex;flex-direction:column;gap:20px}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+header h1{margin:2px 0 0;font-size:24px;font-weight:600;line-height:1.25;text-wrap:balance}
+.meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;color:var(--ink-2);font-size:13px}
+.meta .num{font-variant-numeric:tabular-nums lining-nums}
+.banner{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;
+  border:1px solid var(--hairline);background:var(--surface);font-size:13px}
+.banner .chip-warn{color:var(--warning);font-weight:600}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--hairline);border-radius:10px;padding:14px 16px;
+  display:flex;flex-direction:column;gap:4px}
+.tile .label{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.tile .value{font-size:26px;font-weight:600;font-variant-numeric:tabular-nums lining-nums;line-height:1.1}
+.tile.hero .value{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:48px}
+.tile .sub{font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.tile .value.delta-pos{color:var(--delta-good)}
+.tile .value.delta-neg{color:var(--critical)}
+.toolbar{display:flex;gap:8px;justify-content:flex-end}
+.toolbar button{font:12px system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink-2);
+  background:var(--surface);border:1px solid var(--hairline);border-radius:6px;padding:4px 10px;cursor:pointer}
+.toolbar button:hover{color:var(--ink)}
+.toolbar button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.case{background:var(--surface);border:1px solid var(--hairline);border-radius:10px;padding:18px 20px;
+  display:flex;flex-direction:column;gap:10px}
+.case-regressed{border-left:3px solid var(--critical)}
+.verdict{margin:6px 0 0;font-size:15px}
+.verdict .delta{font-size:15px}
+.flag{font-size:11px;font-weight:600;color:var(--warning);white-space:nowrap}
+.star{color:var(--warning);font-size:.45em;vertical-align:super;line-height:0;cursor:help}
+.legend summary{cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
+.legend-list{margin:8px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--ink-2)}
+.case-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.case-head h2{margin:0;font-size:16px;font-weight:600}
+.case-head .spacer{flex:1}
+.case-score{font-size:15px;font-weight:600}
+.mono{font:12px "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.num{font-variant-numeric:tabular-nums lining-nums}
+.muted{color:var(--ink-3);font-size:12px}
+.meter{display:inline-block;position:relative;width:120px;height:6px;border-radius:4px;background:var(--grid);
+  vertical-align:middle}
+.meter>span{display:block;height:100%;border-radius:4px;max-width:100%}
+.meter .tick{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink-3);border-radius:1px}
+.m-accent>span{background:var(--accent)}
+.m-base>span{background:var(--base-fill)}
+.delta{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.delta-pos{color:var(--delta-good)}
+.delta-neg{color:var(--critical)}
+.delta-zero{color:var(--ink-3)}
+details.section{border-top:1px solid var(--grid);padding-top:10px}
+details.section>summary{cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--ink-2);list-style-position:outside;margin-left:2px}
+details.section>summary:hover{color:var(--ink)}
+details.section[open]>summary{margin-bottom:8px}
+.md{display:flex;flex-direction:column;gap:8px;background:var(--inset);border-radius:8px;
+  padding:12px 14px;overflow-wrap:break-word}
+.md>:first-child{margin-top:0}
+.md h1,.md h2,.md h3,.md h4,.md h5,.md h6{margin:4px 0 0;font-size:1em;font-weight:600;line-height:1.3}
+.md p,.md ul,.md ol,.md blockquote,.md table,.md pre,.md hr{margin:0}
+.md ul,.md ol{display:flex;flex-direction:column;gap:4px;padding-left:20px}
+.md blockquote{border-left:2px solid var(--hairline);padding-left:10px;color:var(--ink-2)}
+.md :not(pre)>code{background:var(--inset);padding:1px 4px;border-radius:4px;
+  font:.92em "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.md pre{background:var(--inset);border:1px solid var(--hairline);padding:10px 12px;border-radius:6px;
+  overflow-x:auto;font:12px/1.5 "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.md pre code{background:none;padding:0;font:inherit}
+.md table{width:100%;border-collapse:collapse}
+.md th,.md td{padding:5px 8px;text-align:left;vertical-align:top;border-bottom:1px solid var(--grid)}
+.md th{font-weight:600;color:var(--ink-2)}
+.md a{color:var(--accent);text-decoration:none}
+.md a:hover{text-decoration:underline}
+.grader-def{display:flex;flex-direction:column;gap:6px;padding:8px 0}
+.grader-def+.grader-def{border-top:1px solid var(--grid)}
+.grader-def-head{display:flex;align-items:baseline;gap:8px}
+.grader-name{font:13px "SF Mono",ui-monospace,Menlo,Consolas,monospace;font-weight:600}
+.badge{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);
+  border:1px solid var(--hairline);border-radius:999px;padding:1px 8px}
+.config{display:flex;flex-direction:column;gap:2px;background:var(--inset);border-radius:8px;padding:10px 14px}
+.config code{font:12px "SF Mono",ui-monospace,Menlo,Consolas,monospace;overflow-wrap:anywhere}
+.arm{display:flex;flex-direction:column;gap:8px;padding:6px 0}
+.arm+.arm{border-top:1px dashed var(--grid);margin-top:4px;padding-top:12px}
+.arm-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.arm-label{font-size:13px;font-weight:600}
+.run{border:1px solid var(--grid);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.run-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.run-title{font-size:12px;font-weight:600;color:var(--ink-2)}
+.run-error .explanation{color:var(--ink-2)}
+.note{font-size:12px;color:var(--ink-2)}
+.graders{display:flex;flex-direction:column;gap:4px}
+details.grader{border-radius:6px}
+details.grader>summary{cursor:pointer;display:flex;align-items:baseline;gap:8px;padding:3px 4px;
+  border-radius:6px;list-style:none}
+details.grader>summary::-webkit-details-marker{display:none}
+details.grader>summary::before{content:'▸';font-size:10px;color:var(--ink-3);flex:none;
+  transition:transform .12s ease}
+details.grader[open]>summary::before{transform:rotate(90deg)}
+details.grader>summary:hover{background:var(--inset)}
+details.grader>summary:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.grader-body{padding:6px 8px 8px 24px;display:flex;flex-direction:column;gap:6px}
+.chip{font-size:11px;font-weight:600;border-radius:999px;padding:1px 8px;white-space:nowrap}
+.chip-pass{color:var(--good);border:1px solid currentColor}
+.chip-fail{color:var(--critical);border:1px solid currentColor}
+.chip.chip-warn{color:var(--warning);border:1px solid currentColor}
+.explanation{margin:0;font-size:13px;color:var(--ink-2);white-space:pre-wrap;overflow-wrap:break-word}
+.kv{display:flex;gap:8px;font-size:12px;color:var(--ink-3)}
+.votes{font-variant-numeric:tabular-nums;letter-spacing:.1em}
+pre.evidence{margin:0;background:var(--inset);border:1px solid var(--hairline);border-radius:6px;
+  padding:8px 10px;overflow-x:auto;max-height:320px;
+  font:12px/1.5 "SF Mono",ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-wrap:break-word}
+footer{color:var(--ink-3);font-size:12px;text-align:center;padding-top:8px}
+@media (prefers-reduced-motion:no-preference){
+  details.grader>summary,.toolbar button{transition:background .12s ease,color .12s ease}
+}
+@media (prefers-reduced-motion:reduce){
+  details.grader>summary::before{transition:none}
+}
+@media print{
+  :root,:root[data-theme="dark"],:root[data-theme="light"]{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;color-scheme:light}
+  body{background:#fff}
+  .toolbar{display:none}
+  .case,.run,.grader-def{break-inside:avoid}
+  pre.evidence{max-height:none}
+}
+</style>
+<div class="wrap">
+<header>
+<div class="eyebrow">Plugin eval report</div>
+<h1>planning v0.1.0</h1>
+<p class="verdict">Plugin effect: <span class="delta delta-pos">↑ +27.8 pts</span> vs baseline — improved 1 · flat 0 · regressed 0 of 1 case.</p>
+<div class="meta">
+<span class="mono">.</span>
+<span>Claude Code v2.1.332</span>
+<span class="num">2026-11-26 07:09 UTC</span>
+<span class="num">55s</span>
+<span class="num">$0.60</span>
+<span class="num">6 runs</span>
+<span class="num">3 in flight</span>
+
+<span>model claude-sonnet-5-5</span>
+<span>judge haiku</span>
+<span class="num">threshold 100%</span>
+<span>filtered: --case group-epics-* --tag behavior</span>
+</div>
+</header>
+
+<section class="tiles">
+<div class="tile hero"><span class="label">Suite score · with plugin</span><span class="value">94.4%</span><span class="sub">mean of per-case scores</span></div>
+<div class="tile"><span class="label">Ablation Δ</span><span class="value num delta-pos">↑ +27.8</span><span class="sub">score points vs baseline, 1 of 1 case</span></div>
+<div class="tile"><span class="label">Baseline score</span><span class="value num">66.7%</span><span class="sub">without the plugin</span></div>
+<div class="tile"><span class="label">Cases</span><span class="value num">1</span><span class="sub">0 of 1 ≥ 100% threshold</span></div>
+<div class="tile"><span class="label">Perfect runs</span><span class="value num">66.7%</span><span class="sub">runs where every grader passed</span></div>
+</section>
+<details class="section legend">
+<summary>How to read this report</summary>
+<ul class="legend-list">
+<li>A run's score is the weighted fraction of its graders that passed; a "perfect" run passed every grader.</li>
+<li>A case's score is the mean of its runs; a case passes when its score is at or above the 100% threshold (the tick on each case bar).</li>
+<li>The suite score is the mean of the per-case scores.</li>
+<li>Judge votes are independent samples of the LLM judge; the majority decides pass or fail.</li>
+<li>"With plugin" and "Baseline" runs are identical except for the plugin being loaded; Δ is the with-plugin score minus the baseline score.</li>
+
+</ul>
+</details>
+<div class="toolbar"><button type="button" data-act="expand">Expand all</button><button type="button" data-act="collapse">Collapse all</button></div>
+<article class="case" id="case-1">
+<div class="case-head">
+<h2>group-epics-from-software-requirements</h2>
+<span class="muted mono">evals/behavior/group-epics-from-software-requirements</span>
+<span class="spacer"></span>
+
+<span class="delta delta-pos">↑ +27.8 pts</span>
+<span class="muted">with plugin</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:94.4%"></span><i class="tick" style="left:100.0%"></i></span>
+<span class="num case-score">94.4%</span>
+</div>
+
+<details class="section" open>
+<summary>Results</summary>
+<section class="arm">
+<div class="arm-head">
+<span class="arm-label">With plugin</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:94.4%"></span></span>
+<span class="num">94.4%</span>
+<span class="muted num">66.7% of runs perfect</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">10 turns · $0.12 · 07:09:50 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">analysis-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched superseded by SYS-006 and SYS-007\.\s*$</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence"># Epics — export
+
+Grouping basis: the user outcome each epic delivers.
+
+## E-01 — Export request rules
+
+- Goal: a user can export up to 100 reports in one request, and only reports the user owns.
+- Covers: SWR-001, SWR-002
+- Acceptance criteria:
+  - A request for 100 reports succeeds and returns 100 outputs.
+  - A request for 101 reports is rejected with an error, and no output is written.
+  - A request from the owner of a report succeeds.
+  - A request from a teammate of the owner is rejected with an error, and no output is written.
+- Depends on epics: none
+- Risks: other limits in the service may still assume 50; the owner-only rule removes teammate access that users have today, so teammates need to be told.
+- Code areas: `src/exporter.py:8`, `src/exporter.py:33`, `src/exporter.py:17-19`
+
+## E-02 — Nightly export
+
+- Goal: a user can schedule an export that runs every night, in UTC.
+- Covers: SWR-003
+- Acceptance criteria:
+  - A scheduled export that is due runs once between 00:00 and 24:00 UTC, and its output is written.
+  - A scheduled export that fails is reported to the user and runs again the next night.
+- Depends on epics: E-01
+- Risks: no scheduler exists, so one must be added; scheduled runs must obey the limit and owner rules from E-01.
+- Code areas: new, beside `src/exporter.py`
+
+## E-03 — Audit trail
+
+- Goal: every export is recorded in the audit log.
+- Covers: SWR-004
+- Acceptance criteria:
+  - After an export of 3 reports, the audit log holds 3 new entries, one per report.
+  - An export that is rejected adds no entry for the report it rejected.
+- Depends on epics: none
+- Risks: the requirement is already met; the work is to verify it, and to keep it true when E-01 and E-02 change the export path.
+- Code areas: `src/exporter.py:42`
+
+## E-04 — Export speed
+
+- Goal: a user gets a report of up to 10,000 rows exported within 30 seconds.
+- Covers: SWR-005
+- Acceptance criteria:
+  - A report of 10,000 rows is exported in 30 seconds or less, measured from the request to the written output.
+  - A report of 10,000 rows that takes 31 seconds fails the criterion.
+- Depends on epics: none
+- Risks: the time depends on the environment, so the measurement setup must be fixed before the criterion is trusted.
+- Code areas: `src/exporter.py:22-27`
+
+## Traceability
+
+| System requirement | Software requirement | Epic |
+| ------------------ | -------------------- | ---- |
+| SYS-001 | SWR-001 | E-01 |
+| SYS-003 | SWR-002 | E-01 |
+| SYS-004 | SWR-003 | E-02 |
+| SYS-006 | SWR-004 | E-03 |
+| SYS-007 | SWR-005 | E-04 |
+</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">grouping-basis</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched [Gg]rouping [Bb]asis</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">not-provisional</span>  </summary>
+<div class="grader-body">
+<p class="explanation">pattern absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">software-requirements-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched ## Gaps found\s+None\.\s*$</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">wrote-epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/epics.md exists as expected</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 2</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:83.3%"></span></span>
+<span class="num">83.3%</span>
+<span class="muted num">8 turns · $0.12 · 07:09:50 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">analysis-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched superseded by SYS-006 and SYS-007\.\s*$</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: FAIL FAIL PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✗ ✗ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence"># Epics — export
+
+Grouping basis: the user outcome each epic delivers.
+
+## E-01 — Controlled export requests
+
+- Goal: a user can export up to 100 reports in one request, and only reports they own.
+- Covers: SWR-001, SWR-002
+- Acceptance criteria:
+  - A request for 100 reports succeeds and returns 100 outputs.
+  - A request for 101 reports is rejected with an error, and no output is written.
+  - A request from the owner of a report succeeds.
+  - A request from a teammate of the owner is rejected with an error, and no output is written.
+- Depends on epics: none
+- Risks: other limits in the service may still assume 50; removing the teammate rule at `src/exporter.py:19` may break teammates who rely on it today (the PO settled owner-only in DOU-002). Both checks sit in `export_reports`, so the change is made and tested together.
+- Code areas: `src/exporter.py:8`, `src/exporter.py:33`, `src/exporter.py:17-19`
+
+## E-02 — Nightly export
+
+- Goal: a user can schedule an export that runs once every night, in UTC.
+- Covers: SWR-003
+- Acceptance criteria:
+  - A scheduled export that is due runs once between 00:00 and 24:00 UTC, and its output is written.
+  - A scheduled export that fails is reported to the user and runs again the next night.
+- Depends on epics: E-01 (a scheduled run goes through the same limit and owner checks)
+- Risks: no scheduler exists, so one must be chosen and operated; a failed run must not affect the next night&apos;s run.
+- Code areas: new, beside `src/exporter.py` (no scheduler exists in `src/exporter.py`)
+
+## E-03 — Trustworthy exports: audit and speed
+
+- Goal: every export is audited, and a report of up to 10,000 rows is exported within 30 seconds.
+- Covers: SWR-004, SWR-005
+- Acceptance criteria:
+  - After an export of 3 reports, the audit log holds 3 new entries, one per report.
+  - An export that is rejected adds no entry for the report it rejected.
+  - A report of 10,000 rows is exported in 30 seconds or less, measured from the request to the written output.
+  - A report of 10,000 rows that takes 31 seconds fails the criterion.
+- Depends on epics: E-01 (the rejection rules decide which exports are audited)
+- Risks: SWR-004 is already met, so it is only verified here. In `export_reports` the audit entry is written per report inside the loop (`src/exporter.py:42`), so a request rejected at a later report leaves entries for earlier ones that were exported; confirm this is intended. The 30-second criterion needs a measured baseline, because the row-by-row write may be too slow.
+- Code areas: `src/exporter.py:42`, `src/exporter.py:22-27`
+
+## Traceability
+
+| System requirement | Software requirement | Epic |
+| ------------------ | -------------------- | ---- |
+| SYS-001 | SWR-001 | E-01 |
+| SYS-003 | SWR-002 | E-01 |
+| SYS-004 | SWR-003 | E-02 |
+| SYS-006 | SWR-004 | E-03 |
+| SYS-007 | SWR-005 | E-03 |
+</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">grouping-basis</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched [Gg]rouping [Bb]asis</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">not-provisional</span>  </summary>
+<div class="grader-body">
+<p class="explanation">pattern absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">software-requirements-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched ## Gaps found\s+None\.\s*$</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">wrote-epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/epics.md exists as expected</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 3</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">7 turns · $0.10 · 07:09:50 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">analysis-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched superseded by SYS-006 and SYS-007\.\s*$</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence"># Epics — export
+
+Grouping basis: the user outcome each epic delivers.
+
+## E-01 — Controlled export requests
+
+- Goal: a user can export up to 100 reports in one request, and only reports they own.
+- Covers: SWR-001, SWR-002
+- Acceptance criteria:
+  - A request for 100 reports succeeds and returns 100 outputs.
+  - A request for 101 reports is rejected with an error, and no output is written.
+  - A request from the owner of a report succeeds.
+  - A request from a teammate of the owner is rejected with an error, and no output is written.
+- Depends on epics: none
+- Risks: other limits in the service may still assume 50; the owner check and the limit change the same request path, so they should be tested together.
+- Code areas: `src/exporter.py:8`, `src/exporter.py:33`, `src/exporter.py:17-19`
+
+## E-02 — Fast and audited export
+
+- Goal: every export finishes quickly and leaves an audit record.
+- Covers: SWR-004, SWR-005
+- Acceptance criteria:
+  - A report of 10,000 rows is exported in 30 seconds or less, measured from the request to the written output.
+  - A report of 10,000 rows that takes 31 seconds fails the criterion.
+  - After an export of 3 reports, the audit log holds 3 new entries, one per report.
+  - An export that is rejected adds no entry for the report it rejected.
+- Depends on epics: E-01
+- Risks: the audit write (already met, to be verified only) could slow large exports and break the 30-second target; raising the limit to 100 reports multiplies the load.
+- Code areas: `src/exporter.py:42`, `src/exporter.py:22-27`
+
+## E-03 — Nightly export
+
+- Goal: a user can schedule an export that runs every night, in UTC.
+- Covers: SWR-003
+- Acceptance criteria:
+  - A scheduled export that is due runs once between 00:00 and 24:00 UTC, and its output is written.
+  - A scheduled export that fails is reported to the user and runs again the next night.
+- Depends on epics: E-01
+- Risks: no scheduler exists today, so this is new infrastructure; scheduled runs must obey the same limit and owner rules as manual ones.
+- Code areas: new, beside `src/exporter.py`
+
+## Traceability
+
+| System requirement | Software requirement | Epic |
+| ------------------ | -------------------- | ---- |
+| SYS-001 | SWR-001 | E-01 |
+| SYS-003 | SWR-002 | E-01 |
+| SYS-004 | SWR-003 | E-03 |
+| SYS-006 | SWR-004 | E-02 |
+| SYS-007 | SWR-005 | E-02 |
+</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">grouping-basis</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched [Gg]rouping [Bb]asis</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">not-provisional</span>  </summary>
+<div class="grader-body">
+<p class="explanation">pattern absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">software-requirements-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched ## Gaps found\s+None\.\s*$</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">wrote-epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/epics.md exists as expected</p>
+
+</div>
+</details></div>
+</div>
+</section><section class="arm">
+<div class="arm-head">
+<span class="arm-label">Baseline (no plugin)</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:66.7%"></span></span>
+<span class="num">66.7%</span>
+<span class="muted num">0% of runs perfect</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:66.7%"></span></span>
+<span class="num">66.7%</span>
+<span class="muted num">6 turns · $0.09 · 07:10:20 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">analysis-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched superseded by SYS-006 and SYS-007\.\s*$</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: FAIL FAIL FAIL</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✗ ✗ ✗</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence"># Epics — export
+
+Grouping of the software requirements in `software-requirements.md`. Each SWR is in exactly one epic.
+
+## EPIC-01 — Export control and compliance
+
+Goal: an export request is allowed only within the agreed limits and for the report&apos;s owner, and every export leaves an audit trace.
+
+| SWR | Title | Status |
+| --- | ----- | ------ |
+| SWR-001 | Limit per request | changes existing behavior |
+| SWR-002 | Owner-only export | changes existing behavior |
+| SWR-004 | Audit record | already met |
+
+Traces to: SYS-001, SYS-003, SYS-006 (DOU-001, DOU-002, DOU-004)
+
+## EPIC-02 — Scheduled export
+
+Goal: a user can schedule an export that runs every night in UTC and recovers from failure.
+
+| SWR | Title | Status |
+| --- | ----- | ------ |
+| SWR-003 | Nightly export | new |
+
+Traces to: SYS-004 (DOU-005)
+
+Note: this is the only epic that needs a new component (a scheduler); the other epics change `src/exporter.py`.
+
+## EPIC-03 — Export performance
+
+Goal: large reports export within a stated time.
+
+| SWR | Title | Status |
+| --- | ----- | ------ |
+| SWR-005 | Export time | new |
+
+Traces to: SYS-007 (DOU-003)
+
+## Coverage
+
+| SWR | Epic |
+| --- | ---- |
+| SWR-001 | EPIC-01 |
+| SWR-002 | EPIC-01 |
+| SWR-003 | EPIC-02 |
+| SWR-004 | EPIC-01 |
+| SWR-005 | EPIC-03 |
+
+All 5 software requirements are assigned.
+</pre>
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">grouping-basis</span>  </summary>
+<div class="grader-body">
+<p class="explanation">pattern not found in file requirements/export/epics.md</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">not-provisional</span>  </summary>
+<div class="grader-body">
+<p class="explanation">pattern absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">software-requirements-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched ## Gaps found\s+None\.\s*$</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">wrote-epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/epics.md exists as expected</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 2</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:66.7%"></span></span>
+<span class="num">66.7%</span>
+<span class="muted num">4 turns · $0.08 · 07:10:22 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">analysis-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched superseded by SYS-006 and SYS-007\.\s*$</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: FAIL FAIL FAIL</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✗ ✗ ✗</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence"># Epics — export
+
+Grouping of the software requirements in `software-requirements.md`. Every SWR is in exactly one epic.
+
+## EPIC-001 — Export governance
+
+- Goal: Control who may export and how much, and keep a record of every export.
+- Software requirements: SWR-001 (limit per request), SWR-002 (owner-only export), SWR-004 (audit record)
+- System requirements: SYS-001, SYS-003, SYS-006
+- Status: two change existing behavior (SWR-001, SWR-002); SWR-004 is already met
+
+## EPIC-002 — Scheduled export
+
+- Goal: Let a user have an export run on its own every night.
+- Software requirements: SWR-003 (nightly export)
+- System requirements: SYS-004
+- Status: new; no scheduler exists
+
+## EPIC-003 — Export performance
+
+- Goal: Large reports export in a bounded time.
+- Software requirements: SWR-005 (export time)
+- System requirements: SYS-007
+- Status: new
+
+## Coverage
+
+| SWR | Epic |
+| --- | ---- |
+| SWR-001 | EPIC-001 |
+| SWR-002 | EPIC-001 |
+| SWR-003 | EPIC-002 |
+| SWR-004 | EPIC-001 |
+| SWR-005 | EPIC-003 |
+
+## Notes
+
+- Grouping is by theme, chosen without asking the PO. SWR-004 could stand as its own compliance epic; it sits in EPIC-001 because it is a single, already-met requirement about the same export action.
+</pre>
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">grouping-basis</span>  </summary>
+<div class="grader-body">
+<p class="explanation">pattern not found in file requirements/export/epics.md</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">not-provisional</span>  </summary>
+<div class="grader-body">
+<p class="explanation">pattern absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">software-requirements-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched ## Gaps found\s+None\.\s*$</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">wrote-epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/epics.md exists as expected</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 3</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:66.7%"></span></span>
+<span class="num">66.7%</span>
+<span class="muted num">6 turns · $0.09 · 07:10:26 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">analysis-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched superseded by SYS-006 and SYS-007\.\s*$</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: FAIL FAIL FAIL</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✗ ✗ ✗</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence"># Epics — export
+
+Grouping of the software requirements in `software-requirements.md`. Every SWR is in exactly one epic.
+
+## EPIC-1 — Export request rules
+
+Who may export and how much in one request.
+
+| SWR | Title | Status |
+| --- | ----- | ------ |
+| SWR-001 | Limit per request (100) | changes existing behavior |
+| SWR-002 | Owner-only export | changes existing behavior |
+
+Both change checks in `src/exporter.py` (lines 8, 33 and 17-19), so one team can do them together.
+
+## EPIC-2 — Scheduled export
+
+A user schedules an export that runs every night.
+
+| SWR | Title | Status |
+| --- | ----- | ------ |
+| SWR-003 | Nightly export (UTC, retry next night) | new |
+
+Nothing schedules work today, so this is the only epic that needs a new component.
+
+## EPIC-3 — Export assurance (compliance and performance)
+
+Exports stay auditable and fast.
+
+| SWR | Title | Status |
+| --- | ----- | ------ |
+| SWR-004 | Audit record | already met |
+| SWR-005 | Export time (10,000 rows in 30 s) | new |
+
+SWR-004 needs only verification, not new code. SWR-005 needs a change to the row-by-row writing at `src/exporter.py:22-27`.
+
+## Coverage
+
+| Epic | SWRs |
+| ---- | ---- |
+| EPIC-1 | SWR-001, SWR-002 |
+| EPIC-2 | SWR-003 |
+| EPIC-3 | SWR-004, SWR-005 |
+
+5 of 5 software requirements are assigned.
+</pre>
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">grouping-basis</span>  </summary>
+<div class="grader-body">
+<p class="explanation">pattern not found in file requirements/export/epics.md</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">not-provisional</span>  </summary>
+<div class="grader-body">
+<p class="explanation">pattern absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">software-requirements-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched ## Gaps found\s+None\.\s*$</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">wrote-epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/epics.md exists as expected</p>
+
+</div>
+</details></div>
+</div>
+</section>
+</details>
+<details class="section" open>
+<summary>Prompt</summary>
+<div class="md"><p>Group the software requirements in requirements/export/ into epics. I won't be around to answer questions, so do not wait for me.</p>
+</div>
+</details>
+<details class="section" open>
+<summary>Graders — what "good" means for this case</summary>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">analysis-untouched</span><span class="badge">regex</span></div>
+<div class="config"><div class="kv"><span>target</span><code>{&quot;source&quot;:&quot;file&quot;,&quot;path&quot;:&quot;requirements/export/analysis.md&quot;}</code></div><div class="kv"><span>pattern</span><code>&quot;superseded by SYS-006 and SYS-007\\.\\s*$&quot;</code></div><div class="kv"><span>flags</span><code>&quot;&quot;</code></div><div class="kv"><span>match</span><code>&quot;contains&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">epics</span><span class="badge">llm</span></div>
+<div class="md"><p>The text is the <code>epics.md</code> the run wrote from a <code>software-requirements.md</code> with five software requirements for a report export: SWR-001 (accept up to 100 reports per request), SWR-002 (owner-only export), SWR-003 (nightly export), SWR-004 (audit record of every export) and SWR-005 (export of 10,000 rows within 30 seconds).</p>
+<p>PASS if all of these hold:</p>
+<ul>
+<li>The grouping basis is stated first, before the epics (the user outcome by default).</li>
+<li>Each of SWR-001 to SWR-005 is on the <code>Covers:</code> line of exactly one epic, no software requirement is in two epics, and there is no list of requirements left out.</li>
+<li>Every epic has a goal, the <code>SWR-</code> IDs it covers, acceptance criteria that state observable behavior with at least one negative case (for example the 101st report rejected, or a teammate's request rejected), dependencies, risks and code areas.</li>
+<li>The acceptance criteria come from the verification criteria of the epic's software requirements, and an epic that holds the export-time requirement keeps 10,000 rows and 30 seconds in its criteria.</li>
+<li>A traceability table maps each <code>SYS-</code> to its <code>SWR-</code> and its <code>E-</code>.</li>
+<li>No epic states something that none of the five software requirements states.
+FAIL if any of these is missing, if a software requirement is in no epic or in two, if the file is headed <code>Provisional</code>, or if an epic is invented.</li>
+</ul>
+</div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">grouping-basis</span><span class="badge">regex</span></div>
+<div class="config"><div class="kv"><span>target</span><code>{&quot;source&quot;:&quot;file&quot;,&quot;path&quot;:&quot;requirements/export/epics.md&quot;}</code></div><div class="kv"><span>pattern</span><code>&quot;[Gg]rouping [Bb]asis&quot;</code></div><div class="kv"><span>flags</span><code>&quot;&quot;</code></div><div class="kv"><span>match</span><code>&quot;contains&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">not-provisional</span><span class="badge">regex</span></div>
+<div class="config"><div class="kv"><span>target</span><code>{&quot;source&quot;:&quot;file&quot;,&quot;path&quot;:&quot;requirements/export/epics.md&quot;}</code></div><div class="kv"><span>pattern</span><code>&quot;(^|\\n)# [^\\n]*[Pp]rovisional&quot;</code></div><div class="kv"><span>flags</span><code>&quot;&quot;</code></div><div class="kv"><span>match</span><code>&quot;not_contains&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">software-requirements-untouched</span><span class="badge">regex</span></div>
+<div class="config"><div class="kv"><span>target</span><code>{&quot;source&quot;:&quot;file&quot;,&quot;path&quot;:&quot;requirements/export/software-requirements.md&quot;}</code></div><div class="kv"><span>pattern</span><code>&quot;## Gaps found\\s+None\\.\\s*$&quot;</code></div><div class="kv"><span>flags</span><code>&quot;&quot;</code></div><div class="kv"><span>match</span><code>&quot;contains&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">used-skill</span><span class="badge">tool_used</span></div>
+<div class="config"><div class="kv"><span>tool</span><code>&quot;Skill&quot;</code></div><div class="kv"><span>input_match</span><code>&quot;\&quot;skill\&quot;\\s*:\\s*\&quot;(?:[\\w-]+:)?group-epics\&quot;&quot;</code></div><div class="kv"><span>arm</span><code>&quot;with-only&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">wrote-epics</span><span class="badge">file_exists</span></div>
+<div class="config"><div class="kv"><span>path</span><code>&quot;requirements/export/epics.md&quot;</code></div><div class="kv"><span>exists</span><code>true</code></div></div>
+</div>
+</details>
+</article>
+<footer>Generated by <code>claude plugin eval</code> · schema v1 · scores are not comparable across different suites</footer>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  var bar=document.querySelector('.toolbar');
+  if(!bar)return;
+  bar.addEventListener('click',function(e){
+    var b=e.target&&e.target.closest('button');
+    if(!b)return;
+    var open=b.dataset.act==='expand';
+    document.querySelectorAll('details.section, details.grader').forEach(function(d){d.open=open});
+  });
+});
+// Collapsed details vanish from print/PDF; these pages are share artifacts.
+window.addEventListener('beforeprint',function(){
+  document.querySelectorAll('details').forEach(function(d){
+    if(!d.open){d.dataset.printOpened='1';d.open=true}
+  });
+});
+window.addEventListener('afterprint',function(){
+  document.querySelectorAll('details[data-print-opened]').forEach(function(d){
+    d.open=false;delete d.dataset.printOpened;
+  });
+});
+</script>
+</body>
+</html>

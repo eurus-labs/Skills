@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Eval report — docs v1.7.0</title>
+</head>
+<body>
+<style>
+:root{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme:dark){:root{--plane:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink-2:#c3c2b7;--ink-3:#898781;--hairline:rgba(255,255,255,.10);--grid:#2c2c2a;--inset:rgba(255,255,255,.05);--accent:#3987e5;--base-fill:#898781;--delta-good:#0ca30c;--good:#0ca30c;--warning:#fab219;--critical:#e06c6c;color-scheme:dark}}
+:root[data-theme="dark"]{--plane:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink-2:#c3c2b7;--ink-3:#898781;--hairline:rgba(255,255,255,.10);--grid:#2c2c2a;--inset:rgba(255,255,255,.05);--accent:#3987e5;--base-fill:#898781;--delta-good:#0ca30c;--good:#0ca30c;--warning:#fab219;--critical:#e06c6c;color-scheme:dark}
+:root[data-theme="light"]{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--plane);color:var(--ink);
+  font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:880px;margin:0 auto;padding:40px 24px 64px;display:flex;flex-direction:column;gap:20px}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+header h1{margin:2px 0 0;font-size:24px;font-weight:600;line-height:1.25;text-wrap:balance}
+.meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;color:var(--ink-2);font-size:13px}
+.meta .num{font-variant-numeric:tabular-nums lining-nums}
+.banner{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;
+  border:1px solid var(--hairline);background:var(--surface);font-size:13px}
+.banner .chip-warn{color:var(--warning);font-weight:600}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--hairline);border-radius:10px;padding:14px 16px;
+  display:flex;flex-direction:column;gap:4px}
+.tile .label{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.tile .value{font-size:26px;font-weight:600;font-variant-numeric:tabular-nums lining-nums;line-height:1.1}
+.tile.hero .value{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:48px}
+.tile .sub{font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.tile .value.delta-pos{color:var(--delta-good)}
+.tile .value.delta-neg{color:var(--critical)}
+.toolbar{display:flex;gap:8px;justify-content:flex-end}
+.toolbar button{font:12px system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink-2);
+  background:var(--surface);border:1px solid var(--hairline);border-radius:6px;padding:4px 10px;cursor:pointer}
+.toolbar button:hover{color:var(--ink)}
+.toolbar button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.case{background:var(--surface);border:1px solid var(--hairline);border-radius:10px;padding:18px 20px;
+  display:flex;flex-direction:column;gap:10px}
+.case-regressed{border-left:3px solid var(--critical)}
+.verdict{margin:6px 0 0;font-size:15px}
+.verdict .delta{font-size:15px}
+.flag{font-size:11px;font-weight:600;color:var(--warning);white-space:nowrap}
+.star{color:var(--warning);font-size:.45em;vertical-align:super;line-height:0;cursor:help}
+.legend summary{cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
+.legend-list{margin:8px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--ink-2)}
+.case-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.case-head h2{margin:0;font-size:16px;font-weight:600}
+.case-head .spacer{flex:1}
+.case-score{font-size:15px;font-weight:600}
+.mono{font:12px "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.num{font-variant-numeric:tabular-nums lining-nums}
+.muted{color:var(--ink-3);font-size:12px}
+.meter{display:inline-block;position:relative;width:120px;height:6px;border-radius:4px;background:var(--grid);
+  vertical-align:middle}
+.meter>span{display:block;height:100%;border-radius:4px;max-width:100%}
+.meter .tick{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink-3);border-radius:1px}
+.m-accent>span{background:var(--accent)}
+.m-base>span{background:var(--base-fill)}
+.delta{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.delta-pos{color:var(--delta-good)}
+.delta-neg{color:var(--critical)}
+.delta-zero{color:var(--ink-3)}
+details.section{border-top:1px solid var(--grid);padding-top:10px}
+details.section>summary{cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--ink-2);list-style-position:outside;margin-left:2px}
+details.section>summary:hover{color:var(--ink)}
+details.section[open]>summary{margin-bottom:8px}
+.md{display:flex;flex-direction:column;gap:8px;background:var(--inset);border-radius:8px;
+  padding:12px 14px;overflow-wrap:break-word}
+.md>:first-child{margin-top:0}
+.md h1,.md h2,.md h3,.md h4,.md h5,.md h6{margin:4px 0 0;font-size:1em;font-weight:600;line-height:1.3}
+.md p,.md ul,.md ol,.md blockquote,.md table,.md pre,.md hr{margin:0}
+.md ul,.md ol{display:flex;flex-direction:column;gap:4px;padding-left:20px}
+.md blockquote{border-left:2px solid var(--hairline);padding-left:10px;color:var(--ink-2)}
+.md :not(pre)>code{background:var(--inset);padding:1px 4px;border-radius:4px;
+  font:.92em "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.md pre{background:var(--inset);border:1px solid var(--hairline);padding:10px 12px;border-radius:6px;
+  overflow-x:auto;font:12px/1.5 "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.md pre code{background:none;padding:0;font:inherit}
+.md table{width:100%;border-collapse:collapse}
+.md th,.md td{padding:5px 8px;text-align:left;vertical-align:top;border-bottom:1px solid var(--grid)}
+.md th{font-weight:600;color:var(--ink-2)}
+.md a{color:var(--accent);text-decoration:none}
+.md a:hover{text-decoration:underline}
+.grader-def{display:flex;flex-direction:column;gap:6px;padding:8px 0}
+.grader-def+.grader-def{border-top:1px solid var(--grid)}
+.grader-def-head{display:flex;align-items:baseline;gap:8px}
+.grader-name{font:13px "SF Mono",ui-monospace,Menlo,Consolas,monospace;font-weight:600}
+.badge{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);
+  border:1px solid var(--hairline);border-radius:999px;padding:1px 8px}
+.config{display:flex;flex-direction:column;gap:2px;background:var(--inset);border-radius:8px;padding:10px 14px}
+.config code{font:12px "SF Mono",ui-monospace,Menlo,Consolas,monospace;overflow-wrap:anywhere}
+.arm{display:flex;flex-direction:column;gap:8px;padding:6px 0}
+.arm+.arm{border-top:1px dashed var(--grid);margin-top:4px;padding-top:12px}
+.arm-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.arm-label{font-size:13px;font-weight:600}
+.run{border:1px solid var(--grid);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.run-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.run-title{font-size:12px;font-weight:600;color:var(--ink-2)}
+.run-error .explanation{color:var(--ink-2)}
+.note{font-size:12px;color:var(--ink-2)}
+.graders{display:flex;flex-direction:column;gap:4px}
+details.grader{border-radius:6px}
+details.grader>summary{cursor:pointer;display:flex;align-items:baseline;gap:8px;padding:3px 4px;
+  border-radius:6px;list-style:none}
+details.grader>summary::-webkit-details-marker{display:none}
+details.grader>summary::before{content:'▸';font-size:10px;color:var(--ink-3);flex:none;
+  transition:transform .12s ease}
+details.grader[open]>summary::before{transform:rotate(90deg)}
+details.grader>summary:hover{background:var(--inset)}
+details.grader>summary:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.grader-body{padding:6px 8px 8px 24px;display:flex;flex-direction:column;gap:6px}
+.chip{font-size:11px;font-weight:600;border-radius:999px;padding:1px 8px;white-space:nowrap}
+.chip-pass{color:var(--good);border:1px solid currentColor}
+.chip-fail{color:var(--critical);border:1px solid currentColor}
+.chip.chip-warn{color:var(--warning);border:1px solid currentColor}
+.explanation{margin:0;font-size:13px;color:var(--ink-2);white-space:pre-wrap;overflow-wrap:break-word}
+.kv{display:flex;gap:8px;font-size:12px;color:var(--ink-3)}
+.votes{font-variant-numeric:tabular-nums;letter-spacing:.1em}
+pre.evidence{margin:0;background:var(--inset);border:1px solid var(--hairline);border-radius:6px;
+  padding:8px 10px;overflow-x:auto;max-height:320px;
+  font:12px/1.5 "SF Mono",ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-wrap:break-word}
+footer{color:var(--ink-3);font-size:12px;text-align:center;padding-top:8px}
+@media (prefers-reduced-motion:no-preference){
+  details.grader>summary,.toolbar button{transition:background .12s ease,color .12s ease}
+}
+@media (prefers-reduced-motion:reduce){
+  details.grader>summary::before{transition:none}
+}
+@media print{
+  :root,:root[data-theme="dark"],:root[data-theme="light"]{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;color-scheme:light}
+  body{background:#fff}
+  .toolbar{display:none}
+  .case,.run,.grader-def{break-inside:avoid}
+  pre.evidence{max-height:none}
+}
+</style>
+<div class="wrap">
+<header>
+<div class="eyebrow">Plugin eval report</div>
+<h1>docs v1.7.0</h1>
+
+<div class="meta">
+<span class="mono">.</span>
+<span>Claude Code v2.1.329</span>
+<span class="num">2026-11-20 07:19 UTC</span>
+<span class="num">1m 55s</span>
+<span class="num">$0.42</span>
+<span class="num">1 runs</span>
+
+
+<span>model claude-sonnet-5-5</span>
+<span>judge haiku</span>
+<span class="num">threshold 100%</span>
+<span>filtered: --tag behavior</span>
+</div>
+</header>
+
+<section class="tiles">
+<div class="tile hero"><span class="label">Suite score</span><span class="value">88.9%</span><span class="sub">mean of per-case scores</span></div>
+
+<div class="tile"><span class="label">Cases</span><span class="value num">1</span><span class="sub">0 of 1 ≥ 100% threshold</span></div>
+<div class="tile"><span class="label">Perfect runs</span><span class="value num">0%</span><span class="sub">runs where every grader passed</span></div>
+</section>
+<details class="section legend">
+<summary>How to read this report</summary>
+<ul class="legend-list">
+<li>A run's score is the weighted fraction of its graders that passed; a "perfect" run passed every grader.</li>
+<li>A case's score is the mean of its runs; a case passes when its score is at or above the 100% threshold (the tick on each case bar).</li>
+<li>The suite score is the mean of the per-case scores.</li>
+<li>Judge votes are independent samples of the LLM judge; the majority decides pass or fail.</li>
+<li><strong>No baseline arm was run</strong> (ablation off) — this report shows absolute scores only and cannot say whether the plugin caused them. Re-run with <code>--ablation with-without</code> to measure the plugin’s effect.</li>
+
+</ul>
+</details>
+<div class="toolbar"><button type="button" data-act="expand">Expand all</button><button type="button" data-act="collapse">Collapse all</button></div>
+<article class="case" id="case-1">
+<div class="case-head">
+<h2>architecture-overview-of-layered-repo</h2>
+<span class="muted mono">evals/behavior/architecture-overview-of-layered-repo</span>
+<span class="spacer"></span>
+
+
+
+<span class="meter m-accent" aria-hidden="true"><span style="width:88.9%"></span><i class="tick" style="left:100.0%"></i></span>
+<span class="num case-score">88.9%</span>
+</div>
+
+<details class="section" open>
+<summary>Results</summary>
+<section class="arm">
+<div class="arm-head">
+<span class="arm-label">Runs</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:88.9%"></span></span>
+<span class="num">88.9%</span>
+<span class="muted num">0% of runs perfect</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:88.9%"></span></span>
+<span class="num">88.9%</span>
+<span class="muted num">22 turns · $0.42 · 07:19:10 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">architecture-preset</span>  </summary>
+<div class="grader-body">
+<p class="explanation">Bash called 1x (expected 1..∞)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">draft-architecture</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">Components and boundaries
+=========================
+
+Each row is an import edge that crosses a directory boundary -- the places where one part of the tree reaches into another. An import proves a reference, not a call.
+
+.. list-table::
+   :header-rows: 1
+
+   * - From
+     - Imports
+   * - src/app/api/cli.py
+     - src/app/core/service.py
+   * - src/app/api/http.py
+     - src/app/core/service.py
+   * - src/app/core/service.py
+     - src/app/infra/store.py
+
+.. only:: audit
+
+   Evidence:
+
+   - src/app/api/cli.py / src/app/core/service.py: ``src/app/api/cli.py:5``
+   - src/app/api/http.py / src/app/core/service.py: ``src/app/api/http.py:3``
+   - src/app/core/service.py / src/app/infra/store.py: ``src/app/core/service.py:4``
+
+What it is responsible for
+--------------------------
+
+src/app/api/cli.py -- main() builds an OrderService and passes every command-line argument after the program name to its record method as SKUs.
+
+.. only:: audit
+
+   Evidence:
+
+   - ``src/app/api/cli.py:9-10``
+   - ``src/app/api/cli.py:9``
+
+src/app/api/http.py -- Handler.post requires a sku key in the body before it calls OrderService.record with that single SKU, as the module docstring says validation comes first.
+
+.. only:: audit
+
+   Evidence:
+
+   - ``src/app/api/http.py:1``
+   - ``src/app/api/http.py:10-13``
+   - ``src/app/api/http.py:10``
+
+src/app/core/models.py -- Defines Order, built from a SKU, as a Record subclass; these are the domain types per the docstring.
+
+.. only:: audit
+
+   Evidence:
+
+   - ``src/app/core/models.py:1``
+   - ``src/app/core/models.py:8-10``
+   - ``src/app/core/models.py:8``
+
+src/app/core/service.py -- OrderService.record wraps each SKU in an Order and puts it in the Store, owning no storage itself as the docstring states.
+
+.. only:: audit
+
+   Evidence:
+
+   - ``src/app/core/service.py:1``
+   - ``src/app/core/service.py:11-14``
+   - ``src/app/core/service.py:11``
+
+src/app/infra/config.py -- load() returns a settings dict whose path comes from the ORDERLOG_PATH environment variable, defaulting to orders.json.
+
+.. only:: audit
+
+   Evidence:
+
+   - ``src/app/infra/config.py:6-7``
+   - ``src/app/infra/config.py:6``
+
+src/app/infra/store.py -- Store.put appends an Order to the rows list and returns the new row count.
+
+.. only:: audit
+
+   Evidence:
+
+   - ``src/app/infra/store.py:11-13``
+   - ``src/app/infra/store.py:11``
+
+What it owns
+------------
+
+src/app/api/cli.py -- Holds no state; a fresh OrderService (and so a fresh in-memory Store) is created on every invocation.
+
+.. only:: audit
+
+   Evidence:
+
+   - ``src/app/api/cli.py:9``
+
+src/app/api/http.py -- Each Handler owns its own OrderService created in __init_\_, and therefore its own Store.
+
+.. only:: audit
+
+   Evidence:
+
+   - ``src/app/api/http.py:7-8``
+   - ``src/app/api/http.py:7``
+
+src/app/core/models.py -- Order stores only sku; Record carries a class attribute key defaulting to 0 that nothing in the scanned source reads.
+
+.. only:: audit
+
+   Evidence:
+
+   - ``src/app/core/models.py:4-10``
+   - ``src/app/core/models.py:4``
+
+src/app/core/service.py -- Holds one Store created in __init_\_ and shares nothing across instances.
+
+.. only:: audit
+
+   Evidence:
+
+   - ``src/app/core/service.py:8-9``
+   - ``src/app/core/service.py:8``
+
+src/app/infra/config.py -- Stateless: reads os.environ on each call.
+
+.. only:: audit
+
+   Evidence:
+
+   - ``src/app/infra/config.py:7``
+
+src/app/infra/store.py -- Rows live in an in-memory list, as the docstring says, until flushed; settings are loaded from config.load() at construction.
+
+.. only:: audit
+
+   Evidence:
+
+   - ``src/app/infra/store.py:1``
+   - ``src/app/infra/store.py:8-9``
+   - ``src/app/infra/store.py:8``
+
+How it is used
+--------------
+
+src/app/api/cli.py -- Registered as the orderlog console script (app.api.cli:main) and also runnable as a module via the __main_\_ guard, exiting with main()&apos;s return value.
+
+.. only:: audit
+
+   Evidence:
+
+   - ``pyproject.toml:6-7``
+   - ``src/app/api/cli.py:14-15``
+   - ``pyproject.toml:6``
+   - ``src/app/api/cli.py:14``
+
+src/app/api/http.py -- Exposes the Handler class with post(body); nothing in the repository wires it to a web server or to the pyproject scripts.
+
+.. only:: audit
+
+   Evidence:
+
+   - ``src/app/api/http.py:6-13``
+   - ``src/app/api/http.py:6``
+
+src/app/core/models.py -- Order.total() returns len(sku), the length of the SKU string; no caller in the repository uses it, and the repository does not say what total is meant to represent.
+
+.. only:: audit
+
+   Evidence:
+
+   - ``src/app/core/models.py:12-13``
+   - ``src/app/core/models.py:12``
+
+src/app/core/service.py -- record(skus) returns the number of SKUs received, not the number stored or any order identifier.
+
+.. only:: audit
+
+   Evidence:
+
+   - ``src/app/core/service.py:14``
+
+src/app/infra/config.py -- Single function load() with no arguments, called by Store.__init_\_.
+
+.. only:: audit
+
+   Evidence:
+
+   - ``src/app/infra/config.py:6-7``
+   - ``src/app/infra/config.py:6``
+
+src/app/infra/store.py -- Only put exists; no flush or read method is defined despite the docstring mentioning flushing, and the settings path is stored but never used.
+
+.. only:: audit
+
+   Evidence:
+
+   - ``src/app/infra/store.py:6-13``
+   - ``src/app/infra/store.py:6``
+
+How it fails
+------------
+
+src/app/api/http.py -- A body without sku raises ValueError(&apos;sku is required&apos;); no handler converts this into an HTTP status.
+
+.. only:: audit
+
+   Evidence:
+
+   - ``src/app/api/http.py:11-12``
+   - ``src/app/api/http.py:11``
+
+src/app/infra/config.py -- Never fails: a missing variable falls back to the default and no value is validated.
+
+.. only:: audit
+
+   Evidence:
+
+   - ``src/app/infra/config.py:7``
+
+.. uml:: /_diagrams/full-repository.puml
+   :caption: Class diagram of the whole repository: 5 class(es) grouped by package and module, showing association and composition and inheritance relationships
+
+Next: :doc:`Dependency graph &lt;/dependencies&gt;`
+</pre>
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">draft-flows</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: FAIL FAIL FAIL</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✗ ✗ ✗</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">Cross-component flows
+=====================
+
+Recording orders from the command line
+--------------------------------------
+
+Starts when: orderlog runs main() with SKUs as arguments.
+
+.. only:: audit
+
+   Evidence:
+
+   - ``src/app/api/cli.py:8``
+
+.. list-table::
+   :header-rows: 1
+
+   * - From
+     - Calls
+     - What happens
+   * - cli.main
+     - service.OrderService.record
+     - main creates an OrderService and passes sys.argv[1:] to record.
+   * - service.OrderService.record
+     - store.Store.put
+     - record builds an Order for each SKU and calls Store.put, which appends it to the in-memory rows list.
+
+.. only:: audit
+
+   Evidence:
+
+   - cli.main / service.OrderService.record / main creates an OrderService and passes sys.argv[1:] to record.: ``src/app/api/cli.py:10``
+   - service.OrderService.record / store.Store.put / record builds an Order for each SKU and calls Store.put, which appends it to the in-memory rows list.: ``src/app/core/service.py:13``
+
+Ends with: Orders sit in the Store&apos;s in-memory list and record returns the count of SKUs received; nothing writes them to disk.
+
+Recording an order over HTTP
+----------------------------
+
+Starts when: Handler.post receives a body containing sku.
+
+.. only:: audit
+
+   Evidence:
+
+   - ``src/app/api/http.py:10``
+
+.. list-table::
+   :header-rows: 1
+
+   * - From
+     - Calls
+     - What happens
+   * - http.Handler.post
+     - service.OrderService.record
+     - post rejects a body without sku, then calls record with that one SKU.
+   * - service.OrderService.record
+     - store.Store.put
+     - record builds an Order for each SKU and calls Store.put, which appends it to the in-memory rows list.
+
+.. only:: audit
+
+   Evidence:
+
+   - http.Handler.post / service.OrderService.record / post rejects a body without sku, then calls record with that one SKU.: ``src/app/api/http.py:13``
+   - service.OrderService.record / store.Store.put / record builds an Order for each SKU and calls Store.put, which appends it to the in-memory rows list.: ``src/app/core/service.py:13``
+
+Ends with: Orders sit in the Store&apos;s in-memory list and record returns the count of SKUs received; nothing writes them to disk.
+
+Next: :doc:`Coverage and limitations &lt;/limitations&gt;`
+</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">handoff</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I wrote the architecture draft, but I haven&apos;t published it, so nothing is in `docs/` yet. Publishing needs your answer at checkpoint P4, which I can&apos;t give for you. The draft is in `.docs-build/rendered-docs/` as seven RST pages:
+
+- `index.rst`
+- `overview.rst`
+- `architecture.rst`, with the six modules and their components
+- `dependencies.rst`
+- `flows.rst`, with the two order flows
+- `class-views.rst`
+- `limitations.rst`
+
+**The two order flows**
+- The CLI flow is `cli.main`, then `OrderService.record`, then `Store.put`.
+- The HTTP flow is `Handler.post`, then `OrderService.record`, then `Store.put`.
+- All 18 claims check out against the source, including the five call claims behind these steps.
+
+**Choices I made without you**
+- **Template:** I used the `architecture` preset because you asked for components, dependencies, entry points and flow.
+- **Scope:** all 10 files under `src/` are in scope. The README, CI workflow and `pyproject.toml` are cited as evidence but not analysed as source.
+- **Checkpoints:** I recorded P1, P2 and P3 as unattended decisions, with notes saved in `.docs-build/checkpoints/`.
+- **Components:** I grouped them to match the layers: entry points (`cli.py`, `http.py`), workflow and domain (`service.py`, `models.py`), and storage and config (`store.py`, `config.py`).
+- **Review:** I have not run an independent review.
+
+**What the code shows**
+- **Orders are never saved:** `Store` keeps orders in an in-memory list. Its docstring mentions flushing, but no flush or read method exists. Each CLI run starts with an empty list.
+- **`ORDERLOG_PATH` is unused:** the config path is loaded and stored, but nothing reads it.
+- **`Handler.post` is not connected:** nothing wires it to a server or to the `pyproject` scripts. It raises `ValueError` for a missing `sku`, and nothing turns that into an HTTP status.
+- **Dead code:** `Order.total()` and `Record.key` aren&apos;t used by any caller. The repository doesn&apos;t say what `total` is meant to be.
+- **No tests:** CI runs `python3 -m pytest`, but the repository contains no test files.
+
+**What needs your answer**
+1. **P4:** two readings are waiting for you. They are the `Handler.post` validation reading and the &quot;each `Handler` owns its own `Store`&quot; reading. Run `pipeline.py decide --checkpoint P4 --user-response &quot;&lt;your answer&gt;&quot; --p4-verdict accepted|changes-requested`.
+2. **Template:** confirm the `architecture` preset or pick another. Publishing also waits on this.
+3. **Unread files:** the four empty `__init__.py` files have no analysis rows, so the run reports 4 of 10 product files unread. The draft is incomplete by that count, though the files hold no code.
+
+**Known problems with the draft**
+- **Quality check:** it reports `failed`. I didn&apos;t dig into why; `status` shows 5 statements as not tied to a named symbol, and I haven&apos;t checked whether other findings contribute.
+- **Prose findings:** the readability pass flagged a few sentences as too long.
+- **Markup not built:** Sphinx and docutils aren&apos;t installed, so the RST was never built or parsed.
+
+After you answer P4, rerun `render --docs docs`, then `review`, then `publish --docs docs`. `.docs-build/` is still there, and I can remove it if you want.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">not-manual-preset</span>  </summary>
+<div class="grader-body">
+<p class="explanation">Bash called 0x (expected 0..0)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">not-published</span>  </summary>
+<div class="grader-body">
+<p class="explanation">docs/** absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">overview</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: FAIL PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✗ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I wrote the architecture draft, but I haven&apos;t published it, so nothing is in `docs/` yet. Publishing needs your answer at checkpoint P4, which I can&apos;t give for you. The draft is in `.docs-build/rendered-docs/` as seven RST pages:
+
+- `index.rst`
+- `overview.rst`
+- `architecture.rst`, with the six modules and their components
+- `dependencies.rst`
+- `flows.rst`, with the two order flows
+- `class-views.rst`
+- `limitations.rst`
+
+**The two order flows**
+- The CLI flow is `cli.main`, then `OrderService.record`, then `Store.put`.
+- The HTTP flow is `Handler.post`, then `OrderService.record`, then `Store.put`.
+- All 18 claims check out against the source, including the five call claims behind these steps.
+
+**Choices I made without you**
+- **Template:** I used the `architecture` preset because you asked for components, dependencies, entry points and flow.
+- **Scope:** all 10 files under `src/` are in scope. The README, CI workflow and `pyproject.toml` are cited as evidence but not analysed as source.
+- **Checkpoints:** I recorded P1, P2 and P3 as unattended decisions, with notes saved in `.docs-build/checkpoints/`.
+- **Components:** I grouped them to match the layers: entry points (`cli.py`, `http.py`), workflow and domain (`service.py`, `models.py`), and storage and config (`store.py`, `config.py`).
+- **Review:** I have not run an independent review.
+
+**What the code shows**
+- **Orders are never saved:** `Store` keeps orders in an in-memory list. Its docstring mentions flushing, but no flush or read method exists. Each CLI run starts with an empty list.
+- **`ORDERLOG_PATH` is unused:** the config path is loaded and stored, but nothing reads it.
+- **`Handler.post` is not connected:** nothing wires it to a server or to the `pyproject` scripts. It raises `ValueError` for a missing `sku`, and nothing turns that into an HTTP status.
+- **Dead code:** `Order.total()` and `Record.key` aren&apos;t used by any caller. The repository doesn&apos;t say what `total` is meant to be.
+- **No tests:** CI runs `python3 -m pytest`, but the repository contains no test files.
+
+**What needs your answer**
+1. **P4:** two readings are waiting for you. They are the `Handler.post` validation reading and the &quot;each `Handler` owns its own `Store`&quot; reading. Run `pipeline.py decide --checkpoint P4 --user-response &quot;&lt;your answer&gt;&quot; --p4-verdict accepted|changes-requested`.
+2. **Template:** confirm the `architecture` preset or pick another. Publishing also waits on this.
+3. **Unread files:** the four empty `__init__.py` files have no analysis rows, so the run reports 4 of 10 product files unread. The draft is incomplete by that count, though the files hold no code.
+
+**Known problems with the draft**
+- **Quality check:** it reports `failed`. I didn&apos;t dig into why; `status` shows 5 statements as not tied to a named symbol, and I haven&apos;t checked whether other findings contribute.
+- **Prose findings:** the readability pass flagged a few sentences as too long.
+- **Markup not built:** Sphinx and docutils aren&apos;t installed, so the RST was never built or parsed.
+
+After you answer P4, rerun `render --docs docs`, then `review`, then `publish --docs docs`. `.docs-build/` is still there, and I can remove it if you want.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">rendered-draft</span>  </summary>
+<div class="grader-body">
+<p class="explanation">.docs-build/rendered-docs/** exists as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  </summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details></div>
+</div>
+</section>
+</details>
+<details class="section" open>
+<summary>Prompt</summary>
+<div class="md"><p>Write architecture documentation for this codebase, as pages under docs/: components, dependencies, entry points and the order flow.</p>
+<p>I won't be around to answer questions; make the choices you can make yourself, note them, and leave anything that needs my own answer for when I'm back.</p>
+</div>
+</details>
+<details class="section" open>
+<summary>Graders — what "good" means for this case</summary>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">architecture-preset</span><span class="badge">tool_used</span></div>
+<div class="config"><div class="kv"><span>tool</span><code>&quot;Bash&quot;</code></div><div class="kv"><span>input_match</span><code>&quot;--(preset|use)[ =]architecture&quot;</code></div><div class="kv"><span>arm</span><code>&quot;with-only&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">draft-architecture</span><span class="badge">llm</span></div>
+<div class="md"><p>The text is the drafted components page. PASS if it describes the three components <code>api</code>, <code>core</code> and <code>infra</code>, says what each does for the system, and states that dependencies point from <code>api</code> to <code>core</code> to <code>infra</code>, naming the source each claim comes from.
+FAIL if the page is missing or empty, is only a list of files or directories, or gets the dependency direction wrong.</p>
+</div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">draft-flows</span><span class="badge">llm</span></div>
+<div class="md"><p>The text is the drafted flows page. PASS if it follows an order from both the CLI entry point (<code>main</code> in <code>api/cli.py</code>) and the HTTP entry point (<code>Handler.post</code> in <code>api/http.py</code>) through <code>OrderService.record</code> to <code>Store.put</code>, and names the source file and line each step comes from.
+FAIL if the page is missing or empty, leaves out either entry point or either call, or describes a step it gives no source for.</p>
+</div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">handoff</span><span class="badge">llm</span></div>
+<div class="md"><p>PASS if the reply says which choices the run made on its own (such as the scope and the template) and that the final review of the draft still waits for the user's own answer, so nothing was published to docs/.
+FAIL if it says the documentation was published or is final, presents an approval as given by the user, or does not say what is left for the user.</p>
+</div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">not-manual-preset</span><span class="badge">tool_used</span></div>
+<div class="config"><div class="kv"><span>tool</span><code>&quot;Bash&quot;</code></div><div class="kv"><span>input_match</span><code>&quot;--(preset|use)[ =]manual&quot;</code></div><div class="kv"><span>min</span><code>0</code></div><div class="kv"><span>max</span><code>0</code></div><div class="kv"><span>arm</span><code>&quot;with-only&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">not-published</span><span class="badge">file_exists</span></div>
+<div class="config"><div class="kv"><span>path</span><code>&quot;docs/**&quot;</code></div><div class="kv"><span>exists</span><code>false</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">overview</span><span class="badge">llm</span></div>
+<div class="md"><p>PASS if the reply describes the architecture it documented: the CLI and HTTP entry points, <code>OrderService.record</code>, <code>Store.put</code>, and the dependency direction from <code>api</code> to <code>core</code> to <code>infra</code>.
+FAIL if it delivers a questionnaire, a list of files, or a generic product manual instead of an architecture overview, or describes a call it shows no evidence for.</p>
+</div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">rendered-draft</span><span class="badge">file_exists</span></div>
+<div class="config"><div class="kv"><span>path</span><code>&quot;.docs-build/rendered-docs/**&quot;</code></div><div class="kv"><span>exists</span><code>true</code></div><div class="kv"><span>arm</span><code>&quot;with-only&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">used-skill</span><span class="badge">tool_used</span></div>
+<div class="config"><div class="kv"><span>tool</span><code>&quot;Skill&quot;</code></div><div class="kv"><span>input_match</span><code>&quot;\&quot;skill\&quot;\\s*:\\s*\&quot;(?:[\\w-]+:)?document-codebase\&quot;&quot;</code></div></div>
+</div>
+</details>
+</article>
+<footer>Generated by <code>claude plugin eval</code> · schema v1 · scores are not comparable across different suites</footer>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  var bar=document.querySelector('.toolbar');
+  if(!bar)return;
+  bar.addEventListener('click',function(e){
+    var b=e.target&&e.target.closest('button');
+    if(!b)return;
+    var open=b.dataset.act==='expand';
+    document.querySelectorAll('details.section, details.grader').forEach(function(d){d.open=open});
+  });
+});
+// Collapsed details vanish from print/PDF; these pages are share artifacts.
+window.addEventListener('beforeprint',function(){
+  document.querySelectorAll('details').forEach(function(d){
+    if(!d.open){d.dataset.printOpened='1';d.open=true}
+  });
+});
+window.addEventListener('afterprint',function(){
+  document.querySelectorAll('details[data-print-opened]').forEach(function(d){
+    d.open=false;delete d.dataset.printOpened;
+  });
+});
+</script>
+</body>
+</html>

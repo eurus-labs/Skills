@@ -1,0 +1,388 @@
+{
+  "schemaVersion": 1,
+  "claudeVersion": "2.1.330",
+  "startedAt": "2026-11-23T09:05:33.603Z",
+  "durationSeconds": 67,
+  "costUsd": 0.6444995,
+  "partial": false,
+  "suite": {
+    "root": "<local>",
+    "ablation": "with-without",
+    "modelOverride": "claude-sonnet-5-5",
+    "judgeModel": "haiku",
+    "tagFilters": [
+      "behavior"
+    ],
+    "threshold": 1,
+    "concurrency": 3,
+    "plugins": [
+      {
+        "name": "skill-authoring",
+        "version": "0.1.2",
+        "path": "<local>"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "evaluate-skill-finds-planted-defects",
+      "dir": "evals/behavior/evaluate-skill-finds-planted-defects",
+      "source": "mixed",
+      "promptMarkdown": "Evaluate the skills in this plugin. I won't be around to approve anything you would run, so note what you would run instead of running it.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 1800,
+      "maxTurns": 60,
+      "graders": [
+        {
+          "name": "defects",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "PASS if the reply reports all four defects of the plugin, and says the eval suite was written but not run: the first skill's frontmatter `name` (`summarize-meeting-notes`) differs from its folder name (`summarize-notes`); the second skill (`digest-notes`) is missing from the `skills` array of `plugin.json`, so it would not install; the two skills' descriptions claim the same requests and neither the descriptions nor the 'When not to use' sections name the other skill or say which one to use, so they compete to trigger; and a step in the first skill runs `scripts/extract_actions.py`, which does not exist.\nFAIL if any of the four is missing, if the reply reports a defect that is not there, if a skill or manifest was edited, or if the suite is reported as having run or any results are quoted. A plugin `name` that differs from the workspace folder name is not an invented defect, because the scaffold's folder name is arbitrary.",
+          "config": {
+            "criteria": "PASS if the reply reports all four defects of the plugin, and says the eval suite was written but not run: the first skill's frontmatter `name` (`summarize-meeting-notes`) differs from its folder name (`summarize-notes`); the second skill (`digest-notes`) is missing from the `skills` array of `plugin.json`, so it would not install; the two skills' descriptions claim the same requests and neither the descriptions nor the 'When not to use' sections name the other skill or say which one to use, so they compete to trigger; and a step in the first skill runs `scripts/extract_actions.py`, which does not exist.\nFAIL if any of the four is missing, if the reply reports a defect that is not there, if a skill or manifest was edited, or if the suite is reported as having run or any results are quoted. A plugin `name` that differs from the workspace folder name is not an invented defect, because the scaffold's folder name is arbitrary.",
+            "focus": "last_message"
+          }
+        },
+        {
+          "name": "did-not-run",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Bash",
+            "input_match": "plugin eval",
+            "min": 0,
+            "max": 0,
+            "arm": "both"
+          }
+        },
+        {
+          "name": "used-skill",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?evaluate-skill\"",
+            "arm": "with-only"
+          }
+        },
+        {
+          "name": "wrote-trigger-cases",
+          "type": "file_exists",
+          "weight": 1,
+          "config": {
+            "path": "evals/trigger/**/prompt.md",
+            "exists": true
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 7,
+            "costUsd": 0.14079060000000002,
+            "judgeCostUsd": 0.0025648000000000003,
+            "durationSeconds": 45,
+            "startedAt": "2026-11-23T09:05:33.639Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "defects",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "## Skill evaluation: notes-helper\nRunner: not run. You weren't here to agree to the model-call cost, and the skill requires that agreement. I did not run `claude plugin eval --help` either, so the `case.yaml` layout is untested against the current runner.\n\nCommand I would run once you agree:\n`claude plugin eval <local> --no-publish --max-cost-usd 5 --scaffold --allow-tools Bash`\n\nThat is 9 cases, each run 3 times with the plugin and 3 without, plus judge calls. The $5 ceiling is my guess. The `--scaffold` flag is needed because the behavior case seeds `notes.md`.\n\nI wrote the suite in `evals/`, with 8 trigger cases and 1 behavior case. I did not edit either skill.\n\n## Static\n| Skill | Finding | Points to |\n| ----- | ------- | --------- |\n| summarize-notes | `name: summarize-meeting-notes` doesn't match the folder `summarize-notes` (`skills/summarize-notes/SKILL.md:2`) | frontmatter |\n| summarize-notes | Step 2 runs `scripts/extract_actions.py`, which doesn't exist (no `scripts/` directory). The step also says \"do not read it\". The agent will hit an error, and step 4 depends on the script's output. | body, or add the script |\n| digest-notes | Not listed in `plugin.json` `skills` (only `./skills/summarize-notes/`). It may never load. `.github/plugin/plugin.json` has the same gap. | manifest |\n| both | The descriptions share two trigger phrases, \"summarize these notes\" and \"recap the meeting\". Both skills have the same hard rules and nearly the same output. One request can match either. | descriptions, or merge the skills |\n| both | The \"When not to use\" sections don't name each other, so neither hands off to the other. | body |\n| summarize-notes | Its description doesn't mention the script or the `owner: unassigned` rule. That is minor. | description |\n\n## Triggering\nNot run. The cases are written:\n\n| Prompt | Should fire | Case |\n| ------ | ----------- | ---- |\n| \"Recap this meeting for me.\" | summarize-meeting-notes | `summarize-fires-on-recap` |\n| \"What did we decide in this meeting?\" | summarize-meeting-notes | `summarize-fires-on-what-did-we-decide` |\n| \"List the action items from these notes.\" | summarize-meeting-notes | `summarize-fires-on-action-items` |\n| \"Can you digest my notes from the planning call?\" | digest-notes | `digest-fires-on-digest-my-notes` |\n| \"Proofread these meeting notes…\" | neither | `quiet-on-proofread` |\n| Audio recording | neither | `quiet-on-audio-recording` |\n| README summary | neither | `quiet-on-readme-summary` |\n| Email summary | neither | `quiet-on-email-summary` |\n\nBecause of the overlap, I expect the recap and \"what did we decide\" cases to be split between the two skills or to fire digest-notes instead. The should-fire cases may therefore fail for that reason, not because of the prompts.\n\nThe suite has only one `digest-notes` should-fire case, where the skill asks for at least three. I'd add two more.\n\n## Behavior\nNot run. `summarize-reports-only-whats-in-notes` seeds a notes file with two decisions, three action items (one with no owner), and an undecided vendor discussion. I wrote the expected answer from the notes, not from the skill. It fails the run if the agent invents an owner, lists the vendor as a decision, or edits the file. I'd expect the missing script to hurt the `WITH` arm. There are no `digest-notes` behavior cases yet.\n\n## Verdict\n- summarize-notes: not evaluated. It has real static defects: the name mismatch and the missing script. It also overlaps with digest-notes.\n- digest-notes: not evaluated. It isn't registered in the manifest, and its description overlaps with summarize-notes.\n\nRecommendation: decide whether to keep both skills. If you do, give each description distinct phrases and cross-reference them in \"When not to use\". Either way, fix the name, add or remove the script step, and register the skill in both manifests. I'd also add `evals/results/` to `.gitignore`, but I haven't made that edit."
+              },
+              {
+                "name": "did-not-run",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-trigger-cases",
+                "passed": true,
+                "weight": 1,
+                "explanation": "evals/trigger/**/prompt.md exists as expected",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 6,
+            "costUsd": 0.1305629,
+            "judgeCostUsd": 0.0016407000000000001,
+            "durationSeconds": 38,
+            "startedAt": "2026-11-23T09:05:33.640Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "defects",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "## Skill evaluation: notes-helper\nRunner: not run. You weren't around to agree to the cost, so I wrote the suite and nothing else. I did no reading beyond the plugin files.\n\n## Static\n| Skill | Finding | Points to |\n| ----- | ------- | --------- |\n| summarize-notes | `name: summarize-meeting-notes` doesn't match the folder `summarize-notes` (`skills/summarize-notes/SKILL.md:2`) | frontmatter `name` or folder name |\n| summarize-notes | Step 2 runs `scripts/extract_actions.py`, which doesn't exist. The plugin has no `scripts/` directory. Step 4 builds the action items from that script's output. | body, or add the script |\n| digest-notes | It isn't listed in either `plugin.json`. Only `./skills/summarize-notes/` is. | `plugin.json` (`.claude-plugin` and `.github/plugin`) |\n| both | The descriptions overlap. Both claim \"summarize these notes\", \"recap the meeting\" and the action items, and the \"When to use\" sections and hard rules are nearly identical. Neither names the other as a hand-off, so the choice between them is arbitrary. | both descriptions, or merge them into one skill |\n| both | The two skills differ only in the heading (`## Summary` vs `## Digest`) and one or two phrasings. | scope |\n| both | Descriptions and bodies are otherwise fine. They are well under 1,536 characters, the body is short, and the hard rules and output format sit near the top. | none |\n\n## Triggering\nNot run. These are the written cases, under `evals/trigger/`:\n- **Should fire `summarize-meeting-notes`:** recap, action items, one-minute summary.\n- **Should fire `digest-notes`:** digest, condense, \"what were the action items\".\n- **Must not fire either skill:** proofreading, rewriting, audio, a README summary, and a git-commit summary.\n\nI expect the should-fire cases to be ambiguous. The descriptions collide, so a \"recap\" prompt could go to either skill. Whichever skill the plugin loads, such as `summarize-meeting-notes` as the only manifest entry, will take that traffic. The `digest-notes` cases will probably fail whenever it isn't loaded.\n\n## Behavior\nNot run. The case is `summarize-notes-marks-unowned-and-invents-nothing`. A scaffold seeds a `notes.md` with one decision, one owned task, one unowned task, and an undecided topic. The pass and fail conditions in `graders/outcome.md` come from the notes, not from the skill's text. A second grader checks that the `Skill` tool was used.\n\nThe missing script is likely to hurt this case. The skill tells the agent to run a script that doesn't exist, so the with-skill arm may error out or improvise.\n\n## Verdict\n- **summarize-notes:** not evaluated. No runs were made, so there's no trigger or behavior data. Static review points to needs work: fix the name mismatch and the missing script.\n- **digest-notes:** not evaluated, for the same reason. Static review points to needs work: register it in `plugin.json`, and either differentiate it from `summarize-notes` or merge the two.\n\n## What I would run, with your approval\n```bash\nclaude plugin eval --help\nclaude plugin eval <local> --no-publish --max-cost-usd 10 --scaffold\n```\n- **Cost:** 13 cases, 3 runs per arm, so about 78 runs plus judge calls. Each is a model call on your account. The $10 ceiling is my guess.\n- **Trust prompt:** the first run asks you to trust the plugin. I would not pass `--trust-plugin` for you.\n- **Publishing:** `--no-publish` keeps the report off claude.ai.\n- **`.gitignore`:** I'd suggest adding `evals/results/` to it. I haven't made that edit.\n- **Plugin resolution:** I'm not sure the runner can resolve `digest-notes`, since the manifest omits it. That should be fixed before the run.\n\nI changed no skill files. The only files I wrote are under `evals/`."
+              },
+              {
+                "name": "did-not-run",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-trigger-cases",
+                "passed": true,
+                "weight": 1,
+                "explanation": "evals/trigger/**/prompt.md exists as expected",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 8,
+            "costUsd": 0.1302796,
+            "judgeCostUsd": 0.0029527000000000004,
+            "durationSeconds": 41,
+            "startedAt": "2026-11-23T09:05:33.640Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "defects",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "## Skill evaluation: notes-helper\n\n**Runner:** not run. You weren't around to agree to the cost, and `claude plugin eval` makes billed model calls. I wrote the suite and didn't run it.\n\nI'd run this once you approve:\n```\nclaude plugin eval --help\nclaude plugin eval . --no-publish --max-cost-usd 5 --scaffold\n```\n- The suite has 8 cases: 3 should-fire, 4 must-not-fire and 1 behavior case.\n- Each case runs 3 times with the plugin and 3 times without, so about 48 runs plus judge calls.\n- The $5 ceiling is my guess, so adjust it.\n- I'd leave out `--trust-plugin` so you get the trust prompt yourself.\n- I'd also add `evals/results/` to `.gitignore`. I haven't made that edit.\n\n### Static\n| Skill | Finding | Points to |\n| --- | --- | --- |\n| summarize-notes | `name: summarize-meeting-notes` doesn't match its folder, `summarize-notes` (`SKILL.md:2`). | name |\n| summarize-notes | Step 2 (`SKILL.md:43`) runs `scripts/extract_actions.py`, which doesn't exist. The plugin has no `scripts/` directory. The step also says \"run it; do not read it\", so the agent can't tell what the script does. Step 4 builds the action items from that script's output. | body |\n| digest-notes | `plugin.json` registers only `./skills/summarize-notes/` (both manifests), so `digest-notes` is never loaded. | manifest |\n| both | The descriptions overlap almost completely. Both claim \"summarize these notes\" and \"recap the meeting\", and \"what were the action items\" is in one and \"list the action items\" in the other. If both were loaded, the router would have no basis for choosing. | descriptions |\n| both | Body and \"When not to use\" sections are copies of each other. Neither one points to the other. | body |\n| both | The \"When not to use\" sections send audio or video and rewriting requests \"elsewhere\" without naming a skill to hand off to. | body |\n| both | Descriptions are short, and `Hard rules` and `Output format` sit near the top. These are fine. | none |\n\n### Triggering\nNot run, so there are no counts. The cases are written to check both directions.\n\n| Prompt | Should | Case |\n| --- | --- | --- |\n| \"Can you recap the meeting? Notes: …\" | fire | `fires-on-recap` |\n| \"What were the action items from these notes?…\" | fire | `fires-on-action-items` |\n| \"…what did we decide?…\" | fire | `fires-on-what-did-we-decide` |\n| \"Fix the spelling and grammar in my meeting notes…\" | quiet | `quiet-on-proofread` |\n| \"Transcribe this meeting recording, meeting.mp3…\" | quiet | `quiet-on-audio-transcribe` |\n| \"Write a follow-up email inviting the team to next week's planning meeting.\" | quiet | `quiet-on-email-draft` |\n| \"Summarize what src/main.py does.\" | quiet | `quiet-on-summarize-code` |\n\nThe grader accepts either skill name. Run as is, it can't separate the two overlapping skills, and `digest-notes` can't fire at all while it's unregistered.\n\n### Behavior\nNot run, so there are no WITH, W/OUT or Δ scores.\n\nThe case is `summarize-keeps-unowned-items`. A scaffold seeds `notes.txt` with:\n- one decision (postpone v2 to March)\n- one undecided item (the pricing change)\n- one owned action (Ana updates the roadmap)\n- one unowned action (email the vendor)\n\nThe expected answer comes from the task, not from the skill. The reply must not name an owner for the vendor email and must not list the pricing change as decided. A second grader checks that the `Skill` tool was called.\n\nI expect this case to expose the missing script. Step 2 will fail, and the case shows whether the agent recovers from it.\n\n### Verdict\n- **summarize-notes:** `needs work`.\n  - Fix the name mismatch (name).\n  - Add `scripts/extract_actions.py` or remove step 2, and let the agent read whatever it runs (body).\n  - Make the description distinct from `digest-notes` (description).\n  - Trigger and behavior results are pending.\n- **digest-notes:** `not evaluated`. It isn't registered in the manifest, so the runner can't load it. It's also a near-duplicate of `summarize-notes`. Merge the two skills or give them clearly separate scopes before evaluating it.\n\nI wrote the suite under `evals/` in the plugin directory. I didn't change either skill."
+              },
+              {
+                "name": "did-not-run",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-trigger-cases",
+                "passed": true,
+                "weight": 1,
+                "explanation": "evals/trigger/**/prompt.md exists as expected",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0.3333333333333333,
+            "passed": false,
+            "turns": 9,
+            "costUsd": 0.07791320000000002,
+            "judgeCostUsd": 0.0007761999999999995,
+            "durationSeconds": 20,
+            "startedAt": "2026-11-23T09:06:11.583Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "defects",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "I read the plugin's files and ran nothing.\n\n## Plugin: `notes-helper` v0.1.0\nIt has two skills, `summarize-notes` and `digest-notes`.\n\n## Findings\n\n**1. The two skills duplicate each other (high).**\n- Both skills have the same hard rules, the same \"when not to use\" list and the same output structure.\n- Their trigger phrases overlap: \"summarize these notes\" and \"recap the meeting\" appear in both descriptions.\n- Claude can't reliably choose between them, so the wrong one may fire, or the pair may compete.\n- Keep one. `summarize-notes` is the more complete of the two.\n\n**2. `summarize-notes` depends on a script that doesn't exist (high).**\n- Step 2 runs `python3 scripts/extract_actions.py <notes-file>`, and no such file exists in the plugin. A search for `extract_actions.py` found nothing.\n- The path is relative to the working directory, not the skill folder, so it wouldn't resolve even if the script were bundled.\n- The step also says \"run it; do not read it\", which hides the problem.\n- Fix: either bundle the script inside the skill and reference it by a path that resolves, or delete the step. Extracting action items from text is something Claude can do without a script.\n- Step 4 builds the action items from the script's list, so the skill breaks if the script is missing.\n\n**3. `summarize-notes` is named inconsistently (medium).**\n- Its frontmatter says `name: summarize-meeting-notes`, but its folder is `summarize-notes`. The name should match the folder.\n- `digest-notes` is consistent: its folder and name match.\n\n**4. `digest-notes` isn't registered in `plugin.json` (medium).**\n- Both `plugin.json` files list only `./skills/summarize-notes/`. The `digest-notes` skill may not load at all, depending on how skills are discovered.\n- The two `plugin.json` files (`.claude-plugin/` and `.github/plugin/`) are identical, so they could drift apart.\n\n**5. Smaller issues (low).**\n- Neither skill says what to do with empty notes, notes with no decisions, or notes with no action items.\n- The `Steps` section of each skill has no `Print` fallback if the notes file can't be read.\n- The \"two or three sentences\" length isn't tied to the \"under a minute\" goal stated in `summarize-notes`.\n- The \"Side effects\" line in `summarize-notes` says it writes nothing, but it runs a script, which is a side effect.\n\n## What I would run if I could\nI skipped these because you won't be around to approve them.\n- `claude plugin validate .` would check the manifest and skill frontmatter.\n- `python3 scripts/extract_actions.py sample.md` would confirm finding 2. I'd expect it to fail with a file-not-found error.\n- A behavior test would feed a sample notes file, including one action item with no owner, to each skill and check the `owner: unassigned` rule. I'd also check which skill triggers on \"recap the meeting\".\n\n## Recommended fixes\n1. Delete `digest-notes`, or give it a clearly different purpose.\n2. Remove the script step from `summarize-notes`, or bundle the script.\n3. Change the frontmatter name to `summarize-notes`.\n4. Add a rule for the empty-input case.\n\nI haven't changed any files. Should I apply these fixes?"
+              },
+              {
+                "name": "did-not-run",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "wrote-trigger-cases",
+                "passed": false,
+                "weight": 1,
+                "explanation": "evals/trigger/**/prompt.md missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.3333333333333333,
+            "passed": false,
+            "turns": 8,
+            "costUsd": 0.08128279999999999,
+            "judgeCostUsd": 0.0019621000000000005,
+            "durationSeconds": 26,
+            "startedAt": "2026-11-23T09:06:15.116Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "defects",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "# Evaluation of the `notes-helper` plugin\n\nI read the manifests and both skills. I ran no scripts and no `claude plugin` commands. The only commands were `ls`, `git status` and file reads. Nothing was modified.\n\n## Problems, most serious first\n\n1. **`summarize-notes` depends on a script that doesn't exist.**\n   - Step 2 runs `python3 scripts/extract_actions.py <notes-file>`, but the plugin has no `scripts/` directory.\n   - The path is relative, so it would resolve against the user's working directory, not the plugin root. It would fail even if the script existed.\n   - Step 4 builds the action items from that script's output, so the skill breaks at its core step.\n   - \"Run it; do not read it\" asks the agent to execute code it hasn't inspected. I wouldn't run that script without reading it, even if it turned up.\n   - **Fix:** ship the script and reference it by plugin root, or drop it. Extracting action items from short notes is a job the model can do directly.\n\n2. **The two skills nearly duplicate each other.**\n   - `digest-notes` and `summarize-notes` have the same rules, steps and output format. Only the word \"digest\" and the heading \"Digest\" versus \"Summary\" differ.\n   - Both descriptions share the trigger phrases \"summarize these notes\" and \"recap the meeting\". The model has no basis for choosing between them.\n   - **Fix:** keep one skill. If both stay, give them clearly different jobs.\n\n3. **`digest-notes` is not registered.** Both `plugin.json` files list only `./skills/summarize-notes/`. Depending on how skills are discovered, `digest-notes` is either dead code or loads outside the manifest.\n\n4. **The `name` doesn't match the directory in `summarize-notes`.** The frontmatter says `summarize-meeting-notes`, but the directory is `summarize-notes`. The manifest points at the directory. Make the two match, because some loaders require it.\n\n5. **The manifest describes `summarize-notes` behavior.** The plugin description, \"short summary with decisions and action items\", matches `summarize-notes` and not `digest-notes`. That supports keeping `summarize-notes` and removing `digest-notes`.\n\n6. **Minor issues.**\n   - `.claude-plugin/plugin.json` and `.github/plugin/plugin.json` are identical copies that can drift apart. Keep both only if both targets are intended.\n   - Neither skill says what to do when the notes are empty, ambiguous or too long.\n   - Neither defines how to treat a decision that was proposed but not confirmed.\n   - The \"two or three sentences\" summary has no length limit tied to the \"under a minute\" goal.\n   - There are no evals or examples.\n   - `.claude/` exists but is empty.\n\n## What works\n- The scope is narrow, and the \"when not to use\" sections are clear.\n- The two hard rules guard against invented owners and decisions, and `owner: unassigned` is a good fallback.\n- The side-effects statement is honest, except for the script issue above.\n\n## Commands I would run with approval\n- `claude plugin validate .` would check the manifests and skill frontmatter, and should flag the name mismatch.\n- `claude plugin eval` would run behavior evals. There are none yet, so I'd write a few first: notes with a missing owner, notes with an unconfirmed decision, and an audio-file request that should be refused.\n- `diff .claude-plugin/plugin.json .github/plugin/plugin.json` would confirm the manifests match.\n- I would not run `python3 scripts/extract_actions.py`. The file doesn't exist, and an unread script shouldn't be run.\n\n## Suggested next step\nDelete `digest-notes`. In `summarize-notes`, remove the script step, or add and review the script and reference it by plugin root. Make the `name` match the directory. I can make those edits if you want."
+              },
+              {
+                "name": "did-not-run",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "wrote-trigger-cases",
+                "passed": false,
+                "weight": 1,
+                "explanation": "evals/trigger/**/prompt.md missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.3333333333333333,
+            "passed": false,
+            "turns": 10,
+            "costUsd": 0.0836704,
+            "judgeCostUsd": 0.0015396000000000003,
+            "durationSeconds": 22,
+            "startedAt": "2026-11-23T09:06:18.531Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "defects",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "# Evaluation of the `notes-helper` plugin\n\nI only read files. I ran nothing and changed nothing. One command I would have run is listed at the end.\n\n## Findings\n\n1. **Blocking: `summarize-notes` depends on a script that doesn't exist.**\n   - Step 2 runs `python3 scripts/extract_actions.py <notes-file>`. A glob for `extract_actions*` found nothing in the plugin, and there is no `scripts/` directory.\n   - Step 4 builds the action items from that script's output, so the skill would fail or improvise at that step.\n   - The path is also relative to the user's working directory, not the skill directory. Even if the script existed, it would not resolve reliably.\n   - Step 2 also says \"Run it; do not read it.\" That means running code nobody has reviewed, and it contradicts the \"Writes nothing and installs nothing\" claim. Either include the script so it can be reviewed, or drop the step. Extracting action items from notes is something the model can do without a script.\n\n2. **Blocking: the skill name doesn't match its directory.**\n   - The directory is `skills/summarize-notes/`, but the frontmatter says `name: summarize-meeting-notes`. The two should agree.\n\n3. **High: the two skills overlap almost completely.**\n   - `digest-notes` and `summarize-notes` have the same purpose, \"When not to use\" list, hard rules and output format. Only the heading, \"Digest\" or \"Summary\", differs.\n   - Both descriptions use the trigger phrases \"summarize these notes\" and \"recap the meeting\". Claude can't reliably choose between them for those requests.\n   - Keep one. The `digest-notes` skill has no external dependency, so it is the safer one to keep. Alternatively, differentiate them clearly.\n\n4. **Medium: `digest-notes` isn't registered in the manifest.**\n   - Both `plugin.json` files list only `./skills/summarize-notes/`. `digest-notes` would not ship.\n   - The two manifests are identical copies (`.claude-plugin/` and `.github/plugin/`), so they will need to be kept in sync.\n\n5. **Low: gaps in the skill instructions.**\n   - Neither skill says what to do when the notes contain no decisions or no action items. The output format should allow \"None stated\".\n   - Neither says what to do when the input is neither a file nor pasted text.\n   - The \"two or three sentences\" summary has no rule for very short or very long notes.\n   - Both skills say \"Reads the notes file\", but the trigger text allows pasted notes too.\n\n## Strengths\n\n- The hard rules are good. \"Report only what the notes say\" and `owner: unassigned` guard against invented owners.\n- The \"When not to use\" boundaries, audio or video input and proofreading, are clear.\n- The output format is concrete and easy to check.\n- The description of `digest-notes` is well-formed.\n\n## Recommended fixes, in order\n\n1. Delete the script step from `summarize-notes`, or ship a reviewed script and reference it by an absolute path.\n2. Align the frontmatter `name` with the directory name.\n3. Merge the two skills, or give them distinct triggers.\n4. Register whichever skills remain in both manifests.\n5. Add empty-input handling to the output format.\n\n## Command I would have run, but didn't\n\nTo confirm finding 1 beyond the glob, I would run `find . -name 'extract_actions*' -o -name scripts -type d` from the plugin root. I'd also want a behavior test: give `summarize-notes` a sample notes file and check whether it fails at step 2. That would need your approval to run, and it executes a nonexistent script, so I skipped it."
+              },
+              {
+                "name": "did-not-run",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "wrote-trigger-cases",
+                "passed": false,
+                "weight": 1,
+                "explanation": "evals/trigger/**/prompt.md missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1,
+        "scoreWithout": 0.3333333333333333,
+        "passRateWithout": 0,
+        "delta": 0.6666666666666667
+      }
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 1,
+    "casesPassed": 1,
+    "overallScore": 1,
+    "overallPassRate": 1,
+    "meanDelta": 0.6666666666666667
+  }
+}

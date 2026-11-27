@@ -1,0 +1,1003 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Eval report — planning v0.1.0</title>
+</head>
+<body>
+<style>
+:root{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme:dark){:root{--plane:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink-2:#c3c2b7;--ink-3:#898781;--hairline:rgba(255,255,255,.10);--grid:#2c2c2a;--inset:rgba(255,255,255,.05);--accent:#3987e5;--base-fill:#898781;--delta-good:#0ca30c;--good:#0ca30c;--warning:#fab219;--critical:#e06c6c;color-scheme:dark}}
+:root[data-theme="dark"]{--plane:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink-2:#c3c2b7;--ink-3:#898781;--hairline:rgba(255,255,255,.10);--grid:#2c2c2a;--inset:rgba(255,255,255,.05);--accent:#3987e5;--base-fill:#898781;--delta-good:#0ca30c;--good:#0ca30c;--warning:#fab219;--critical:#e06c6c;color-scheme:dark}
+:root[data-theme="light"]{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--plane);color:var(--ink);
+  font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:880px;margin:0 auto;padding:40px 24px 64px;display:flex;flex-direction:column;gap:20px}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+header h1{margin:2px 0 0;font-size:24px;font-weight:600;line-height:1.25;text-wrap:balance}
+.meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;color:var(--ink-2);font-size:13px}
+.meta .num{font-variant-numeric:tabular-nums lining-nums}
+.banner{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;
+  border:1px solid var(--hairline);background:var(--surface);font-size:13px}
+.banner .chip-warn{color:var(--warning);font-weight:600}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--hairline);border-radius:10px;padding:14px 16px;
+  display:flex;flex-direction:column;gap:4px}
+.tile .label{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.tile .value{font-size:26px;font-weight:600;font-variant-numeric:tabular-nums lining-nums;line-height:1.1}
+.tile.hero .value{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:48px}
+.tile .sub{font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.tile .value.delta-pos{color:var(--delta-good)}
+.tile .value.delta-neg{color:var(--critical)}
+.toolbar{display:flex;gap:8px;justify-content:flex-end}
+.toolbar button{font:12px system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink-2);
+  background:var(--surface);border:1px solid var(--hairline);border-radius:6px;padding:4px 10px;cursor:pointer}
+.toolbar button:hover{color:var(--ink)}
+.toolbar button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.case{background:var(--surface);border:1px solid var(--hairline);border-radius:10px;padding:18px 20px;
+  display:flex;flex-direction:column;gap:10px}
+.case-regressed{border-left:3px solid var(--critical)}
+.verdict{margin:6px 0 0;font-size:15px}
+.verdict .delta{font-size:15px}
+.flag{font-size:11px;font-weight:600;color:var(--warning);white-space:nowrap}
+.star{color:var(--warning);font-size:.45em;vertical-align:super;line-height:0;cursor:help}
+.legend summary{cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
+.legend-list{margin:8px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--ink-2)}
+.case-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.case-head h2{margin:0;font-size:16px;font-weight:600}
+.case-head .spacer{flex:1}
+.case-score{font-size:15px;font-weight:600}
+.mono{font:12px "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.num{font-variant-numeric:tabular-nums lining-nums}
+.muted{color:var(--ink-3);font-size:12px}
+.meter{display:inline-block;position:relative;width:120px;height:6px;border-radius:4px;background:var(--grid);
+  vertical-align:middle}
+.meter>span{display:block;height:100%;border-radius:4px;max-width:100%}
+.meter .tick{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink-3);border-radius:1px}
+.m-accent>span{background:var(--accent)}
+.m-base>span{background:var(--base-fill)}
+.delta{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.delta-pos{color:var(--delta-good)}
+.delta-neg{color:var(--critical)}
+.delta-zero{color:var(--ink-3)}
+details.section{border-top:1px solid var(--grid);padding-top:10px}
+details.section>summary{cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--ink-2);list-style-position:outside;margin-left:2px}
+details.section>summary:hover{color:var(--ink)}
+details.section[open]>summary{margin-bottom:8px}
+.md{display:flex;flex-direction:column;gap:8px;background:var(--inset);border-radius:8px;
+  padding:12px 14px;overflow-wrap:break-word}
+.md>:first-child{margin-top:0}
+.md h1,.md h2,.md h3,.md h4,.md h5,.md h6{margin:4px 0 0;font-size:1em;font-weight:600;line-height:1.3}
+.md p,.md ul,.md ol,.md blockquote,.md table,.md pre,.md hr{margin:0}
+.md ul,.md ol{display:flex;flex-direction:column;gap:4px;padding-left:20px}
+.md blockquote{border-left:2px solid var(--hairline);padding-left:10px;color:var(--ink-2)}
+.md :not(pre)>code{background:var(--inset);padding:1px 4px;border-radius:4px;
+  font:.92em "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.md pre{background:var(--inset);border:1px solid var(--hairline);padding:10px 12px;border-radius:6px;
+  overflow-x:auto;font:12px/1.5 "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.md pre code{background:none;padding:0;font:inherit}
+.md table{width:100%;border-collapse:collapse}
+.md th,.md td{padding:5px 8px;text-align:left;vertical-align:top;border-bottom:1px solid var(--grid)}
+.md th{font-weight:600;color:var(--ink-2)}
+.md a{color:var(--accent);text-decoration:none}
+.md a:hover{text-decoration:underline}
+.grader-def{display:flex;flex-direction:column;gap:6px;padding:8px 0}
+.grader-def+.grader-def{border-top:1px solid var(--grid)}
+.grader-def-head{display:flex;align-items:baseline;gap:8px}
+.grader-name{font:13px "SF Mono",ui-monospace,Menlo,Consolas,monospace;font-weight:600}
+.badge{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);
+  border:1px solid var(--hairline);border-radius:999px;padding:1px 8px}
+.config{display:flex;flex-direction:column;gap:2px;background:var(--inset);border-radius:8px;padding:10px 14px}
+.config code{font:12px "SF Mono",ui-monospace,Menlo,Consolas,monospace;overflow-wrap:anywhere}
+.arm{display:flex;flex-direction:column;gap:8px;padding:6px 0}
+.arm+.arm{border-top:1px dashed var(--grid);margin-top:4px;padding-top:12px}
+.arm-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.arm-label{font-size:13px;font-weight:600}
+.run{border:1px solid var(--grid);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.run-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.run-title{font-size:12px;font-weight:600;color:var(--ink-2)}
+.run-error .explanation{color:var(--ink-2)}
+.note{font-size:12px;color:var(--ink-2)}
+.graders{display:flex;flex-direction:column;gap:4px}
+details.grader{border-radius:6px}
+details.grader>summary{cursor:pointer;display:flex;align-items:baseline;gap:8px;padding:3px 4px;
+  border-radius:6px;list-style:none}
+details.grader>summary::-webkit-details-marker{display:none}
+details.grader>summary::before{content:'▸';font-size:10px;color:var(--ink-3);flex:none;
+  transition:transform .12s ease}
+details.grader[open]>summary::before{transform:rotate(90deg)}
+details.grader>summary:hover{background:var(--inset)}
+details.grader>summary:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.grader-body{padding:6px 8px 8px 24px;display:flex;flex-direction:column;gap:6px}
+.chip{font-size:11px;font-weight:600;border-radius:999px;padding:1px 8px;white-space:nowrap}
+.chip-pass{color:var(--good);border:1px solid currentColor}
+.chip-fail{color:var(--critical);border:1px solid currentColor}
+.chip.chip-warn{color:var(--warning);border:1px solid currentColor}
+.explanation{margin:0;font-size:13px;color:var(--ink-2);white-space:pre-wrap;overflow-wrap:break-word}
+.kv{display:flex;gap:8px;font-size:12px;color:var(--ink-3)}
+.votes{font-variant-numeric:tabular-nums;letter-spacing:.1em}
+pre.evidence{margin:0;background:var(--inset);border:1px solid var(--hairline);border-radius:6px;
+  padding:8px 10px;overflow-x:auto;max-height:320px;
+  font:12px/1.5 "SF Mono",ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-wrap:break-word}
+footer{color:var(--ink-3);font-size:12px;text-align:center;padding-top:8px}
+@media (prefers-reduced-motion:no-preference){
+  details.grader>summary,.toolbar button{transition:background .12s ease,color .12s ease}
+}
+@media (prefers-reduced-motion:reduce){
+  details.grader>summary::before{transition:none}
+}
+@media print{
+  :root,:root[data-theme="dark"],:root[data-theme="light"]{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;color-scheme:light}
+  body{background:#fff}
+  .toolbar{display:none}
+  .case,.run,.grader-def{break-inside:avoid}
+  pre.evidence{max-height:none}
+}
+</style>
+<div class="wrap">
+<header>
+<div class="eyebrow">Plugin eval report</div>
+<h1>planning v0.1.0</h1>
+<p class="verdict">Plugin effect: <span class="delta delta-pos">↑ +26.7 pts</span> vs baseline — improved 1 · flat 0 · regressed 0 of 1 case.</p>
+<div class="meta">
+<span class="mono">.</span>
+<span>Claude Code v2.1.332</span>
+<span class="num">2026-11-26 22:52 UTC</span>
+<span class="num">1m 17s</span>
+<span class="num">$0.75</span>
+<span class="num">6 runs</span>
+<span class="num">3 in flight</span>
+
+<span>model claude-sonnet-5-5</span>
+<span>judge haiku</span>
+<span class="num">threshold 100%</span>
+<span>filtered: --case derive-software-requirements-from-* --tag behavior</span>
+</div>
+</header>
+
+<section class="tiles">
+<div class="tile hero"><span class="label">Suite score · with plugin</span><span class="value">100%</span><span class="sub">mean of per-case scores</span></div>
+<div class="tile"><span class="label">Ablation Δ</span><span class="value num delta-pos">↑ +26.7</span><span class="sub">score points vs baseline, 1 of 1 case</span></div>
+<div class="tile"><span class="label">Baseline score</span><span class="value num">73.3%</span><span class="sub">without the plugin</span></div>
+<div class="tile"><span class="label">Cases</span><span class="value num">1</span><span class="sub">1 of 1 ≥ 100% threshold</span></div>
+<div class="tile"><span class="label">Perfect runs</span><span class="value num">100%</span><span class="sub">runs where every grader passed</span></div>
+</section>
+<details class="section legend">
+<summary>How to read this report</summary>
+<ul class="legend-list">
+<li>A run's score is the weighted fraction of its graders that passed; a "perfect" run passed every grader.</li>
+<li>A case's score is the mean of its runs; a case passes when its score is at or above the 100% threshold (the tick on each case bar).</li>
+<li>The suite score is the mean of the per-case scores.</li>
+<li>Judge votes are independent samples of the LLM judge; the majority decides pass or fail.</li>
+<li>"With plugin" and "Baseline" runs are identical except for the plugin being loaded; Δ is the with-plugin score minus the baseline score.</li>
+
+</ul>
+</details>
+<div class="toolbar"><button type="button" data-act="expand">Expand all</button><button type="button" data-act="collapse">Collapse all</button></div>
+<article class="case" id="case-1">
+<div class="case-head">
+<h2>derive-software-requirements-from-final-analysis</h2>
+<span class="muted mono">evals/behavior/derive-software-requirements-from-final-analysis</span>
+<span class="spacer"></span>
+
+<span class="delta delta-pos">↑ +26.7 pts</span>
+<span class="muted">with plugin</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span><i class="tick" style="left:100.0%"></i></span>
+<span class="num case-score">100%</span>
+</div>
+
+<details class="section" open>
+<summary>Results</summary>
+<section class="arm">
+<div class="arm-head">
+<span class="arm-label">With plugin</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">100% of runs perfect</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">6 turns · $0.13 · 22:52:10 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">analysis-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched superseded by SYS-006 and SYS-007\.\s*$</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">dou-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched run it again the next night\.&quot;\n- Date: 2026-11-26\n- Confirmed by: Lan \(PO\)\s*$</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/epics.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">software-requirements</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence"># Software requirements — export
+
+## SWR-001 — Limit per request
+
+- Statement: The software shall accept an export request for up to 100 reports and reject a request for more.
+- Rationale: SYS-001 raises the limit from 50 to 100 for every user (DOU-001).
+- Traces to: SYS-001
+- Type: functional
+- Verification criteria:
+  - A request for 100 reports from any user succeeds and returns 100 outputs.
+  - A request for 101 reports is rejected with an error and no output is written.
+- Component: `src/exporter.py:8`, `src/exporter.py:33`
+- Status: changes existing behavior
+
+## SWR-002 — Owner-only export
+
+- Statement: The software shall export a report only when the requesting user is its owner.
+- Rationale: SYS-003 restricts export to the owner; the code also lets teammates export (`src/exporter.py:19`), which the PO ruled wrong (DOU-002).
+- Traces to: SYS-003
+- Type: functional
+- Verification criteria:
+  - A request from the owner of a report succeeds and returns an output for it.
+  - A request from a teammate who is not the owner is rejected with an error and no output is written for that report.
+  - A request from a user who is neither owner nor teammate is rejected with an error and no output is written.
+- Component: `src/exporter.py:17-19`, `src/exporter.py:39-40`
+- Status: changes existing behavior
+
+## SWR-003 — Reject non-owner request with an error
+
+- Statement: The software shall answer an export request from a user who is not the report&apos;s owner with an error.
+- Rationale: SYS-003 says a request from anyone else is rejected with an error (DOU-002).
+- Traces to: SYS-003
+- Type: functional
+- Verification criteria:
+  - A non-owner request returns an error that names the refused report, and it is not treated as a success.
+- Component: `src/exporter.py:40`
+- Status: already met
+
+## SWR-004 — Nightly scheduled export
+
+- Statement: The software shall run each export a user has scheduled once every night, with night determined in UTC.
+- Rationale: SYS-004 asks for a nightly scheduled export; the PO fixed the time zone as UTC (DOU-005).
+- Traces to: SYS-004
+- Type: functional
+- Verification criteria:
+  - A scheduled export that is due runs exactly once per UTC night and its output is written.
+  - A user&apos;s export scheduled for a UTC night does not run on a different night&apos;s boundary computed in another time zone.
+- Component: new: no scheduler exists in `src/exporter.py`
+- Status: new
+
+## SWR-005 — Notify user of failed scheduled export
+
+- Statement: The software shall notify the user when a scheduled export fails.
+- Rationale: SYS-004; the PO answered &quot;tell the user&quot; on failure (DOU-005).
+- Traces to: SYS-004
+- Type: functional
+- Verification criteria:
+  - When a scheduled export fails, the user receives a notification identifying the failed export.
+  - When a scheduled export succeeds, no failure notification is sent.
+- Component: new: scheduler failure handling
+- Status: new
+
+## SWR-006 — Retry failed scheduled export next night
+
+- Statement: The software shall run a failed scheduled export again the next night.
+- Rationale: SYS-004; the PO answered &quot;run it again the next night&quot; (DOU-005).
+- Traces to: SYS-004
+- Type: functional
+- Verification criteria:
+  - An export that failed on night N runs again on night N+1.
+  - An export that succeeded on night N is not re-run extra on night N+1 beyond its normal nightly run.
+- Component: new: scheduler
+- Status: new
+
+## SWR-007 — Audit log of every export
+
+- Statement: The software shall record every export in the audit log.
+- Rationale: SYS-006 keeps the audit requirement v2 dropped (DOU-004); the code already writes it.
+- Traces to: SYS-006
+- Type: functional
+- Verification criteria:
+  - After a successful export of one report, the audit log contains one new entry for that report.
+  - A request rejected with an error adds no entry for the refused report.
+- Component: `src/exporter.py:42`
+- Status: already met
+
+## SWR-008 — Export time for large reports
+
+- Statement: The software shall finish exporting a report of up to 10,000 rows within 30 seconds.
+- Rationale: SYS-007 gives the speed target; DOU-003 fixes the number, unit and input size, as the DoD requires (`requirements/dod.md:5`).
+- Traces to: SYS-007
+- Type: non-functional (performance)
+- Verification criteria:
+  - Exporting a report of 10,000 rows completes in 30 seconds or less.
+  - Exporting a report of 10,000 rows that takes more than 30 seconds fails the test.
+- Component: `src/exporter.py:22-27`
+- Status: changes existing behavior
+
+## Traceability
+
+| System requirement | Software requirements |
+| ------------------ | --------------------- |
+| SYS-001 | SWR-001 |
+| SYS-003 | SWR-002, SWR-003 |
+| SYS-004 | SWR-004, SWR-005, SWR-006 |
+| SYS-006 | SWR-007 |
+| SYS-007 | SWR-008 |
+
+## Not derived to software
+
+| System requirement | Reason |
+| ------------------ | ------ |
+
+## Gaps found
+
+- SYS-004 (non-blocking): &quot;every night&quot; gives the time zone (UTC) but no time of day, and the failure notification channel is not stated. Take to `analyze-requirements`.
+- SYS-007 (non-blocking): it is not stated whether the 30 s applies to every format (csv, pdf) or what hardware/load the target assumes. Take to `analyze-requirements`.
+</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">wrote-software-requirements</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/software-requirements.md exists as expected</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 2</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">6 turns · $0.14 · 22:52:10 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">analysis-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched superseded by SYS-006 and SYS-007\.\s*$</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">dou-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched run it again the next night\.&quot;\n- Date: 2026-11-26\n- Confirmed by: Lan \(PO\)\s*$</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/epics.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">software-requirements</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence"># Software requirements — export
+
+## SWR-001 — Limit per request
+
+- Statement: The software shall accept an export request for up to 100 reports and reject a request for more.
+- Rationale: SYS-001 raises the limit from 50 to 100 for every user (DOU-001).
+- Traces to: SYS-001
+- Type: functional
+- Verification criteria:
+  - A request for 100 reports from any user succeeds and returns 100 outputs.
+  - A request for 101 reports is rejected with an error, and no output is written.
+- Component: `src/exporter.py:8`, `src/exporter.py:33`
+- Status: changes existing behavior
+
+## SWR-002 — Owner-only export
+
+- Statement: The software shall export a report only when the requesting user is its owner.
+- Rationale: SYS-003 limits export to the owner; the code also lets teammates export (`src/exporter.py:19`), and the PO ruled owner only (DOU-002).
+- Traces to: SYS-003
+- Type: functional
+- Verification criteria:
+  - A request from the owner of a report succeeds and returns one output for it.
+  - A request from a teammate who is not the owner is rejected with an error.
+  - A request from a user who is neither the owner nor a teammate is rejected with an error.
+  - A rejected request writes no output file.
+- Component: `src/exporter.py:17-19`, `src/exporter.py:39-40`
+- Status: changes existing behavior
+
+## SWR-003 — Nightly schedule
+
+- Statement: The software shall let a user schedule an export to run once every night, the night starting at a time given in UTC.
+- Rationale: SYS-004 asks for a nightly scheduled export; the PO fixed the time zone as UTC (DOU-005). The nightly export covers the reports the user could export by hand (analysis assumption, owner PO).
+- Traces to: SYS-004
+- Type: functional
+- Verification criteria:
+  - After a user schedules an export, it runs once in each UTC night and its output is written.
+  - A schedule created by one user does not run for another user.
+  - A scheduled run does not export a report the user may not export by hand (see SWR-002); that report is refused as in a manual request.
+- Component: new: a scheduler; none exists in `src/exporter.py`
+- Status: new
+
+## SWR-004 — Failed nightly export is reported
+
+- Statement: The software shall tell the user when a scheduled export fails.
+- Rationale: SYS-004; the PO answered &quot;tell the user&quot; on failure (DOU-005).
+- Traces to: SYS-004
+- Type: functional
+- Verification criteria:
+  - When a scheduled export fails, the user receives a notice that names the failed export.
+  - When a scheduled export succeeds, no failure notice is sent.
+- Component: new: a scheduler; none exists in `src/exporter.py`
+- Status: new
+
+## SWR-005 — Retry on the next night
+
+- Statement: The software shall run a scheduled export that failed again on the next night.
+- Rationale: SYS-004; the PO answered &quot;run it again the next night&quot; on failure (DOU-005).
+- Traces to: SYS-004
+- Type: functional
+- Verification criteria:
+  - A scheduled export that failed on night N runs again on night N+1.
+  - A failure on night N does not cancel the schedule: a run on night N+2 still occurs if night N+1 succeeded.
+  - A failed run does not retry again within the same night.
+- Component: new: a scheduler; none exists in `src/exporter.py`
+- Status: new
+
+## SWR-006 — Audit log entry per export
+
+- Statement: The software shall record every export in the audit log.
+- Rationale: SYS-006: the PO kept the audit log requirement that v2 dropped (DOU-004). It replaces SYS-002.
+- Traces to: SYS-006
+- Type: functional
+- Verification criteria:
+  - After an export of one report succeeds, the audit log holds one new entry that names that report.
+  - After an export request for N reports succeeds, the audit log holds N new entries.
+  - A rejected request writes no entry for a report it did not export.
+- Component: `src/exporter.py:42`
+- Status: already met
+
+## SWR-007 — Export time for a large report
+
+- Statement: The software shall export a report of up to 10,000 rows within 30 seconds.
+- Rationale: SYS-007 replaces the untestable &quot;finish quickly&quot; of SYS-005 with a number the PO gave (DOU-003). Rows are written one at a time with no time limit today (`src/exporter.py:22-27`).
+- Traces to: SYS-007
+- Type: non-functional (performance)
+- Verification criteria:
+  - A report of 10,000 rows is exported in 30 seconds or less, measured from the request to the output file being complete.
+  - A report of 1 row is exported and the output holds that row (a smaller input is not slower than the limit).
+- Component: `src/exporter.py:22-27`
+- Status: new
+
+## Traceability
+
+| System requirement | Software requirements |
+| ------------------ | --------------------- |
+| SYS-001 | SWR-001 |
+| SYS-003 | SWR-002 |
+| SYS-004 | SWR-003, SWR-004, SWR-005 |
+| SYS-006 | SWR-006 |
+| SYS-007 | SWR-007 |
+
+## Not derived to software
+
+| System requirement | Reason |
+| ------------------ | ------ |
+| None | every in-scope system requirement is derived (SYS-002 and SYS-005 are superseded, SYS-008 is out and unchanged) |
+
+## Gaps found
+
+For the user to take to `analyze-requirements`; none blocks this file.
+
+- SYS-004 (non-blocking): the hour at which the UTC night starts is not stated, so SWR-003 cannot give a clock time in its verification criteria.
+- SYS-004 (non-blocking): how the user is told of a failure (in the application, email, other) is not stated; SWR-004 checks only that a notice reaches the user.
+- SYS-004 (non-blocking): whether the retry on the next night is repeated without limit when it keeps failing is not stated.
+- SYS-007 (non-blocking): the machine and load under which 30 seconds is measured, and the format (CSV or PDF), are not stated.
+- SYS-003 / SYS-004 (non-blocking): the PO&apos;s &quot;Teammates must ask the owner&quot; implies a request path to the owner; the analysis states none, so none is derived.
+</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">wrote-software-requirements</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/software-requirements.md exists as expected</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 3</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">10 turns · $0.15 · 22:52:10 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">analysis-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched superseded by SYS-006 and SYS-007\.\s*$</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">dou-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched run it again the next night\.&quot;\n- Date: 2026-11-26\n- Confirmed by: Lan \(PO\)\s*$</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/epics.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">software-requirements</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence"># Software requirements — export
+
+## SWR-001 — Limit per request
+
+- Statement: The software shall reject an export request for more than 100 reports.
+- Rationale: SYS-001 raises the limit from 50 to 100 for every user (DOU-001).
+- Traces to: SYS-001
+- Type: functional
+- Verification criteria:
+  - A request for 100 reports from any user succeeds and returns 100 outputs.
+  - A request for 101 reports is rejected with an error and no output is written.
+  - A request for 51 reports succeeds (the old limit of 50 no longer applies).
+- Component: `src/exporter.py:8`, `src/exporter.py:33`
+- Status: changes existing behavior
+
+## SWR-002 — Owner-only export
+
+- Statement: The software shall reject an export request for a report the requesting user does not own.
+- Rationale: SYS-003 says only the owner can export a report; teammates must ask the owner (DOU-002). The code today also allows teammates.
+- Traces to: SYS-003
+- Type: functional
+- Verification criteria:
+  - A user who owns a report exports it successfully and receives its output.
+  - A user who is a teammate of the owner but not the owner requests the report and is rejected with an error; no output is written for it.
+  - A user from another team who is not the owner requests the report and is rejected with an error; no output is written for it.
+- Component: `src/exporter.py:17-19`, `src/exporter.py:39-40`
+- Status: changes existing behavior
+
+## SWR-003 — Schedule a nightly export
+
+- Statement: The software shall let a user schedule an export to run every night.
+- Rationale: SYS-004 adds nightly scheduled exports. The set of reports covered is the set the user could export by hand (assumption in `analysis.md`).
+- Traces to: SYS-004
+- Type: functional
+- Verification criteria:
+  - A user creates a nightly schedule for a report they own; the schedule is stored and shown as active.
+  - A user tries to schedule a report they do not own; the request is rejected with an error and no schedule is created.
+- Component: new: no scheduler exists in `src/exporter.py`
+- Status: new
+
+## SWR-004 — Run scheduled exports every night in UTC
+
+- Statement: The software shall run each active scheduled export once per night, with the night defined in UTC.
+- Rationale: SYS-004 asks for a nightly run; the PO fixed the time zone as UTC (DOU-005).
+- Traces to: SYS-004
+- Type: functional
+- Verification criteria:
+  - With a clock set across one UTC day boundary, an active schedule runs exactly once and its output is written.
+  - With a user whose local time zone differs from UTC, the run happens on the UTC night, not the local one.
+  - A schedule that is not active does not run.
+- Component: new: scheduler, none exists in `src/exporter.py`
+- Status: new
+
+## SWR-005 — Report a failed scheduled export
+
+- Statement: The software shall tell the user when a scheduled export fails.
+- Rationale: SYS-004; the PO answered &quot;tell the user&quot; on failure (DOU-005).
+- Traces to: SYS-004
+- Type: functional
+- Verification criteria:
+  - A scheduled export forced to fail (for example an unwritable output directory) produces a notification to the schedule&apos;s owner naming the report and the failure.
+  - A scheduled export that succeeds produces no failure notification.
+- Component: new: scheduler, none exists in `src/exporter.py`
+- Status: new
+
+## SWR-006 — Retry a failed scheduled export the next night
+
+- Statement: The software shall run a scheduled export again the next night after it failed.
+- Rationale: SYS-004; the PO answered &quot;run it again the next night&quot; on failure (DOU-005).
+- Traces to: SYS-004
+- Type: functional
+- Verification criteria:
+  - A scheduled export that fails on night 1 runs again on night 2 (UTC) and, if it then succeeds, its output is written.
+  - A scheduled export that succeeds on night 1 still runs once on night 2 as normal, with no extra run on night 1.
+- Component: new: scheduler, none exists in `src/exporter.py`
+- Status: new
+
+## SWR-007 — Audit every export
+
+- Statement: The software shall record every export in the audit log.
+- Rationale: SYS-006: the PO kept the audit requirement that v2 dropped, because compliance needs it (DOU-004). The code already writes an entry per exported report.
+- Traces to: SYS-006
+- Type: functional
+- Verification criteria:
+  - An export of one report adds one audit log entry that identifies the report.
+  - An export of 3 reports adds 3 audit log entries.
+  - A request that is rejected (over the limit, not the owner, unsupported format) writes no output and no audit entry for a report that was not exported.
+- Component: `src/exporter.py:42`
+- Status: already met
+
+## SWR-008 — Export time for large reports
+
+- Statement: The software shall complete the export of a report with up to 10,000 rows within 30 seconds.
+- Rationale: SYS-007 replaces &quot;finish quickly&quot; (SYS-005) with a number, a unit and an input size, as the DoD requires (DOU-003). The code writes rows one at a time and has no time limit.
+- Traces to: SYS-007
+- Type: non-functional (performance)
+- Verification criteria:
+  - Exporting a report with 10,000 rows completes in 30 seconds or less, measured from the request to the output being written.
+  - The same check passes on a report with 1 row (small input, sanity case).
+  - A measured time above 30 seconds for the 10,000-row report fails the criterion.
+- Component: `src/exporter.py:22-27`
+- Status: new
+
+## Traceability
+
+| System requirement | Software requirements |
+| ------------------ | --------------------- |
+| SYS-001 | SWR-001 |
+| SYS-003 | SWR-002 |
+| SYS-004 | SWR-003, SWR-004, SWR-005, SWR-006 |
+| SYS-006 | SWR-007 |
+| SYS-007 | SWR-008 |
+
+## Not derived to software
+
+| System requirement | Reason |
+| ------------------ | ------ |
+
+## Gaps found
+
+For `analyze-requirements` to take to the PO:
+
+- **SYS-004** (non-blocking): &quot;every night&quot; has a time zone (UTC) but no time of day or window. SWR-004 is tested at the UTC day boundary only. Ask the PO for the hour or window.
+- **SYS-004** (non-blocking): &quot;tell the user&quot; does not say the channel (email, in-app, other). SWR-005 is verified only as &quot;a notification reaches the owner&quot;.
+- **SYS-004** (non-blocking): the PO did not say whether a second failure is retried every night without limit. SWR-006 covers one retry; ask for a limit, if any.
+- **SYS-007** (non-blocking): the hardware or load on which 30 seconds must hold is not stated, so SWR-008 cannot name a test environment.
+- **SYS-003** (non-blocking): the export code raises an error mid-loop, after earlier reports in the same request were written (`src/exporter.py:36-42`). Ask the PO whether a rejected request must write nothing for the whole request, or only for the refused report. SWR-002 covers only the refused report.
+</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">wrote-software-requirements</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/software-requirements.md exists as expected</p>
+
+</div>
+</details></div>
+</div>
+</section><section class="arm">
+<div class="arm-head">
+<span class="arm-label">Baseline (no plugin)</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:73.3%"></span></span>
+<span class="num">73.3%</span>
+<span class="muted num">0% of runs perfect</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:80.0%"></span></span>
+<span class="num">80%</span>
+<span class="muted num">9 turns · $0.12 · 22:52:48 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">analysis-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched superseded by SYS-006 and SYS-007\.\s*$</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">dou-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched run it again the next night\.&quot;\n- Date: 2026-11-26\n- Confirmed by: Lan \(PO\)\s*$</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/epics.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">software-requirements</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: FAIL FAIL FAIL</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✗ ✗ ✗</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence"># Software requirements — export
+
+Derived from `requirements/export/analysis.md` (status: final) and the PO answers in `requirements/export/dou.md`.
+Only system requirements with scope **in** are derived. Each software requirement states one behavior a test can observe from outside the system (DoD `requirements/dod.md:5-7`).
+
+## Software requirements
+
+| ID | Derived from | Requirement | Acceptance check | Code impact |
+| -- | ------------ | ----------- | ---------------- | ----------- |
+| SWR-001 | SYS-001, DOU-001 | The system accepts an export request that contains up to 100 reports, for every user. | A request with 100 reports succeeds for any user. | change: `MAX_REPORTS_PER_REQUEST` 50 -&gt; 100 (`src/exporter.py:8`) |
+| SWR-002 | SYS-001, DOU-001 | The system rejects an export request that contains more than 100 reports with an error. | A request with 101 reports is rejected with an error and no file is written. | `src/exporter.py:33-34` (uses the same constant as SWR-001) |
+| SWR-003 | SYS-003, DOU-002 | The system exports a report only when the requesting user is its owner. | The owner&apos;s request succeeds. | change: `src/exporter.py:17-19`, drop the `report.team == user.team` clause |
+| SWR-004 | SYS-003, DOU-002 | The system rejects an export request from a user who is not the owner of the report, with an error; a teammate who is not the owner is rejected too. | A non-owner teammate and a non-owner user from another team are each rejected with an error and no file is written. | change: `src/exporter.py:17-19, 39-40` |
+| SWR-005 | SYS-004 | A user can create a schedule that runs an export of their reports every night. | After a schedule is created, an export run starts once per night. | new: no scheduling exists in `src/exporter.py` |
+| SWR-006 | SYS-004, DOU-005 | &quot;Every night&quot; is evaluated in UTC: the scheduled run starts once per UTC day. | With a fixed clock, the run starts at the same UTC time on each of two consecutive days, whatever the user&apos;s local zone. | new |
+| SWR-007 | SYS-004, DOU-005 | When a scheduled export fails, the system notifies the user who owns the schedule. | A forced failure produces one notification to that user. | new |
+| SWR-008 | SYS-004, DOU-005 | When a scheduled export fails, the system runs it again the next night. | After a forced failure on night N, a run starts on night N+1. | new |
+| SWR-009 | SYS-004 (assumption) | A scheduled export covers the reports the user could export by hand (owner only, per SWR-003/SWR-004). | A scheduled run exports the user&apos;s own reports and no others. | new; depends on the assumption in `analysis.md` (owner: PO) |
+| SWR-010 | SYS-006, DOU-004 | The system records every export in the audit log. | After a successful export of a report, the audit log has one entry for that report. | already met: `src/exporter.py:42`; keep it, and make scheduled exports (SWR-005) write it too |
+| SWR-011 | SYS-007, DOU-003 | The system exports a report with up to 10,000 rows within 30 seconds. | A report of 10,000 rows is exported in 30 seconds or less, measured from request to the output file being complete. | new: `src/exporter.py:22-27` has no time limit and writes rows one at a time; needs a measured test |
+
+## Traceability
+
+| System requirement | Scope | Software requirements |
+| ------------------ | ----- | --------------------- |
+| SYS-001 | in | SWR-001, SWR-002 |
+| SYS-002 | out (superseded by SYS-006) | none |
+| SYS-003 | in | SWR-003, SWR-004 |
+| SYS-004 | in | SWR-005, SWR-006, SWR-007, SWR-008, SWR-009 |
+| SYS-005 | out (superseded by SYS-007) | none |
+| SYS-006 | in | SWR-010 |
+| SYS-007 | in | SWR-011 |
+| SYS-008 | out (unchanged) | none |
+
+## Open points
+
+None of these block the requirements above. I did not wait for answers; each has a stated default.
+
+1. **Unchanged v1/v2 rules missing from the analysis.** `v2.rst:8` (PDF export) and `v2.rst:14` (reject a report with no rows) are not in the analysis table. They are unchanged from v1 and the code already rejects empty reports (`src/exporter.py:37-38`), so no software requirement is derived. If the analysis should cover them, add SYS rows for them.
+2. **PDF export in code.** `_write` writes CSV text into a `.pdf` file for the `pdf` format (`src/exporter.py:22-27`). This is a code defect against `v2.rst:8`, outside this scope. It affects SWR-011 only if the 30-second target is also meant for PDF; I assumed it applies to every supported format.
+3. **Notification channel (SWR-007).** The PO said &quot;tell the user&quot; without a channel. Default: the same way other user messages are delivered; the channel is a design choice to confirm.
+4. **Time of night (SWR-006).** The PO gave the zone (UTC), not the hour. The hour is a design choice to confirm.
+5. **Partial failure (SWR-008).** I read &quot;fails&quot; as the scheduled run not completing; the retry repeats the whole run.
+6. **Order of checks.** In `export_reports`, the audit entry and the file for earlier reports are written before a later report fails the check. SWR-004&apos;s &quot;no file is written&quot; holds for a single-report request; for a multi-report request it is not true today. Decide whether a rejection must be all-or-nothing.
+</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">wrote-software-requirements</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/software-requirements.md exists as expected</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 2</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:80.0%"></span></span>
+<span class="num">80%</span>
+<span class="muted num">6 turns · $0.11 · 22:52:50 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">analysis-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched superseded by SYS-006 and SYS-007\.\s*$</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">dou-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched run it again the next night\.&quot;\n- Date: 2026-11-26\n- Confirmed by: Lan \(PO\)\s*$</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/epics.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">software-requirements</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: FAIL FAIL FAIL</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✗ ✗ ✗</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence"># Software requirements — export
+
+Derived from `requirements/export/analysis.md` (status: final) and the PO answers in `requirements/export/dou.md` (DOU-001 to DOU-005, all closed). Each requirement is one observable behavior with a pass/fail check, per `requirements/dod.md`.
+
+## Requirements
+
+| ID | Requirement | Source | Acceptance check | Code impact |
+| -- | ----------- | ------ | ---------------- | ----------- |
+| SW-001 | The system shall export a saved report as CSV. | SYS-008 | Export a saved report with format `csv`; a CSV file with the report&apos;s rows is produced. | Already met: `src/exporter.py:9` |
+| SW-002 | The system shall accept an export request of up to 100 reports. | SYS-001, DOU-001 | A request with 100 reports succeeds; a request with 101 is rejected with an error. Same for every user and role. | Change `MAX_REPORTS_PER_REQUEST` 50 → 100 (`src/exporter.py:8`) |
+| SW-003 | The system shall reject an export request from a user who is not the owner of the report, with an error. | SYS-003, DOU-002 | A teammate (same team, not owner) requests export of the owner&apos;s report: error, no file written, no audit entry. The owner&apos;s request succeeds. | Change `_may_export` to owner only (`src/exporter.py:17-19`) |
+| SW-004 | The system shall let a user schedule an export to run every night. | SYS-004 | Schedule an export; it runs once per night. | New: nothing schedules work today |
+| SW-005 | A scheduled export shall run at a fixed time of day in UTC. | SYS-004, DOU-005 | The run time is evaluated in UTC, independent of the user&apos;s or server&apos;s local zone. | New |
+| SW-006 | When a scheduled export fails, the system shall tell the user and run it again the next night. | SYS-004, DOU-005 | Force a failure: the user gets a failure notice, and the export runs again the next night. | New |
+| SW-007 | A report with up to 10,000 rows shall export within 30 seconds. | SYS-007, DOU-003 (replaces SYS-005) | Export a 10,000-row report; it finishes in 30 s or less. | New; `_write` (`src/exporter.py:22-27`) has no time limit, so it needs a measurement |
+| SW-008 | The system shall record every export in the audit log. | SYS-006, DOU-004 (kept by the PO) | After a successful export, the audit log has one entry for that report. | Already met: `src/exporter.py:42` |
+
+## Not carried over
+
+- SYS-002: superseded by SYS-006 (SW-008).
+- SYS-005 (&quot;finish quickly&quot;): superseded by SYS-007 (SW-007). It failed the DoD.
+
+## Open points for the PO
+
+Settled by the analysis and PO answers, so nothing blocks. These need a decision, and I made none:
+
+1. **PDF and empty-report rejection are missing from the analysis.** `v1.md` and `v2.rst` both say &quot;exports a saved report as PDF&quot; and &quot;an export request is rejected when the report has no rows&quot;. The analysis lists neither. They are unchanged and the code appears to meet them (`src/exporter.py:9`, `:37-38`), so I treated them as carried over, but I left them out of the table above rather than invent IDs. Please add them to the analysis. Note that `_write` writes CSV text for every format, so a `pdf` export is not a real PDF. I can&apos;t tell whether that is intended.
+2. **Nightly run time.** DOU-005 gives the time zone (UTC) but no hour. SW-005 says &quot;fixed time of day&quot;; the hour needs a value.
+3. **Failure notice channel.** &quot;Tell the user&quot; does not say how (in-app, email). SW-006 is not testable until it does.
+4. **Retry limit.** &quot;Run it again the next night&quot; does not say whether the retry repeats indefinitely after further failures.
+5. **Assumption (PO, from the analysis):** a nightly export covers the reports the user could export by hand. With SW-003 that means reports the user owns. If wrong, SW-004 is built on the wrong report set.
+6. **Analysis marks SYS-004 and SYS-007 DoD as &quot;met&quot;** while the code has no scheduler and no timing check. I read that as &quot;the requirement text meets the DoD&quot;, not &quot;implemented&quot;.
+</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">wrote-software-requirements</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/software-requirements.md exists as expected</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 3</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:60.0%"></span></span>
+<span class="num">60%</span>
+<span class="muted num">6 turns · $0.10 · 22:52:53 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">analysis-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched superseded by SYS-006 and SYS-007\.\s*$</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">dou-untouched</span>  </summary>
+<div class="grader-body">
+<p class="explanation">matched run it again the next night\.&quot;\n- Date: 2026-11-26\n- Confirmed by: Lan \(PO\)\s*$</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-epics</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/epics.md absent as expected</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">software-requirements</span>  </summary>
+<div class="grader-body">
+<p class="explanation">grader threw: case &quot;derive-software-requirements-from-final-analysis&quot; grader focus file &quot;requirements/export/software-requirements.md&quot;: path &quot;requirements/export/software-requirements.md&quot; does not exist</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">wrote-software-requirements</span>  </summary>
+<div class="grader-body">
+<p class="explanation">requirements/export/software-requirements.md missing (expected present)</p>
+
+</div>
+</details></div>
+</div>
+</section>
+</details>
+<details class="section" open>
+<summary>Prompt</summary>
+<div class="md"><p>Derive the software requirements from the requirement analysis in requirements/export/. I won't be around to answer questions, so do not wait for me.</p>
+</div>
+</details>
+<details class="section" open>
+<summary>Graders — what "good" means for this case</summary>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">analysis-untouched</span><span class="badge">regex</span></div>
+<div class="config"><div class="kv"><span>target</span><code>{&quot;source&quot;:&quot;file&quot;,&quot;path&quot;:&quot;requirements/export/analysis.md&quot;}</code></div><div class="kv"><span>pattern</span><code>&quot;superseded by SYS-006 and SYS-007\\.\\s*$&quot;</code></div><div class="kv"><span>flags</span><code>&quot;&quot;</code></div><div class="kv"><span>match</span><code>&quot;contains&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">dou-untouched</span><span class="badge">regex</span></div>
+<div class="config"><div class="kv"><span>target</span><code>{&quot;source&quot;:&quot;file&quot;,&quot;path&quot;:&quot;requirements/export/dou.md&quot;}</code></div><div class="kv"><span>pattern</span><code>&quot;run it again the next night\\.\&quot;\\n- Date: 2026-11-26\\n- Confirmed by: Lan \\(PO\\)\\s*$&quot;</code></div><div class="kv"><span>flags</span><code>&quot;&quot;</code></div><div class="kv"><span>match</span><code>&quot;contains&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">no-epics</span><span class="badge">file_exists</span></div>
+<div class="config"><div class="kv"><span>path</span><code>&quot;requirements/export/epics.md&quot;</code></div><div class="kv"><span>exists</span><code>false</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">software-requirements</span><span class="badge">llm</span></div>
+<div class="md"><p>The text is the <code>software-requirements.md</code> the run wrote from a final requirement analysis of a report export. The analysis has five in-scope system requirements: SYS-001 (at most 100 reports per request, <code>src/exporter.py:8</code>), SYS-003 (only the owner can export; a teammate's request is rejected, and <code>src/exporter.py:17-19</code> lets teammates export today), SYS-004 (a scheduled export runs every night, in UTC; when it fails, the user is told and it runs again the next night), SYS-006 (every export is recorded in the audit log, already met at <code>src/exporter.py:42</code>) and SYS-007 (a report of up to 10,000 rows exports within 30 seconds). SYS-002 and SYS-005 are superseded, SYS-008 is unchanged, and all three are out of scope. The Definition of Done asks that each requirement states one observable behavior and that a speed target gives a number, its unit and the input size.</p>
+<p>PASS if all of these hold:</p>
+<ul>
+<li>Each of the five in-scope system requirements is traced by at least one <code>SWR-</code> whose statement starts "The software shall" and states what the software does, not how it is built. The superseded and unchanged requirements are not derived.</li>
+<li>Each <code>SWR-</code> has a rationale, its <code>Traces to</code> line, a type (the export-time one is non-functional with the quality named), testable verification criteria and a code area as <code>path:line</code>, or "new" with where.</li>
+<li>The criteria meet the DoD: the export-time requirement has 10,000 rows and 30 seconds in its criteria, and a requirement that can refuse a request has a negative case.</li>
+<li>No requirement is invented: nothing states a behavior that none of the five system requirements supports.</li>
+<li>A traceability table maps every in-scope system requirement to its software requirements, and the file has a "Not derived to software" section.
+FAIL if an in-scope requirement has no <code>SWR-</code>, if a statement names a technology, class or table, if the export-time criteria have no number, if a requirement no system requirement supports is present, or if a superseded requirement is derived.</li>
+</ul>
+</div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">used-skill</span><span class="badge">tool_used</span></div>
+<div class="config"><div class="kv"><span>tool</span><code>&quot;Skill&quot;</code></div><div class="kv"><span>input_match</span><code>&quot;\&quot;skill\&quot;\\s*:\\s*\&quot;(?:[\\w-]+:)?derive-software-requirements\&quot;&quot;</code></div><div class="kv"><span>arm</span><code>&quot;with-only&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">wrote-software-requirements</span><span class="badge">file_exists</span></div>
+<div class="config"><div class="kv"><span>path</span><code>&quot;requirements/export/software-requirements.md&quot;</code></div><div class="kv"><span>exists</span><code>true</code></div></div>
+</div>
+</details>
+</article>
+<footer>Generated by <code>claude plugin eval</code> · schema v1 · scores are not comparable across different suites</footer>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  var bar=document.querySelector('.toolbar');
+  if(!bar)return;
+  bar.addEventListener('click',function(e){
+    var b=e.target&&e.target.closest('button');
+    if(!b)return;
+    var open=b.dataset.act==='expand';
+    document.querySelectorAll('details.section, details.grader').forEach(function(d){d.open=open});
+  });
+});
+// Collapsed details vanish from print/PDF; these pages are share artifacts.
+window.addEventListener('beforeprint',function(){
+  document.querySelectorAll('details').forEach(function(d){
+    if(!d.open){d.dataset.printOpened='1';d.open=true}
+  });
+});
+window.addEventListener('afterprint',function(){
+  document.querySelectorAll('details[data-print-opened]').forEach(function(d){
+    d.open=false;delete d.dataset.printOpened;
+  });
+});
+</script>
+</body>
+</html>

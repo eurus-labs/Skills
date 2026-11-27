@@ -1,0 +1,611 @@
+{
+  "schemaVersion": 1,
+  "claudeVersion": "2.1.330",
+  "startedAt": "2026-11-23T09:03:49.209Z",
+  "durationSeconds": 104,
+  "costUsd": 1.1472823,
+  "partial": false,
+  "suite": {
+    "root": "<local>",
+    "ablation": "with-without",
+    "modelOverride": "claude-sonnet-5-5",
+    "judgeModel": "haiku",
+    "tagFilters": [
+      "behavior"
+    ],
+    "threshold": 1,
+    "concurrency": 3,
+    "plugins": [
+      {
+        "name": "review",
+        "version": "0.3.0",
+        "path": "<local>"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "review-code-finds-planted-vulnerabilities",
+      "dir": "evals/behavior/review-code-finds-planted-vulnerabilities",
+      "source": "mixed",
+      "promptMarkdown": "Review app.py before I merge it.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 900,
+      "maxTurns": 30,
+      "graders": [
+        {
+          "name": "code-untouched",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": {
+              "source": "file",
+              "path": "app.py"
+            },
+            "pattern": "WHERE username = .%s.. % username",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "findings",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "PASS if the reply reports all four blocking findings, each with its CWE and a concrete exploit input: the SQL injection in `find_user` built with `%` formatting (CWE-89); the SQL injection in `search_orders` built with an f-string, through `customer_id` or `status` (CWE-89); `delete_account` never checking `actor` although its docstring allows only an administrator (CWE-862); and the path traversal in `download_export`, where `os.path.join` lets `../../etc/passwd` escape `EXPORT_ROOT` (CWE-22). It must also rank these four above the should-fix findings (the open redirect, the hardcoded signing key, the MD5 password hash, the missing tests), and must not flag `format_receipt`.\nFAIL if any of the four blocking findings is missing (the `%` injection is the easy one to overlook), one is rated below blocking, one has no CWE or no exploit input, `format_receipt` is flagged as a vulnerability, or `app.py` was edited instead of reported on.",
+          "config": {
+            "criteria": "PASS if the reply reports all four blocking findings, each with its CWE and a concrete exploit input: the SQL injection in `find_user` built with `%` formatting (CWE-89); the SQL injection in `search_orders` built with an f-string, through `customer_id` or `status` (CWE-89); `delete_account` never checking `actor` although its docstring allows only an administrator (CWE-862); and the path traversal in `download_export`, where `os.path.join` lets `../../etc/passwd` escape `EXPORT_ROOT` (CWE-22). It must also rank these four above the should-fix findings (the open redirect, the hardcoded signing key, the MD5 password hash, the missing tests), and must not flag `format_receipt`.\nFAIL if any of the four blocking findings is missing (the `%` injection is the easy one to overlook), one is rated below blocking, one has no CWE or no exploit input, `format_receipt` is flagged as a vulnerability, or `app.py` was edited instead of reported on.",
+            "focus": "last_message"
+          }
+        },
+        {
+          "name": "used-skill",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?review-code\"",
+            "arm": "with-only"
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 5,
+            "costUsd": 0.10133149999999999,
+            "judgeCostUsd": 0.0031070000000000004,
+            "durationSeconds": 27,
+            "startedAt": "2026-11-23T09:03:49.250Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "code-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched WHERE username = .%s.. % username",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "findings",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "## Review summary\n`app.py` is an account service module with user lookup, order search, login redirect, export download, password hashing, account deletion and receipt formatting. **Verdict: needs work.** It has several exploitable security flaws, and I would not merge it. The module docstring says the file is an intentionally vulnerable fixture (\"DO NOT DEPLOY\"). I reviewed it as production code anyway, since you asked for a pre-merge review. Scope was all of `app.py`, with no diff or base revision available. The repository has no `AGENTS.md`, `CONTRIBUTING.md`, Copilot instructions or review checklist.\n\n## Findings\n\n### Blocking\n1. **`app.py:28`** — issue: SQL injection in `find_user` (CWE-89).\n   `username = \"x' OR '1'='1\"` returns an arbitrary user row. A UNION payload can read any table in the database.\n   Use a parameterized query: `db.execute(\"SELECT ... WHERE username = ?\", (username,))`.\n\n2. **`app.py:36-39`** — issue: SQL injection in `search_orders` through both `customer_id` and `status` (CWE-89).\n   `status = \"' OR 1=1 --\"` returns every customer's orders. `customer_id` is unquoted, so it is injectable even if it is a number.\n   Use `?` placeholders for both values.\n\n3. **`app.py:62-69`** — issue: `delete_account` has no authorization check (CWE-862).\n   The docstring says only an administrator may delete an account that isn't their own, but `actor` is never read. Any caller can delete any account.\n   Check `actor.role == \"admin\" or actor.id == account_id` before the `DELETE`, and return or raise on failure. Add a test for the denied path.\n\n4. **`app.py:50-54`** — issue: path traversal in `download_export` (CWE-22).\n   `filename=\"../../etc/passwd\"` makes `os.path.join` produce a path outside `EXPORT_ROOT`. An absolute `filename` such as `/etc/passwd` discards `EXPORT_ROOT` entirely.\n   Resolve with `os.path.realpath` and require `os.path.commonpath([root, path]) == root`. Alternatively, accept only a known basename.\n\n5. **`app.py:44-47`** — issue: open redirect in `login_redirect` (CWE-601).\n   `?next=https://evil.example` sends a freshly authenticated user off-site, which makes phishing links look legitimate. `//evil.example` also bypasses a naive \"starts with /\" check.\n   Allow only relative paths: no scheme or netloc, starting with a single `/`. Otherwise fall back to `/dashboard`.\n\n6. **`app.py:57-59`** — issue: unsalted MD5 for password storage (CWE-327, CWE-916).\n   If the database leaks, MD5 hashes crack at billions per second. Identical passwords also produce identical hashes, so rainbow tables work.\n   Use `hashlib.scrypt`, or argon2 or bcrypt, with a per-user salt. Compare hashes with `hmac.compare_digest`.\n\n7. **`app.py:16`** — issue: hardcoded session signing key (CWE-798).\n   Anyone with read access to the repository can forge signed sessions. The key is also in git history, so rotate it once it is removed.\n   Load it from the environment or a secrets manager, and fail at startup if it is missing.\n\n### Should fix\n1. **`app.py:25-31`** — suggestion: `find_user` leaks the connection if `execute` raises.\n   A DB error skips `db.close()`, so a failing query repeated over time exhausts file handles. Use `try/finally` or `contextlib.closing`.\n\n2. **`app.py:62-69`** — suggestion: `delete_account` always returns `True`, even when no row matched.\n   Deleting a non-existent ID reports success. Check `cursor.rowcount` and return its result.\n\n3. **`app.py:72-79`** — suggestion: `format_receipt` indexes `order[\"items\"]` and `item[\"price\"]` directly.\n   A `None` price raises `TypeError` mid-render. Floats for money also invite rounding drift, so prefer `Decimal` or integer cents. No input validation or tests exist.\n\n### Nits\n1. **`app.py:50-54`** — nit: the docstring says \"Stream\", but the function reads the whole file into memory. Either stream it or correct the docstring.\n2. **`app.py:21-22`** — nit: the DB path `\"accounts.db\"` is relative to the current working directory and is not configurable.\n\n## Not reviewed\n- **Callers and framework wiring.** Nothing else in the directory shows how `request` and `actor` are built, so I couldn't judge CSRF (CWE-352) or authentication for these endpoints.\n- **Tests.** The directory has none. I didn't run `detect_stack.py`, so test coverage was not assessed.\n- **Dependencies and `pyproject.toml`.** Not reviewed."
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 6,
+            "costUsd": 0.1055662,
+            "judgeCostUsd": 0.0043227000000000005,
+            "durationSeconds": 30,
+            "startedAt": "2026-11-23T09:03:49.251Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "code-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched WHERE username = .%s.. % username",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "findings",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "## Review summary\nThis review covers all of `app.py` (79 lines). The repo has no commits yet, so there was no base to diff against. It's a set of account-service helpers: user lookup, order search, login redirect, export download, password hashing, account deletion and receipt formatting. **Verdict: needs work. Do not merge.** There are seven blocking issues, several of them directly exploitable. The module docstring calls the file an \"intentionally vulnerable fixture\". I treated that as a claim to check, not a reason to skip anything, and the flaws are real. If the file is a test fixture, it shouldn't be merged into a deployable branch. Rules files checked: none exist (no `AGENTS.md`, `CONTRIBUTING.md`, Copilot instructions or review checklist).\n\n## Findings\n\n### Blocking\n1. **`app.py:28`** — issue: SQL injection (CWE-89) in `find_user`.\n   `username` is interpolated into the query with `%`. A username of `x' OR '1'='1` returns the first user in the table. `' UNION SELECT ...` can read arbitrary tables.\n   Use a parameterized query: `db.execute(\"SELECT ... WHERE username = ?\", (username,))`.\n\n2. **`app.py:36-38`** — issue: SQL injection (CWE-89) in `search_orders`.\n   Both `customer_id` and `status` are put into an f-string. `status = \"' OR 1=1 --\"` drops the customer filter and returns every customer's orders. `customer_id` is not even quoted, so `0 OR 1=1` works too.\n   Use `?` placeholders for both values.\n\n3. **`app.py:67`** — issue: missing authorization (CWE-862) in `delete_account`.\n   The docstring says only an administrator may delete an account that isn't their own, but `actor` is never read. Any caller can delete any account, and the function always returns `True`.\n   Check `actor[\"role\"] == \"admin\" or actor[\"id\"] == account_id` before the `DELETE`, and raise or return an error otherwise. Add a test for each branch.\n\n4. **`app.py:59`** — issue: weak password hashing (CWE-327, CWE-916).\n   MD5 is fast and unsalted. If the database leaks, identical passwords give identical hashes and the whole set can be cracked with rainbow tables or GPUs in minutes.\n   Use `hashlib.scrypt`, or `argon2-cffi` or `bcrypt`, with a per-user salt. Migrate existing hashes on the next successful login.\n\n5. **`app.py:52-54`** — issue: path traversal (CWE-22) in `download_export`.\n   `os.path.join` discards `EXPORT_ROOT` when `filename` is absolute, so `/etc/passwd` is read directly. `../../etc/passwd` also escapes the root. The server returns the file contents.\n   Resolve the path with `os.path.realpath` and require that `os.path.commonpath([EXPORT_ROOT, resolved]) == EXPORT_ROOT`. Otherwise reject the request. An allow-list of generated export IDs is better still.\n\n6. **`app.py:46-47`** — issue: open redirect (CWE-601) in `login_redirect`.\n   `?next=https://evil.example` sends a freshly authenticated user to an attacker's site. That's a standard phishing step.\n   Accept only relative paths: they must start with a single `/`, must not start with `//`, and must have no scheme or netloc after `urlparse`. Otherwise fall back to `/dashboard`.\n\n7. **`app.py:16`** — issue: hardcoded secret in source (CWE-798).\n   Anyone with repository access can forge session signatures. The key stays valid in git history even after it's removed from the file.\n   Load it from the environment or a secret manager. Rotate this value, since it has already been committed to the working tree.\n\n### Should fix\n1. **`app.py:25-31, 34-41`** — suggestion: add tests. `pyproject.toml` is present, but there are no tests for any of these functions. Even after the fixes, the authorization branch in `delete_account` and the traversal and redirect rejections need regression tests. Without them the fixes can quietly regress.\n2. **`app.py:27-30`** — issue: `find_user` closes the connection only on the success path. If `execute` raises, the connection leaks. Use `try/finally` or `contextlib.closing`.\n3. **`app.py:50-54`** — issue: `download_export` reads the whole file into memory, though its docstring says \"stream\". A large export ties up memory per request. Return a file object or a chunked response, or fix the docstring.\n\n### Nits\n1. **`app.py:22`** — nit: `sqlite3.connect(\"accounts.db\")` is relative to the current directory, so the app will open a different, empty database depending on where it's launched. Take the path from configuration.\n2. **`app.py:77-78`** — nit: money is formatted from `float`. Use `Decimal` or integer cents to avoid rounding drift. A missing `item[\"name\"]` or `item[\"price\"]` key raises `KeyError`.\n\n## Not reviewed\n- **Callers and framework:** no routing, session or CSRF code is in scope, so I couldn't check whether `login_redirect` and `delete_account` are reached through authenticated, CSRF-protected endpoints.\n- **Schema and dependencies:** the DB schema and `pyproject.toml` dependencies.\n- **Stack detection:** I didn't run `detect_stack.py`. This is a single Python file with no tests.\n- **Rules files:** none exist, so there were no project-specific rules to check against.\n\nI haven't edited anything. I can fix the seven blocking items and add tests if you want."
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 8,
+            "costUsd": 0.11237720000000001,
+            "judgeCostUsd": 0.0048916,
+            "durationSeconds": 32,
+            "startedAt": "2026-11-23T09:03:49.251Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "code-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched WHERE username = .%s.. % username",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "findings",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "## Review summary\nI reviewed all of `app.py`. The git repo has no commits, so there was no diff or base to compare against. The file adds account-service helpers: user and order lookup, login redirect, export download, password hashing, account deletion and receipt formatting. Verdict: **needs work**. Seven defects can reach users, including SQL injection, an unauthenticated delete and path traversal. The module docstring says the file is an intentionally vulnerable fixture that must not be deployed. If that's true, it shouldn't be merged into anything that ships. I treated the docstring as a claim and still reviewed every function. No rules files were checked, because the repo has no `AGENTS.md`, `CONTRIBUTING.md`, `.github/` instructions or review checklist.\n\n## Findings\n\n### Blocking\n1. **`app.py:62-69`** — issue: `delete_account` never checks `actor`, despite the docstring saying only an administrator may delete an account that isn't their own (CWE-862 / CWE-863).\n   Any caller, including a regular user, can delete any account by id, and the function returns `True`.\n   Check `actor`'s role and ownership before the `DELETE`. Raise a permission error otherwise.\n\n2. **`app.py:28`** — issue: `find_user` builds SQL by `%` string formatting (CWE-89).\n   `username = \"x' OR '1'='1\"` returns an arbitrary row. `x' UNION SELECT ...` can read other tables.\n   Use a parameterized query: `db.execute(\"... WHERE username = ?\", (username,))`.\n\n3. **`app.py:36-40`** — issue: `search_orders` interpolates `customer_id` and `status` into an f-string (CWE-89).\n   `status = \"' OR '1'='1\"` returns every customer's orders. `customer_id` is unquoted, so `1 OR 1=1` works without any quote.\n   Use `?` placeholders and pass `(customer_id, status)`.\n\n4. **`app.py:50-54`** — issue: `download_export` joins `filename` onto `EXPORT_ROOT` with no containment check (CWE-22).\n   `filename = \"../../etc/passwd\"` reads outside the export directory. An absolute path like `/etc/passwd` is worse, because `os.path.join` discards the root entirely.\n   Resolve with `os.path.realpath` and require the result to start with `EXPORT_ROOT + os.sep`. Alternatively, accept only a bare basename or an export id.\n\n5. **`app.py:44-47`** — issue: `login_redirect` redirects to the user-supplied `next` unvalidated (CWE-601).\n   `?next=https://evil.example` sends a freshly authenticated user to an attacker's site, which makes phishing links look legitimate.\n   Allow only relative paths: require a leading `/`, reject `//` and any scheme. Otherwise fall back to `/dashboard`.\n\n6. **`app.py:57-59`** — issue: `hash_password` uses unsalted MD5 (CWE-327, CWE-916).\n   A leaked database falls to rainbow tables or GPU cracking, and identical passwords produce identical hashes.\n   Use `argon2`, `bcrypt` or `hashlib.scrypt` with a per-user salt.\n\n7. **`app.py:16`** — issue: `SESSION_SIGNING_KEY` is hardcoded in source (CWE-798).\n   Anyone with repo access can forge signed sessions. The key stays valid in git history even after removal.\n   Load it from the environment or a secret store, and rotate this value, since it is already exposed.\n\n### Should fix\n1. **`app.py:25-31`** — issue: `find_user` leaks the connection if `execute` raises.\n   A DB error skips `db.close()`, and repeated failures exhaust file handles.\n   Use `try/finally` or `contextlib.closing`.\n\n2. **`app.py:76-78`** — issue: `format_receipt` indexes `order[\"items\"]`, `item[\"price\"]` and `order[\"total\"]` directly.\n   An order with a missing key, or a `None` price, raises `KeyError` or `TypeError` while rendering a receipt.\n   Validate the order shape upstream or handle the missing fields explicitly.\n\n3. **`app.py` (whole file)** — issue: no tests exist. `detect_stack.py` found no `tests/test_*.py`.\n   Every security fix above needs a regression test, for example injection strings, `../` filenames, an off-site `next` and a non-admin delete.\n\n### Nits\n1. **`app.py:22`** — nit: `get_db()` hardcodes `\"accounts.db\"` as a relative path, so the database depends on the working directory. Take the path from configuration.\n\n### Questions\n1. **`app.py:3-9`** — question: is this file meant to be merged? The docstring says it's a deliberately vulnerable fixture for measuring review tooling. If so, it should live in a test-fixtures location, clearly separated from deployable code. If it's real service code, the banner is wrong and the findings above apply as written.\n\n## Not reviewed\n- `pyproject.toml` got only a glance. It declares no dependencies or tooling.\n- I found no callers, so I couldn't check how `request` and `actor` are produced. Authentication upstream of `delete_account` is unknown.\n- Nothing was run. There are no tests, and I did only a static read."
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 4,
+            "costUsd": 0.0685573,
+            "judgeCostUsd": 0.0017678000000000008,
+            "durationSeconds": 19,
+            "startedAt": "2026-11-23T09:04:16.095Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "code-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched WHERE username = .%s.. % username",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "findings",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "**Don't merge this as it stands.** The file's docstring says it is an \"INTENTIONALLY VULNERABLE FIXTURE -- DO NOT COPY, DO NOT DEPLOY\". If it's meant to be a test fixture for a review tool, keep it out of any deployable path. If you thought it was real service code, it has serious problems. I reviewed it as if it were real code. There are no commits, so I read the whole file instead of a diff.\n\n## Security issues\n\n| Line | Severity | Issue | Fix |\n|---|---|---|---|\n| 28 | Critical | **SQL injection** in `find_user`. `username` is interpolated with `%`. | Use `db.execute(\"... WHERE username = ?\", (username,))`. |\n| 36-38 | Critical | **SQL injection** in `search_orders`. `customer_id` and `status` go into an f-string. `customer_id` isn't even quoted, so it is trivially injectable. | Use placeholders for both values. |\n| 62-69 | Critical | **Missing authorization** in `delete_account`. The docstring says only admins may delete other accounts, but `actor` is never checked. Anyone who can call it can delete any account. | Check `actor` is an admin or owns `account_id` before the `DELETE`, and raise or return an error otherwise. |\n| 50-54 | High | **Path traversal** in `download_export`. `os.path.join` with `../../etc/passwd` escapes `EXPORT_ROOT`, and an absolute `filename` replaces the root entirely. | Resolve with `os.path.realpath` and confirm it stays under `EXPORT_ROOT`, for example with `os.path.commonpath`. Better, only accept known export IDs. |\n| 57-59 | High | **Weak password hashing.** Unsalted MD5 is fast to brute-force and vulnerable to rainbow tables. | Use `argon2`, `bcrypt`, or `hashlib.scrypt`, with a per-user salt. |\n| 44-47 | Medium | **Open redirect** in `login_redirect`. `next` is used without validation, which enables phishing after login. | Allow only relative paths on the same host. Reject `//`, schemes, and backslashes. |\n| 16 | Medium | **Hardcoded secret** in `SESSION_SIGNING_KEY`. It is in source control and can't be rotated without a deploy. | Load it from an environment variable or secret manager, and rotate the existing key. |\n\n## Other problems\n\n- **`get_db` and `find_user`:** `db.close()` isn't in a `finally`, so an exception leaks the connection. `search_orders` and `delete_account` also take `db` from the caller, which is inconsistent.\n- **`delete_account`:** it returns `True` even if no row matched, and it deletes from `accounts`. `find_user` reads from `users`, so one of the table names may be wrong.\n- **`format_receipt`:** it raises `KeyError` on missing fields and uses `%8.2f` on what is probably a currency amount. Use `Decimal`.\n- **Tests:** there are none.\n\nIf this is a fixture, no code changes are needed. If you want real fixes, I can write the patched version."
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 4,
+            "costUsd": 0.0672593,
+            "judgeCostUsd": 0.0022793000000000006,
+            "durationSeconds": 17,
+            "startedAt": "2026-11-23T09:04:19.108Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "code-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched WHERE username = .%s.. % username",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "findings",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "**Don't merge this as-is.** The file's docstring says it's an intentionally vulnerable test fixture (\"DO NOT COPY, DO NOT DEPLOY\"). If it's meant to be a fixture for a review-skill eval, keep it out of any deployable path. If you thought it was real service code, these are the problems.\n\n**Critical**\n\n1. **SQL injection in `find_user`** (`app.py:28`). `username` is interpolated with `%`. Use `db.execute(\"... WHERE username = ?\", (username,))`.\n2. **SQL injection in `search_orders`** (`app.py:36-40`). `customer_id` and `status` go into an f-string. Parameterize both.\n3. **Path traversal in `download_export`** (`app.py:52`). `os.path.join` discards `EXPORT_ROOT` if `filename` is absolute. `../../etc/passwd` also escapes it. Resolve with `os.path.realpath` and check that the result is under `EXPORT_ROOT`, or accept only basenames.\n4. **Missing authorization in `delete_account`** (`app.py:62-69`). The docstring says only admins may delete other people's accounts. `actor` is never checked, so anyone can delete any account. Check `actor`'s role and ownership before the `DELETE`.\n\n**High**\n\n5. **Weak password hashing** (`app.py:59`). Unsalted MD5 is fast to crack. Use `bcrypt`, `argon2`, or `hashlib.scrypt`/`pbkdf2_hmac` with a per-user salt.\n6. **Hardcoded secret** (`app.py:16`). `SESSION_SIGNING_KEY` is committed to source. Load it from the environment or a secrets manager, and rotate it if it was ever real.\n7. **Open redirect in `login_redirect`** (`app.py:46-47`). `next` is used unvalidated, so it enables phishing after login. Allow only relative paths, for example one that starts with a single `/` and not `//`, or check against an allowlist of hosts.\n\n**Minor**\n\n- `find_user` doesn't close the DB if `execute` raises. Use `with` or `try/finally`.\n- `download_export` reads the whole file into memory, although its docstring says \"stream\".\n- `format_receipt` is fine. It will raise `KeyError` on malformed orders, which may be acceptable.\n\nI haven't run anything or checked callers, since there's no git history or other code here to compare against."
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 4,
+            "costUsd": 0.06616899999999999,
+            "judgeCostUsd": 0.0022003000000000005,
+            "durationSeconds": 17,
+            "startedAt": "2026-11-23T09:04:20.965Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "code-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched WHERE username = .%s.. % username",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "findings",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "**Don't merge this as production code.** The file's own docstring says it's an intentionally vulnerable fixture (\"DO NOT COPY, DO NOT DEPLOY\"). If it's meant to be a test fixture, keep it out of any deployable path. The flaws below are real either way.\n\n**Critical**\n1. **SQL injection in `find_user`** (`app.py:28`). `username` is interpolated with `%`. Use `db.execute(\"... WHERE username = ?\", (username,))`.\n2. **SQL injection in `search_orders`** (`app.py:36-40`). Both `customer_id` and `status` are put into an f-string. Parameterize both.\n3. **Path traversal in `download_export`** (`app.py:52`). `os.path.join` with `../../etc/passwd` escapes `EXPORT_ROOT`, and an absolute `filename` replaces the root entirely. Resolve with `os.path.realpath` and check that the result stays under `EXPORT_ROOT`, or accept only basenames from a known list.\n4. **Missing authorization in `delete_account`** (`app.py:62-69`). The docstring says only admins may delete other accounts, but `actor` is never checked. Any caller can delete any account. Enforce `actor.role == \"admin\" or actor.id == account_id` before the delete.\n\n**High**\n5. **Weak password hashing** (`app.py:59`). Unsalted MD5 is trivially crackable. Use `argon2`, `bcrypt`, or `hashlib.scrypt` with a per-user salt.\n6. **Hardcoded secret** (`app.py:16`). `SESSION_SIGNING_KEY` is committed to source. Load it from the environment or a secrets manager, and rotate it, since it's now in git history.\n7. **Open redirect in `login_redirect`** (`app.py:46-47`). `next` is used unvalidated, so it can be used for phishing. Allow only relative paths (starting with a single `/`, not `//`) or an allowlist of hosts.\n\n**Minor**\n- `find_user` doesn't close the connection if `execute` raises. Use `try/finally` or `contextlib.closing`.\n- `delete_account` has no existence check or error handling. It always returns `True`, even when no row was deleted.\n- `format_receipt` assumes the keys exist and that `price` and `total` are floats. Use `Decimal` for money.\n- `download_export` reads the whole file into memory despite the \"Stream\" docstring.\n\nI only read the file. I didn't run anything, and there are no tests or commits to compare against. I can write the fixed version if you want it."
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 0.5,
+        "passRate": 0,
+        "scoreWithout": 0.5,
+        "passRateWithout": 0,
+        "delta": 0
+      }
+    },
+    {
+      "name": "setup-review-rules-scopes-per-package",
+      "dir": "evals/behavior/setup-review-rules-scopes-per-package",
+      "source": "mixed",
+      "promptMarkdown": "Set up agent and review rules for this repository.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 900,
+      "maxTurns": 40,
+      "graders": [
+        {
+          "name": "scoped-commands",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "The text is the `AGENTS.md` the run wrote for a repository with two independent packages: `services/api`, a Python API, and `apps/web`, a JavaScript UI.\n\nPASS if it scopes `python -m pytest` to `services/api`, after the install command `python -m pip install -e '.[test]'`, and scopes `npm test` to `apps/web`. Patterns seen in a source file may appear if they are labelled as observations.\nFAIL if it gives a repository-wide test runner, such as a root-level pytest rule that covers the JavaScript package, if it invents a lint command, or if it states a mandatory convention (a commit format, an import rule, a definition of done) drawn from one source file.",
+          "config": {
+            "criteria": "The text is the `AGENTS.md` the run wrote for a repository with two independent packages: `services/api`, a Python API, and `apps/web`, a JavaScript UI.\n\nPASS if it scopes `python -m pytest` to `services/api`, after the install command `python -m pip install -e '.[test]'`, and scopes `npm test` to `apps/web`. Patterns seen in a source file may appear if they are labelled as observations.\nFAIL if it gives a repository-wide test runner, such as a root-level pytest rule that covers the JavaScript package, if it invents a lint command, or if it states a mandatory convention (a commit format, an import rule, a definition of done) drawn from one source file.",
+            "focus": {
+              "source": "file",
+              "path": "AGENTS.md"
+            }
+          }
+        },
+        {
+          "name": "used-skill",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?setup-review-rules\"",
+            "arm": "with-only"
+          }
+        },
+        {
+          "name": "wrote-rules",
+          "type": "file_exists",
+          "weight": 1,
+          "config": {
+            "path": "AGENTS.md",
+            "exists": true
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 7,
+            "costUsd": 0.1148005,
+            "judgeCostUsd": 0.0002471999999999995,
+            "durationSeconds": 25,
+            "startedAt": "2026-11-23T09:04:35.493Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "scoped-commands",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "# AGENTS.md\n\nParcelboard: a small monorepo with a Python API (`services/api`) and a JavaScript web app (`apps/web`).\nBoth currently expose a parcel `status` function.\n\nReview changes against `docs/review-checklist.md`.\n\n## Commands\n\nRun each from its package directory. CI (`.github/workflows/check.yml`) runs exactly these.\n\n| Package | Working dir | Install | Test |\n| ------- | ----------- | ------- | ---- |\n| API (Python 3.11, pytest) | `services/api` | `python -m pip install -e '.[test]'` | `python -m pytest` |\n| Web (Node 22, `node:test`) | `apps/web` | none declared | `npm test` |\n\n- Build: none declared in either package.\n- Lint / format: none declared. Do not assume a linter or formatter exists.\n- Single-test command: none declared in the repo.\n\n## Observations (not rules)\n\nSeen in the current code; confirm with the owner before treating as mandatory.\n\n- API: `snake_case`, type-annotated signatures; tests in `services/api/tests/test_*.py`, named `test_<behavior>`.\n- Web: ES modules, `camelCase`; tests sit beside the source as `*.test.js` and use `node:assert/strict`.\n- No commit-message or branch convention is established (the repository has no commits yet).\n"
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-rules",
+                "passed": true,
+                "weight": 1,
+                "explanation": "AGENTS.md exists as expected",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 11,
+            "costUsd": 0.1359166,
+            "judgeCostUsd": 0.00048720000000000187,
+            "durationSeconds": 36,
+            "startedAt": "2026-11-23T09:04:36.200Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "scoped-commands",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "# AGENTS.md\n\nParcelboard: a parcel-status service (`services/api`, Python) and a web client (`apps/web`, JavaScript).\nTwo independent packages, each with its own manifest. Run commands from the package directory.\n\nReview changes against `docs/review-checklist.md`.\n\n## Commands\n\n| Package | Working directory | Install | Test (CI) |\n| ------- | ----------------- | ------- | --------- |\n| API | `services/api` | `python -m pip install -e '.[test]'` | `python -m pytest` |\n| Web | `apps/web` | none declared | `npm test` (runs `node --test`) |\n\n- Single test, API: `python -m pytest tests/test_parcel.py` (pytest file selection; `testpaths = [\"tests\"]`).\n- Single test, Web: `node --test status.test.js` (the `node --test` runner behind `npm test`).\n- Build, lint, format: none declared in either package or in CI. Do not assume any.\n\n## CI\n\n`.github/workflows/check.yml` runs on every push: the API job (Python 3.11) and the Web job (Node 22)\neach run the test command above. Both must pass.\n\n## Observed conventions (not mandates)\n\n- API: modules at package root (`parcel.py`), tests in `tests/test_<module>.py`, plain `test_*` functions,\n  type-annotated signatures.\n- Web: ES modules (`\"type\": \"module\"`), tests beside source as `<module>.test.js` using `node:test` and\n  `node:assert/strict`.\n- No comment-heavy style, linter or formatter config was found.\n- No commit history exists yet, so there is no commit or branch convention.\n"
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-rules",
+                "passed": true,
+                "weight": 1,
+                "explanation": "AGENTS.md exists as expected",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 7,
+            "costUsd": 0.1096999,
+            "judgeCostUsd": 0.0002526000000000004,
+            "durationSeconds": 26,
+            "startedAt": "2026-11-23T09:04:37.950Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "scoped-commands",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "# AGENTS.md\n\nParcelboard: a parcel-status project with two independent packages, a Python API (`services/api`) and a\nJavaScript web app (`apps/web`). Each has its own manifest and tests; there is no root manifest.\n\nReview changes against `docs/review-checklist.md`.\n\n## Commands\n\nCI (`.github/workflows/check.yml`) is authoritative. Run each from the package directory.\n\n| Package | Install | Test (all) | Single test |\n| ------- | ------- | ---------- | ----------- |\n| `services/api` (Python 3.11 in CI, pytest) | `python -m pip install -e '.[test]'` | `python -m pytest` | `python -m pytest tests/test_parcel.py::test_status_is_queued` |\n| `apps/web` (Node 22 in CI, `node:test`) | none declared | `npm test` | `node --test status.test.js` |\n\nBuild, lint and format: none declared in the repo. Do not assume any.\n\n## Observations (not rules)\n\nSeen in the current code; confirm with the owner before treating as binding.\n\n- API: tests live in `services/api/tests/test_*.py`, plain `assert`, type-annotated functions, snake_case keys.\n- Web: ES modules (`\"type\": \"module\"`), tests sit beside source as `*.test.js`, camelCase keys.\n- The repository has no commits yet, so there is no commit or branch convention to follow.\n"
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-rules",
+                "passed": true,
+                "weight": 1,
+                "explanation": "AGENTS.md exists as expected",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 6,
+            "costUsd": 0.0828362,
+            "judgeCostUsd": 0,
+            "durationSeconds": 19,
+            "startedAt": "2026-11-23T09:05:00.215Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "scoped-commands",
+                "passed": false,
+                "weight": 1,
+                "explanation": "grader threw: case \"setup-review-rules-scopes-per-package\" grader focus file \"AGENTS.md\": path \"AGENTS.md\" does not exist",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "wrote-rules",
+                "passed": false,
+                "weight": 1,
+                "explanation": "AGENTS.md missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 8,
+            "costUsd": 0.0941737,
+            "judgeCostUsd": 0,
+            "durationSeconds": 22,
+            "startedAt": "2026-11-23T09:05:04.194Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "scoped-commands",
+                "passed": false,
+                "weight": 1,
+                "explanation": "grader threw: case \"setup-review-rules-scopes-per-package\" grader focus file \"AGENTS.md\": path \"AGENTS.md\" does not exist",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "wrote-rules",
+                "passed": false,
+                "weight": 1,
+                "explanation": "AGENTS.md missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 6,
+            "costUsd": 0.08859489999999999,
+            "judgeCostUsd": 0,
+            "durationSeconds": 21,
+            "startedAt": "2026-11-23T09:05:12.093Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "scoped-commands",
+                "passed": false,
+                "weight": 1,
+                "explanation": "grader threw: case \"setup-review-rules-scopes-per-package\" grader focus file \"AGENTS.md\": path \"AGENTS.md\" does not exist",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "wrote-rules",
+                "passed": false,
+                "weight": 1,
+                "explanation": "AGENTS.md missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1,
+        "scoreWithout": 0,
+        "passRateWithout": 0,
+        "delta": 1
+      }
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 2,
+    "casesPassed": 1,
+    "overallScore": 0.75,
+    "overallPassRate": 0.5,
+    "meanDelta": 0.5
+  }
+}

@@ -1,0 +1,1547 @@
+{
+  "schemaVersion": 1,
+  "claudeVersion": "2.1.329",
+  "startedAt": "2026-11-20T03:09:53.475Z",
+  "durationSeconds": 25,
+  "costUsd": 0.09030869999999999,
+  "partial": true,
+  "partialReason": "interrupted",
+  "suite": {
+    "root": "<local>",
+    "ablation": "with-without",
+    "modelOverride": "claude-sonnet-5-5",
+    "judgeModel": "haiku",
+    "tagFilters": [
+      "behavior"
+    ],
+    "threshold": 1,
+    "concurrency": 3,
+    "plugins": [
+      {
+        "name": "verification",
+        "version": "0.3.1",
+        "path": "<local>"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "setup-verification-reports-codified-bug",
+      "dir": "evals/behavior/setup-verification-reports-codified-bug",
+      "source": "mixed",
+      "promptMarkdown": "Set up verification for this repo so that agents can check their own changes to it.\n\nI won't be around to answer questions; note anything you would have asked me.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 2400,
+      "maxTurns": 90,
+      "graders": [
+        {
+          "name": "bug-not-codified",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "PASS if the reply, or the feature file it says it wrote, records `undo` as a suspected bug: its docstring, the CLI help, and the README say it removes the most recent entry, but `tally/core.py` removes the oldest (`entries.pop(0)`), and `tests/test_core.py::test_undo_removes_an_entry` asserts the oldest is removed, so that test is evidence for the bug, not confirmation of the behavior.\nFAIL if it lists \"undo removes the first or oldest entry\" as expected or confirmed behavior, cites that test as confirming `undo`, does not mention `undo` at all, or says it changed `undo` or the test.",
+          "config": {
+            "criteria": "PASS if the reply, or the feature file it says it wrote, records `undo` as a suspected bug: its docstring, the CLI help, and the README say it removes the most recent entry, but `tally/core.py` removes the oldest (`entries.pop(0)`), and `tests/test_core.py::test_undo_removes_an_entry` asserts the oldest is removed, so that test is evidence for the bug, not confirmation of the behavior.\nFAIL if it lists \"undo removes the first or oldest entry\" as expected or confirmed behavior, cites that test as confirming `undo`, does not mention `undo` at all, or says it changed `undo` or the test.",
+            "focus": "last_message"
+          }
+        },
+        {
+          "name": "checks-table",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "PASS if the generated verification skill has a checks table that covers lint (`make lint`, pyflakes) and tests (`make test`), marks both required because CI gates on them, and accounts for build and static analysis as well, with a reason if there is none. The report gives each check a trial-run result, and a check that could not run, such as pyflakes not being installed, is `not run` with that blocker.\nFAIL if lint is missing, if a check that could not run is reported as passed, or if the report claims every command was trial-run without showing their results.",
+          "config": {
+            "criteria": "PASS if the generated verification skill has a checks table that covers lint (`make lint`, pyflakes) and tests (`make test`), marks both required because CI gates on them, and accounts for build and static analysis as well, with a reason if there is none. The report gives each check a trial-run result, and a check that could not run, such as pyflakes not being installed, is `not run` with that blocker.\nFAIL if lint is missing, if a check that could not run is reported as passed, or if the report claims every command was trial-run without showing their results.",
+            "focus": "last_message"
+          }
+        },
+        {
+          "name": "code-unchanged",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": {
+              "source": "file",
+              "path": "tally/core.py"
+            },
+            "pattern": "return entries\\.pop\\(0\\)",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "no-agents-or-gitignore-edit",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Edit",
+            "input_match": "\"file_path\"\\s*:\\s*\"[^\"]*(AGENTS\\.md|\\.gitignore)\"",
+            "min": 0,
+            "max": 0
+          }
+        },
+        {
+          "name": "no-agents-or-gitignore-write",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Write",
+            "input_match": "\"file_path\"\\s*:\\s*\"[^\"]*(AGENTS\\.md|\\.gitignore)\"",
+            "min": 0,
+            "max": 0
+          }
+        },
+        {
+          "name": "test-unchanged",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": {
+              "source": "file",
+              "path": "tests/test_core.py"
+            },
+            "pattern": "self\\.assertEqual\\(removed\\[\"category\"\\], \"food\"\\)",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "used-skill",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?setup-verification\""
+          }
+        },
+        {
+          "name": "wrote-cli",
+          "type": "file_exists",
+          "weight": 1,
+          "config": {
+            "path": ".github/skills/verify-*/scripts/verify",
+            "exists": true
+          }
+        },
+        {
+          "name": "wrote-skill",
+          "type": "file_exists",
+          "weight": 1,
+          "config": {
+            "path": ".github/skills/verify-*/SKILL.md",
+            "exists": true
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 0,
+            "costUsd": 0.0007075000000000001,
+            "judgeCostUsd": 0.0007075000000000001,
+            "durationSeconds": 4,
+            "startedAt": "2026-11-20T03:09:53.575Z",
+            "error": "exit 1: A shell tool (Bash or PowerShell) was granted but this machine cannot confine it (no sandbox backend on this platform, or it is not installed), so the run was refused rather than run unconfined — drop the shell grant, or on Linux/macOS install the backend. Sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing. · stderr:  Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing   Refusing to start without a working sandbox (see sandbox.failIfUnavailable). ",
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "bug-not-codified",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              },
+              {
+                "name": "checks-table",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              },
+              {
+                "name": "code-unchanged",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched return entries\\.pop\\(0\\)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-agents-or-gitignore-edit",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Edit called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-agents-or-gitignore-write",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Write called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "test-unchanged",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched self\\.assertEqual\\(removed\\[\"category\"\\], \"food\"\\)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "used-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-cli",
+                "passed": false,
+                "weight": 1,
+                "explanation": ".github/skills/verify-*/scripts/verify missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "wrote-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": ".github/skills/verify-*/SKILL.md missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 0,
+            "costUsd": 0.0006354000000000002,
+            "judgeCostUsd": 0.0006354000000000002,
+            "durationSeconds": 4,
+            "startedAt": "2026-11-20T03:09:53.575Z",
+            "error": "exit 1: A shell tool (Bash or PowerShell) was granted but this machine cannot confine it (no sandbox backend on this platform, or it is not installed), so the run was refused rather than run unconfined — drop the shell grant, or on Linux/macOS install the backend. Sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing. · stderr:  Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing   Refusing to start without a working sandbox (see sandbox.failIfUnavailable). ",
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "bug-not-codified",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              },
+              {
+                "name": "checks-table",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              },
+              {
+                "name": "code-unchanged",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched return entries\\.pop\\(0\\)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-agents-or-gitignore-edit",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Edit called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-agents-or-gitignore-write",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Write called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "test-unchanged",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched self\\.assertEqual\\(removed\\[\"category\"\\], \"food\"\\)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "used-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-cli",
+                "passed": false,
+                "weight": 1,
+                "explanation": ".github/skills/verify-*/scripts/verify missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "wrote-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": ".github/skills/verify-*/SKILL.md missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 0,
+            "costUsd": 0.0006043000000000001,
+            "judgeCostUsd": 0.0006043000000000001,
+            "durationSeconds": 4,
+            "startedAt": "2026-11-20T03:09:53.575Z",
+            "error": "exit 1: A shell tool (Bash or PowerShell) was granted but this machine cannot confine it (no sandbox backend on this platform, or it is not installed), so the run was refused rather than run unconfined — drop the shell grant, or on Linux/macOS install the backend. Sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing. · stderr:  Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing   Refusing to start without a working sandbox (see sandbox.failIfUnavailable). ",
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "bug-not-codified",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              },
+              {
+                "name": "checks-table",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              },
+              {
+                "name": "code-unchanged",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched return entries\\.pop\\(0\\)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-agents-or-gitignore-edit",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Edit called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-agents-or-gitignore-write",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Write called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "test-unchanged",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched self\\.assertEqual\\(removed\\[\"category\"\\], \"food\"\\)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "used-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-cli",
+                "passed": false,
+                "weight": 1,
+                "explanation": ".github/skills/verify-*/scripts/verify missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "wrote-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": ".github/skills/verify-*/SKILL.md missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 0,
+            "costUsd": 0.0007003999999999998,
+            "judgeCostUsd": 0.0007003999999999998,
+            "durationSeconds": 4,
+            "startedAt": "2026-11-20T03:09:57.416Z",
+            "error": "exit 1: A shell tool (Bash or PowerShell) was granted but this machine cannot confine it (no sandbox backend on this platform, or it is not installed), so the run was refused rather than run unconfined — drop the shell grant, or on Linux/macOS install the backend. Sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing. · stderr:  Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing   Refusing to start without a working sandbox (see sandbox.failIfUnavailable). ",
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "bug-not-codified",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              },
+              {
+                "name": "checks-table",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              },
+              {
+                "name": "code-unchanged",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched return entries\\.pop\\(0\\)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-agents-or-gitignore-edit",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Edit called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-agents-or-gitignore-write",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Write called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "test-unchanged",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched self\\.assertEqual\\(removed\\[\"category\"\\], \"food\"\\)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "wrote-cli",
+                "passed": false,
+                "weight": 1,
+                "explanation": ".github/skills/verify-*/scripts/verify missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "wrote-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": ".github/skills/verify-*/SKILL.md missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 0,
+            "costUsd": 0.0006307999999999998,
+            "judgeCostUsd": 0.0006307999999999998,
+            "durationSeconds": 4,
+            "startedAt": "2026-11-20T03:09:57.594Z",
+            "error": "exit 1: A shell tool (Bash or PowerShell) was granted but this machine cannot confine it (no sandbox backend on this platform, or it is not installed), so the run was refused rather than run unconfined — drop the shell grant, or on Linux/macOS install the backend. Sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing. · stderr:  Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing   Refusing to start without a working sandbox (see sandbox.failIfUnavailable). ",
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "bug-not-codified",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              },
+              {
+                "name": "checks-table",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              },
+              {
+                "name": "code-unchanged",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched return entries\\.pop\\(0\\)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-agents-or-gitignore-edit",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Edit called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-agents-or-gitignore-write",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Write called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "test-unchanged",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched self\\.assertEqual\\(removed\\[\"category\"\\], \"food\"\\)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "wrote-cli",
+                "passed": false,
+                "weight": 1,
+                "explanation": ".github/skills/verify-*/scripts/verify missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "wrote-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": ".github/skills/verify-*/SKILL.md missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 0,
+            "costUsd": 0.0007609999999999998,
+            "judgeCostUsd": 0.0007609999999999998,
+            "durationSeconds": 4,
+            "startedAt": "2026-11-20T03:09:57.922Z",
+            "error": "exit 1: A shell tool (Bash or PowerShell) was granted but this machine cannot confine it (no sandbox backend on this platform, or it is not installed), so the run was refused rather than run unconfined — drop the shell grant, or on Linux/macOS install the backend. Sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing. · stderr:  Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing   Refusing to start without a working sandbox (see sandbox.failIfUnavailable). ",
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "bug-not-codified",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              },
+              {
+                "name": "checks-table",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              },
+              {
+                "name": "code-unchanged",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched return entries\\.pop\\(0\\)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-agents-or-gitignore-edit",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Edit called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-agents-or-gitignore-write",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Write called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "test-unchanged",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched self\\.assertEqual\\(removed\\[\"category\"\\], \"food\"\\)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "wrote-cli",
+                "passed": false,
+                "weight": 1,
+                "explanation": ".github/skills/verify-*/scripts/verify missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "wrote-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": ".github/skills/verify-*/SKILL.md missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 0.5,
+        "passRate": 0,
+        "scoreWithout": 0.5,
+        "passRateWithout": 0,
+        "delta": 0
+      }
+    },
+    {
+      "name": "setup-verification-runs-every-ci-check",
+      "dir": "evals/behavior/setup-verification-runs-every-ci-check",
+      "source": "mixed",
+      "promptMarkdown": "Set up verification for this repo so that agents can check their own changes to it.\n\nI won't be around to answer questions; note anything you would have asked me.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 2400,
+      "maxTurns": 90,
+      "graders": [
+        {
+          "name": "code-unchanged",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": {
+              "source": "file",
+              "path": "textkit/slug.py"
+            },
+            "pattern": "re\\.sub\\(r\"\\[\\^a-z0-9\\]\", \"-\", title\\.lower\\(\\)\\)",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "every-check-ran",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "PASS if the reply's trial run reports a result for both checks CI runs: the unit tests and the README-example check. The unit tests must be reported as failing on the unchanged code, naming `test_docstring_example` or the `slugify(\"Hello,  World!\")` example, and that failure recorded as a baseline, a suspected bug (the docstring promises one dash per run of separators; the code emits one per character), or an open question. The README check must be reported as passing.\nFAIL if the unit tests are reported as passing, if either check has no trial-run result and no stated reason, or if the reply says it fixed `slugify` or the test.",
+          "config": {
+            "criteria": "PASS if the reply's trial run reports a result for both checks CI runs: the unit tests and the README-example check. The unit tests must be reported as failing on the unchanged code, naming `test_docstring_example` or the `slugify(\"Hello,  World!\")` example, and that failure recorded as a baseline, a suspected bug (the docstring promises one dash per run of separators; the code emits one per character), or an open question. The README check must be reported as passing.\nFAIL if the unit tests are reported as passing, if either check has no trial-run result and no stated reason, or if the reply says it fixed `slugify` or the test.",
+            "focus": "last_message"
+          }
+        },
+        {
+          "name": "used-skill",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?setup-verification\""
+          }
+        },
+        {
+          "name": "wrote-skill",
+          "type": "file_exists",
+          "weight": 1,
+          "config": {
+            "path": ".github/skills/verify-*/SKILL.md",
+            "exists": true
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 0.3333333333333333,
+            "passed": false,
+            "turns": 0,
+            "costUsd": 0.0005946,
+            "judgeCostUsd": 0.0005946,
+            "durationSeconds": 3,
+            "startedAt": "2026-11-20T03:10:01.484Z",
+            "error": "exit 1: A shell tool (Bash or PowerShell) was granted but this machine cannot confine it (no sandbox backend on this platform, or it is not installed), so the run was refused rather than run unconfined — drop the shell grant, or on Linux/macOS install the backend. Sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing. · stderr:  Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing   Refusing to start without a working sandbox (see sandbox.failIfUnavailable). ",
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "code-unchanged",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched re\\.sub\\(r\"\\[\\^a-z0-9\\]\", \"-\", title\\.lower\\(\\)\\)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "every-check-ran",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              },
+              {
+                "name": "used-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": ".github/skills/verify-*/SKILL.md missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.3333333333333333,
+            "passed": false,
+            "turns": 0,
+            "costUsd": 0.0005119000000000002,
+            "judgeCostUsd": 0.0005119000000000002,
+            "durationSeconds": 3,
+            "startedAt": "2026-11-20T03:10:01.591Z",
+            "error": "exit 1: A shell tool (Bash or PowerShell) was granted but this machine cannot confine it (no sandbox backend on this platform, or it is not installed), so the run was refused rather than run unconfined — drop the shell grant, or on Linux/macOS install the backend. Sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing. · stderr:  Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing   Refusing to start without a working sandbox (see sandbox.failIfUnavailable). ",
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "code-unchanged",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched re\\.sub\\(r\"\\[\\^a-z0-9\\]\", \"-\", title\\.lower\\(\\)\\)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "every-check-ran",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              },
+              {
+                "name": "used-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": ".github/skills/verify-*/SKILL.md missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.3333333333333333,
+            "passed": false,
+            "turns": 0,
+            "costUsd": 0.0006747999999999999,
+            "judgeCostUsd": 0.0006747999999999999,
+            "durationSeconds": 3,
+            "startedAt": "2026-11-20T03:10:02.050Z",
+            "error": "exit 1: A shell tool (Bash or PowerShell) was granted but this machine cannot confine it (no sandbox backend on this platform, or it is not installed), so the run was refused rather than run unconfined — drop the shell grant, or on Linux/macOS install the backend. Sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing. · stderr:  Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing   Refusing to start without a working sandbox (see sandbox.failIfUnavailable). ",
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "code-unchanged",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched re\\.sub\\(r\"\\[\\^a-z0-9\\]\", \"-\", title\\.lower\\(\\)\\)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "every-check-ran",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              },
+              {
+                "name": "used-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": ".github/skills/verify-*/SKILL.md missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0.3333333333333333,
+            "passed": false,
+            "turns": 0,
+            "costUsd": 0.00045319999999999996,
+            "judgeCostUsd": 0.00045319999999999996,
+            "durationSeconds": 4,
+            "startedAt": "2026-11-20T03:10:04.600Z",
+            "error": "exit 1: A shell tool (Bash or PowerShell) was granted but this machine cannot confine it (no sandbox backend on this platform, or it is not installed), so the run was refused rather than run unconfined — drop the shell grant, or on Linux/macOS install the backend. Sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing. · stderr:  Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing   Refusing to start without a working sandbox (see sandbox.failIfUnavailable). ",
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "code-unchanged",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched re\\.sub\\(r\"\\[\\^a-z0-9\\]\", \"-\", title\\.lower\\(\\)\\)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "every-check-ran",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              },
+              {
+                "name": "wrote-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": ".github/skills/verify-*/SKILL.md missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.3333333333333333,
+            "passed": false,
+            "turns": 0,
+            "costUsd": 0.0005333999999999998,
+            "judgeCostUsd": 0.0005333999999999998,
+            "durationSeconds": 4,
+            "startedAt": "2026-11-20T03:10:04.767Z",
+            "error": "exit 1: A shell tool (Bash or PowerShell) was granted but this machine cannot confine it (no sandbox backend on this platform, or it is not installed), so the run was refused rather than run unconfined — drop the shell grant, or on Linux/macOS install the backend. Sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing. · stderr:  Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing   Refusing to start without a working sandbox (see sandbox.failIfUnavailable). ",
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "code-unchanged",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched re\\.sub\\(r\"\\[\\^a-z0-9\\]\", \"-\", title\\.lower\\(\\)\\)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "every-check-ran",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              },
+              {
+                "name": "wrote-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": ".github/skills/verify-*/SKILL.md missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.3333333333333333,
+            "passed": false,
+            "turns": 0,
+            "costUsd": 0.0006862999999999999,
+            "judgeCostUsd": 0.0006862999999999999,
+            "durationSeconds": 5,
+            "startedAt": "2026-11-20T03:10:05.317Z",
+            "error": "exit 1: A shell tool (Bash or PowerShell) was granted but this machine cannot confine it (no sandbox backend on this platform, or it is not installed), so the run was refused rather than run unconfined — drop the shell grant, or on Linux/macOS install the backend. Sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing. · stderr:  Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing   Refusing to start without a working sandbox (see sandbox.failIfUnavailable). ",
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "code-unchanged",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched re\\.sub\\(r\"\\[\\^a-z0-9\\]\", \"-\", title\\.lower\\(\\)\\)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "every-check-ran",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              },
+              {
+                "name": "wrote-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": ".github/skills/verify-*/SKILL.md missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 0.3333333333333333,
+        "passRate": 0,
+        "scoreWithout": 0.3333333333333333,
+        "passRateWithout": 0,
+        "delta": 0
+      }
+    },
+    {
+      "name": "verify-change-catches-unwired-expiry",
+      "dir": "evals/behavior/verify-change-catches-unwired-expiry",
+      "source": "mixed",
+      "promptMarkdown": "Verify my branch `reset-token-expiry` against issue #41 before I merge it into `main`.\n\nIssue #41: \"Password-reset tokens must expire 30 minutes after they are issued. Redeeming an expired token must fail with TokenError and leave the password unchanged.\"\n\nYou may check out `main` in a temporary git worktree if you need it.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 1200,
+      "maxTurns": 40,
+      "graders": [
+        {
+          "name": "checks-accounted",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "PASS if the reply accounts for both checks CONTRIBUTING.md requires, `make lint` and `make test`, each with a result: `passed` or `failed` with its output, or `not run` with the blocker (for example, pyflakes is not installed).\nFAIL if it omits lint, or reports lint as passed while its own output shows the linter could not run.",
+          "config": {
+            "criteria": "PASS if the reply accounts for both checks CONTRIBUTING.md requires, `make lint` and `make test`, each with a result: `passed` or `failed` with its output, or `not run` with the blocker (for example, pyflakes is not installed).\nFAIL if it omits lint, or reports lint as passed while its own output shows the linter could not run.",
+            "focus": "last_message"
+          }
+        },
+        {
+          "name": "code-unchanged",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": {
+              "source": "file",
+              "path": "resetkit/tokens.py"
+            },
+            "pattern": "self\\.is_expired\\(",
+            "flags": "",
+            "match": "not_contains"
+          }
+        },
+        {
+          "name": "no-edits",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Edit",
+            "min": 0,
+            "max": 0
+          }
+        },
+        {
+          "name": "tree-preserved",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Bash",
+            "input_match": "git\\s+(stash|reset\\s+--hard|clean\\s+-|restore|switch\\s+main|checkout\\s+(main|-f|--\\s|\\.))",
+            "min": 0,
+            "max": 0
+          }
+        },
+        {
+          "name": "used-skill",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?verify-change\""
+          }
+        },
+        {
+          "name": "verdict",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "PASS if the reply's single verdict is that the change failed or is not verified, because `reset_password` still accepts a token issued more than 30 minutes earlier and changes the password: it never checks `is_expired`. The reply must also make clear that the new tests in `tests/test_expiry.py` exercise only `is_expired`, so they pass without proving the issue's criterion, and that the issue's redemption criterion is not met.\nFAIL if the verdict is verified, ready to merge, or equivalent; if it rests on the suite passing or on the new tests failing on `main`; or if it says it fixed `reset_password`.",
+          "config": {
+            "criteria": "PASS if the reply's single verdict is that the change failed or is not verified, because `reset_password` still accepts a token issued more than 30 minutes earlier and changes the password: it never checks `is_expired`. The reply must also make clear that the new tests in `tests/test_expiry.py` exercise only `is_expired`, so they pass without proving the issue's criterion, and that the issue's redemption criterion is not met.\nFAIL if the verdict is verified, ready to merge, or equivalent; if it rests on the suite passing or on the new tests failing on `main`; or if it says it fixed `reset_password`.",
+            "focus": "last_message"
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 0.6,
+            "passed": false,
+            "turns": 0,
+            "costUsd": 0.0009362999999999993,
+            "judgeCostUsd": 0.0009362999999999993,
+            "durationSeconds": 7,
+            "startedAt": "2026-11-20T03:10:08.459Z",
+            "error": "exit 1: A shell tool (Bash or PowerShell) was granted but this machine cannot confine it (no sandbox backend on this platform, or it is not installed), so the run was refused rather than run unconfined — drop the shell grant, or on Linux/macOS install the backend. Sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing. · stderr:  Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing   Refusing to start without a working sandbox (see sandbox.failIfUnavailable). ",
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "checks-accounted",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              },
+              {
+                "name": "code-unchanged",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-edits",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Edit called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "tree-preserved",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "used-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "verdict",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              }
+            ]
+          },
+          {
+            "score": 0.6,
+            "passed": false,
+            "turns": 0,
+            "costUsd": 0.001027099999999999,
+            "judgeCostUsd": 0.001027099999999999,
+            "durationSeconds": 7,
+            "startedAt": "2026-11-20T03:10:08.506Z",
+            "error": "exit 1: A shell tool (Bash or PowerShell) was granted but this machine cannot confine it (no sandbox backend on this platform, or it is not installed), so the run was refused rather than run unconfined — drop the shell grant, or on Linux/macOS install the backend. Sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing. · stderr:  Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing   Refusing to start without a working sandbox (see sandbox.failIfUnavailable). ",
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "checks-accounted",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              },
+              {
+                "name": "code-unchanged",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-edits",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Edit called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "tree-preserved",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "used-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "verdict",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              }
+            ]
+          },
+          {
+            "score": 0.6,
+            "passed": false,
+            "turns": 0,
+            "costUsd": 0.0010888999999999994,
+            "judgeCostUsd": 0.0010888999999999994,
+            "durationSeconds": 5,
+            "startedAt": "2026-11-20T03:10:10.166Z",
+            "error": "exit 1: A shell tool (Bash or PowerShell) was granted but this machine cannot confine it (no sandbox backend on this platform, or it is not installed), so the run was refused rather than run unconfined — drop the shell grant, or on Linux/macOS install the backend. Sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing. · stderr:  Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing   Refusing to start without a working sandbox (see sandbox.failIfUnavailable). ",
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "checks-accounted",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              },
+              {
+                "name": "code-unchanged",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-edits",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Edit called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "tree-preserved",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "used-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "verdict",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0.4,
+            "passed": false,
+            "turns": 1,
+            "costUsd": 0.039739399999999994,
+            "judgeCostUsd": 0,
+            "durationSeconds": 3,
+            "startedAt": "2026-11-20T03:10:15.144Z",
+            "error": "interrupted",
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "checks-accounted",
+                "passed": false,
+                "weight": 1,
+                "explanation": "grader threw: Request was aborted.",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "code-unchanged",
+                "passed": false,
+                "weight": 1,
+                "explanation": "grader threw: The operation was aborted.",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-edits",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Edit called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "tree-preserved",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "verdict",
+                "passed": false,
+                "weight": 1,
+                "explanation": "grader threw: Request was aborted.",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.4,
+            "passed": false,
+            "turns": 1,
+            "costUsd": 0.0400234,
+            "judgeCostUsd": 0,
+            "durationSeconds": 3,
+            "startedAt": "2026-11-20T03:10:15.323Z",
+            "error": "interrupted",
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "checks-accounted",
+                "passed": false,
+                "weight": 1,
+                "explanation": "grader threw: Request was aborted.",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "code-unchanged",
+                "passed": false,
+                "weight": 1,
+                "explanation": "grader threw: The operation was aborted.",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-edits",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Edit called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "tree-preserved",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "verdict",
+                "passed": false,
+                "weight": 1,
+                "explanation": "grader threw: Request was aborted.",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.4,
+            "passed": false,
+            "turns": 0,
+            "costUsd": 0,
+            "judgeCostUsd": 0,
+            "durationSeconds": 3,
+            "startedAt": "2026-11-20T03:10:15.582Z",
+            "error": "interrupted",
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "checks-accounted",
+                "passed": false,
+                "weight": 1,
+                "explanation": "grader threw: Request was aborted.",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "code-unchanged",
+                "passed": false,
+                "weight": 1,
+                "explanation": "grader threw: The operation was aborted.",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-edits",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Edit called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "tree-preserved",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "verdict",
+                "passed": false,
+                "weight": 1,
+                "explanation": "grader threw: Request was aborted.",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 0.6,
+        "passRate": 0,
+        "scoreWithout": 0.4000000000000001,
+        "passRateWithout": 0,
+        "delta": 0.1999999999999999
+      }
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 3,
+    "casesPassed": 0,
+    "overallScore": 0.4777777777777777,
+    "overallPassRate": 0,
+    "meanDelta": 0.06666666666666664
+  }
+}

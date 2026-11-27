@@ -1,0 +1,752 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Eval report — skill-authoring v0.1.2</title>
+</head>
+<body>
+<style>
+:root{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme:dark){:root{--plane:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink-2:#c3c2b7;--ink-3:#898781;--hairline:rgba(255,255,255,.10);--grid:#2c2c2a;--inset:rgba(255,255,255,.05);--accent:#3987e5;--base-fill:#898781;--delta-good:#0ca30c;--good:#0ca30c;--warning:#fab219;--critical:#e06c6c;color-scheme:dark}}
+:root[data-theme="dark"]{--plane:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink-2:#c3c2b7;--ink-3:#898781;--hairline:rgba(255,255,255,.10);--grid:#2c2c2a;--inset:rgba(255,255,255,.05);--accent:#3987e5;--base-fill:#898781;--delta-good:#0ca30c;--good:#0ca30c;--warning:#fab219;--critical:#e06c6c;color-scheme:dark}
+:root[data-theme="light"]{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--plane);color:var(--ink);
+  font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:880px;margin:0 auto;padding:40px 24px 64px;display:flex;flex-direction:column;gap:20px}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+header h1{margin:2px 0 0;font-size:24px;font-weight:600;line-height:1.25;text-wrap:balance}
+.meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;color:var(--ink-2);font-size:13px}
+.meta .num{font-variant-numeric:tabular-nums lining-nums}
+.banner{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;
+  border:1px solid var(--hairline);background:var(--surface);font-size:13px}
+.banner .chip-warn{color:var(--warning);font-weight:600}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--hairline);border-radius:10px;padding:14px 16px;
+  display:flex;flex-direction:column;gap:4px}
+.tile .label{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.tile .value{font-size:26px;font-weight:600;font-variant-numeric:tabular-nums lining-nums;line-height:1.1}
+.tile.hero .value{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:48px}
+.tile .sub{font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.tile .value.delta-pos{color:var(--delta-good)}
+.tile .value.delta-neg{color:var(--critical)}
+.toolbar{display:flex;gap:8px;justify-content:flex-end}
+.toolbar button{font:12px system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink-2);
+  background:var(--surface);border:1px solid var(--hairline);border-radius:6px;padding:4px 10px;cursor:pointer}
+.toolbar button:hover{color:var(--ink)}
+.toolbar button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.case{background:var(--surface);border:1px solid var(--hairline);border-radius:10px;padding:18px 20px;
+  display:flex;flex-direction:column;gap:10px}
+.case-regressed{border-left:3px solid var(--critical)}
+.verdict{margin:6px 0 0;font-size:15px}
+.verdict .delta{font-size:15px}
+.flag{font-size:11px;font-weight:600;color:var(--warning);white-space:nowrap}
+.star{color:var(--warning);font-size:.45em;vertical-align:super;line-height:0;cursor:help}
+.legend summary{cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
+.legend-list{margin:8px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--ink-2)}
+.case-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.case-head h2{margin:0;font-size:16px;font-weight:600}
+.case-head .spacer{flex:1}
+.case-score{font-size:15px;font-weight:600}
+.mono{font:12px "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.num{font-variant-numeric:tabular-nums lining-nums}
+.muted{color:var(--ink-3);font-size:12px}
+.meter{display:inline-block;position:relative;width:120px;height:6px;border-radius:4px;background:var(--grid);
+  vertical-align:middle}
+.meter>span{display:block;height:100%;border-radius:4px;max-width:100%}
+.meter .tick{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink-3);border-radius:1px}
+.m-accent>span{background:var(--accent)}
+.m-base>span{background:var(--base-fill)}
+.delta{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.delta-pos{color:var(--delta-good)}
+.delta-neg{color:var(--critical)}
+.delta-zero{color:var(--ink-3)}
+details.section{border-top:1px solid var(--grid);padding-top:10px}
+details.section>summary{cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--ink-2);list-style-position:outside;margin-left:2px}
+details.section>summary:hover{color:var(--ink)}
+details.section[open]>summary{margin-bottom:8px}
+.md{display:flex;flex-direction:column;gap:8px;background:var(--inset);border-radius:8px;
+  padding:12px 14px;overflow-wrap:break-word}
+.md>:first-child{margin-top:0}
+.md h1,.md h2,.md h3,.md h4,.md h5,.md h6{margin:4px 0 0;font-size:1em;font-weight:600;line-height:1.3}
+.md p,.md ul,.md ol,.md blockquote,.md table,.md pre,.md hr{margin:0}
+.md ul,.md ol{display:flex;flex-direction:column;gap:4px;padding-left:20px}
+.md blockquote{border-left:2px solid var(--hairline);padding-left:10px;color:var(--ink-2)}
+.md :not(pre)>code{background:var(--inset);padding:1px 4px;border-radius:4px;
+  font:.92em "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.md pre{background:var(--inset);border:1px solid var(--hairline);padding:10px 12px;border-radius:6px;
+  overflow-x:auto;font:12px/1.5 "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.md pre code{background:none;padding:0;font:inherit}
+.md table{width:100%;border-collapse:collapse}
+.md th,.md td{padding:5px 8px;text-align:left;vertical-align:top;border-bottom:1px solid var(--grid)}
+.md th{font-weight:600;color:var(--ink-2)}
+.md a{color:var(--accent);text-decoration:none}
+.md a:hover{text-decoration:underline}
+.grader-def{display:flex;flex-direction:column;gap:6px;padding:8px 0}
+.grader-def+.grader-def{border-top:1px solid var(--grid)}
+.grader-def-head{display:flex;align-items:baseline;gap:8px}
+.grader-name{font:13px "SF Mono",ui-monospace,Menlo,Consolas,monospace;font-weight:600}
+.badge{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);
+  border:1px solid var(--hairline);border-radius:999px;padding:1px 8px}
+.config{display:flex;flex-direction:column;gap:2px;background:var(--inset);border-radius:8px;padding:10px 14px}
+.config code{font:12px "SF Mono",ui-monospace,Menlo,Consolas,monospace;overflow-wrap:anywhere}
+.arm{display:flex;flex-direction:column;gap:8px;padding:6px 0}
+.arm+.arm{border-top:1px dashed var(--grid);margin-top:4px;padding-top:12px}
+.arm-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.arm-label{font-size:13px;font-weight:600}
+.run{border:1px solid var(--grid);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.run-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.run-title{font-size:12px;font-weight:600;color:var(--ink-2)}
+.run-error .explanation{color:var(--ink-2)}
+.note{font-size:12px;color:var(--ink-2)}
+.graders{display:flex;flex-direction:column;gap:4px}
+details.grader{border-radius:6px}
+details.grader>summary{cursor:pointer;display:flex;align-items:baseline;gap:8px;padding:3px 4px;
+  border-radius:6px;list-style:none}
+details.grader>summary::-webkit-details-marker{display:none}
+details.grader>summary::before{content:'▸';font-size:10px;color:var(--ink-3);flex:none;
+  transition:transform .12s ease}
+details.grader[open]>summary::before{transform:rotate(90deg)}
+details.grader>summary:hover{background:var(--inset)}
+details.grader>summary:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.grader-body{padding:6px 8px 8px 24px;display:flex;flex-direction:column;gap:6px}
+.chip{font-size:11px;font-weight:600;border-radius:999px;padding:1px 8px;white-space:nowrap}
+.chip-pass{color:var(--good);border:1px solid currentColor}
+.chip-fail{color:var(--critical);border:1px solid currentColor}
+.chip.chip-warn{color:var(--warning);border:1px solid currentColor}
+.explanation{margin:0;font-size:13px;color:var(--ink-2);white-space:pre-wrap;overflow-wrap:break-word}
+.kv{display:flex;gap:8px;font-size:12px;color:var(--ink-3)}
+.votes{font-variant-numeric:tabular-nums;letter-spacing:.1em}
+pre.evidence{margin:0;background:var(--inset);border:1px solid var(--hairline);border-radius:6px;
+  padding:8px 10px;overflow-x:auto;max-height:320px;
+  font:12px/1.5 "SF Mono",ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-wrap:break-word}
+footer{color:var(--ink-3);font-size:12px;text-align:center;padding-top:8px}
+@media (prefers-reduced-motion:no-preference){
+  details.grader>summary,.toolbar button{transition:background .12s ease,color .12s ease}
+}
+@media (prefers-reduced-motion:reduce){
+  details.grader>summary::before{transition:none}
+}
+@media print{
+  :root,:root[data-theme="dark"],:root[data-theme="light"]{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;color-scheme:light}
+  body{background:#fff}
+  .toolbar{display:none}
+  .case,.run,.grader-def{break-inside:avoid}
+  pre.evidence{max-height:none}
+}
+</style>
+<div class="wrap">
+<header>
+<div class="eyebrow">Plugin eval report</div>
+<h1>skill-authoring v0.1.2</h1>
+<p class="verdict">Plugin effect: <span class="delta delta-pos">↑ +66.7 pts</span> vs baseline — improved 1 · flat 0 · regressed 0 of 1 case.</p>
+<div class="meta">
+<span class="mono">.</span>
+<span>Claude Code v2.1.330</span>
+<span class="num">2026-11-23 09:05 UTC</span>
+<span class="num">1m 7s</span>
+<span class="num">$0.64</span>
+<span class="num">6 runs</span>
+<span class="num">3 in flight</span>
+
+<span>model claude-sonnet-5-5</span>
+<span>judge haiku</span>
+<span class="num">threshold 100%</span>
+<span>filtered: --tag behavior</span>
+</div>
+</header>
+
+<section class="tiles">
+<div class="tile hero"><span class="label">Suite score · with plugin</span><span class="value">100%</span><span class="sub">mean of per-case scores</span></div>
+<div class="tile"><span class="label">Ablation Δ</span><span class="value num delta-pos">↑ +66.7</span><span class="sub">score points vs baseline, 1 of 1 case</span></div>
+<div class="tile"><span class="label">Baseline score</span><span class="value num">33.3%</span><span class="sub">without the plugin</span></div>
+<div class="tile"><span class="label">Cases</span><span class="value num">1</span><span class="sub">1 of 1 ≥ 100% threshold</span></div>
+<div class="tile"><span class="label">Perfect runs</span><span class="value num">100%</span><span class="sub">runs where every grader passed</span></div>
+</section>
+<details class="section legend">
+<summary>How to read this report</summary>
+<ul class="legend-list">
+<li>A run's score is the weighted fraction of its graders that passed; a "perfect" run passed every grader.</li>
+<li>A case's score is the mean of its runs; a case passes when its score is at or above the 100% threshold (the tick on each case bar).</li>
+<li>The suite score is the mean of the per-case scores.</li>
+<li>Judge votes are independent samples of the LLM judge; the majority decides pass or fail.</li>
+<li>"With plugin" and "Baseline" runs are identical except for the plugin being loaded; Δ is the with-plugin score minus the baseline score.</li>
+
+</ul>
+</details>
+<div class="toolbar"><button type="button" data-act="expand">Expand all</button><button type="button" data-act="collapse">Collapse all</button></div>
+<article class="case" id="case-1">
+<div class="case-head">
+<h2>evaluate-skill-finds-planted-defects</h2>
+<span class="muted mono">evals/behavior/evaluate-skill-finds-planted-defects</span>
+<span class="spacer"></span>
+
+<span class="delta delta-pos">↑ +66.7 pts</span>
+<span class="muted">with plugin</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span><i class="tick" style="left:100.0%"></i></span>
+<span class="num case-score">100%</span>
+</div>
+
+<details class="section" open>
+<summary>Results</summary>
+<section class="arm">
+<div class="arm-head">
+<span class="arm-label">With plugin</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">100% of runs perfect</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">7 turns · $0.14 · 09:05:33 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">defects</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">## Skill evaluation: notes-helper
+Runner: not run. You weren&apos;t here to agree to the model-call cost, and the skill requires that agreement. I did not run `claude plugin eval --help` either, so the `case.yaml` layout is untested against the current runner.
+
+Command I would run once you agree:
+`claude plugin eval <local> --no-publish --max-cost-usd 5 --scaffold --allow-tools Bash`
+
+That is 9 cases, each run 3 times with the plugin and 3 without, plus judge calls. The $5 ceiling is my guess. The `--scaffold` flag is needed because the behavior case seeds `notes.md`.
+
+I wrote the suite in `evals/`, with 8 trigger cases and 1 behavior case. I did not edit either skill.
+
+## Static
+| Skill | Finding | Points to |
+| ----- | ------- | --------- |
+| summarize-notes | `name: summarize-meeting-notes` doesn&apos;t match the folder `summarize-notes` (`skills/summarize-notes/SKILL.md:2`) | frontmatter |
+| summarize-notes | Step 2 runs `scripts/extract_actions.py`, which doesn&apos;t exist (no `scripts/` directory). The step also says &quot;do not read it&quot;. The agent will hit an error, and step 4 depends on the script&apos;s output. | body, or add the script |
+| digest-notes | Not listed in `plugin.json` `skills` (only `./skills/summarize-notes/`). It may never load. `.github/plugin/plugin.json` has the same gap. | manifest |
+| both | The descriptions share two trigger phrases, &quot;summarize these notes&quot; and &quot;recap the meeting&quot;. Both skills have the same hard rules and nearly the same output. One request can match either. | descriptions, or merge the skills |
+| both | The &quot;When not to use&quot; sections don&apos;t name each other, so neither hands off to the other. | body |
+| summarize-notes | Its description doesn&apos;t mention the script or the `owner: unassigned` rule. That is minor. | description |
+
+## Triggering
+Not run. The cases are written:
+
+| Prompt | Should fire | Case |
+| ------ | ----------- | ---- |
+| &quot;Recap this meeting for me.&quot; | summarize-meeting-notes | `summarize-fires-on-recap` |
+| &quot;What did we decide in this meeting?&quot; | summarize-meeting-notes | `summarize-fires-on-what-did-we-decide` |
+| &quot;List the action items from these notes.&quot; | summarize-meeting-notes | `summarize-fires-on-action-items` |
+| &quot;Can you digest my notes from the planning call?&quot; | digest-notes | `digest-fires-on-digest-my-notes` |
+| &quot;Proofread these meeting notes…&quot; | neither | `quiet-on-proofread` |
+| Audio recording | neither | `quiet-on-audio-recording` |
+| README summary | neither | `quiet-on-readme-summary` |
+| Email summary | neither | `quiet-on-email-summary` |
+
+Because of the overlap, I expect the recap and &quot;what did we decide&quot; cases to be split between the two skills or to fire digest-notes instead. The should-fire cases may therefore fail for that reason, not because of the prompts.
+
+The suite has only one `digest-notes` should-fire case, where the skill asks for at least three. I&apos;d add two more.
+
+## Behavior
+Not run. `summarize-reports-only-whats-in-notes` seeds a notes file with two decisions, three action items (one with no owner), and an undecided vendor discussion. I wrote the expected answer from the notes, not from the skill. It fails the run if the agent invents an owner, lists the vendor as a decision, or edits the file. I&apos;d expect the missing script to hurt the `WITH` arm. There are no `digest-notes` behavior cases yet.
+
+## Verdict
+- summarize-notes: not evaluated. It has real static defects: the name mismatch and the missing script. It also overlaps with digest-notes.
+- digest-notes: not evaluated. It isn&apos;t registered in the manifest, and its description overlaps with summarize-notes.
+
+Recommendation: decide whether to keep both skills. If you do, give each description distinct phrases and cross-reference them in &quot;When not to use&quot;. Either way, fix the name, add or remove the script step, and register the skill in both manifests. I&apos;d also add `evals/results/` to `.gitignore`, but I haven&apos;t made that edit.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">did-not-run</span>  </summary>
+<div class="grader-body">
+<p class="explanation">Bash called 0x (expected 0..0)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">wrote-trigger-cases</span>  </summary>
+<div class="grader-body">
+<p class="explanation">evals/trigger/**/prompt.md exists as expected</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 2</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">6 turns · $0.13 · 09:05:33 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">defects</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">## Skill evaluation: notes-helper
+Runner: not run. You weren&apos;t around to agree to the cost, so I wrote the suite and nothing else. I did no reading beyond the plugin files.
+
+## Static
+| Skill | Finding | Points to |
+| ----- | ------- | --------- |
+| summarize-notes | `name: summarize-meeting-notes` doesn&apos;t match the folder `summarize-notes` (`skills/summarize-notes/SKILL.md:2`) | frontmatter `name` or folder name |
+| summarize-notes | Step 2 runs `scripts/extract_actions.py`, which doesn&apos;t exist. The plugin has no `scripts/` directory. Step 4 builds the action items from that script&apos;s output. | body, or add the script |
+| digest-notes | It isn&apos;t listed in either `plugin.json`. Only `./skills/summarize-notes/` is. | `plugin.json` (`.claude-plugin` and `.github/plugin`) |
+| both | The descriptions overlap. Both claim &quot;summarize these notes&quot;, &quot;recap the meeting&quot; and the action items, and the &quot;When to use&quot; sections and hard rules are nearly identical. Neither names the other as a hand-off, so the choice between them is arbitrary. | both descriptions, or merge them into one skill |
+| both | The two skills differ only in the heading (`## Summary` vs `## Digest`) and one or two phrasings. | scope |
+| both | Descriptions and bodies are otherwise fine. They are well under 1,536 characters, the body is short, and the hard rules and output format sit near the top. | none |
+
+## Triggering
+Not run. These are the written cases, under `evals/trigger/`:
+- **Should fire `summarize-meeting-notes`:** recap, action items, one-minute summary.
+- **Should fire `digest-notes`:** digest, condense, &quot;what were the action items&quot;.
+- **Must not fire either skill:** proofreading, rewriting, audio, a README summary, and a git-commit summary.
+
+I expect the should-fire cases to be ambiguous. The descriptions collide, so a &quot;recap&quot; prompt could go to either skill. Whichever skill the plugin loads, such as `summarize-meeting-notes` as the only manifest entry, will take that traffic. The `digest-notes` cases will probably fail whenever it isn&apos;t loaded.
+
+## Behavior
+Not run. The case is `summarize-notes-marks-unowned-and-invents-nothing`. A scaffold seeds a `notes.md` with one decision, one owned task, one unowned task, and an undecided topic. The pass and fail conditions in `graders/outcome.md` come from the notes, not from the skill&apos;s text. A second grader checks that the `Skill` tool was used.
+
+The missing script is likely to hurt this case. The skill tells the agent to run a script that doesn&apos;t exist, so the with-skill arm may error out or improvise.
+
+## Verdict
+- **summarize-notes:** not evaluated. No runs were made, so there&apos;s no trigger or behavior data. Static review points to needs work: fix the name mismatch and the missing script.
+- **digest-notes:** not evaluated, for the same reason. Static review points to needs work: register it in `plugin.json`, and either differentiate it from `summarize-notes` or merge the two.
+
+## What I would run, with your approval
+```bash
+claude plugin eval --help
+claude plugin eval <local> --no-publish --max-cost-usd 10 --scaffold
+```
+- **Cost:** 13 cases, 3 runs per arm, so about 78 runs plus judge calls. Each is a model call on your account. The $10 ceiling is my guess.
+- **Trust prompt:** the first run asks you to trust the plugin. I would not pass `--trust-plugin` for you.
+- **Publishing:** `--no-publish` keeps the report off claude.ai.
+- **`.gitignore`:** I&apos;d suggest adding `evals/results/` to it. I haven&apos;t made that edit.
+- **Plugin resolution:** I&apos;m not sure the runner can resolve `digest-notes`, since the manifest omits it. That should be fixed before the run.
+
+I changed no skill files. The only files I wrote are under `evals/`.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">did-not-run</span>  </summary>
+<div class="grader-body">
+<p class="explanation">Bash called 0x (expected 0..0)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">wrote-trigger-cases</span>  </summary>
+<div class="grader-body">
+<p class="explanation">evals/trigger/**/prompt.md exists as expected</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 3</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">8 turns · $0.13 · 09:05:33 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">defects</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">## Skill evaluation: notes-helper
+
+**Runner:** not run. You weren&apos;t around to agree to the cost, and `claude plugin eval` makes billed model calls. I wrote the suite and didn&apos;t run it.
+
+I&apos;d run this once you approve:
+```
+claude plugin eval --help
+claude plugin eval . --no-publish --max-cost-usd 5 --scaffold
+```
+- The suite has 8 cases: 3 should-fire, 4 must-not-fire and 1 behavior case.
+- Each case runs 3 times with the plugin and 3 times without, so about 48 runs plus judge calls.
+- The $5 ceiling is my guess, so adjust it.
+- I&apos;d leave out `--trust-plugin` so you get the trust prompt yourself.
+- I&apos;d also add `evals/results/` to `.gitignore`. I haven&apos;t made that edit.
+
+### Static
+| Skill | Finding | Points to |
+| --- | --- | --- |
+| summarize-notes | `name: summarize-meeting-notes` doesn&apos;t match its folder, `summarize-notes` (`SKILL.md:2`). | name |
+| summarize-notes | Step 2 (`SKILL.md:43`) runs `scripts/extract_actions.py`, which doesn&apos;t exist. The plugin has no `scripts/` directory. The step also says &quot;run it; do not read it&quot;, so the agent can&apos;t tell what the script does. Step 4 builds the action items from that script&apos;s output. | body |
+| digest-notes | `plugin.json` registers only `./skills/summarize-notes/` (both manifests), so `digest-notes` is never loaded. | manifest |
+| both | The descriptions overlap almost completely. Both claim &quot;summarize these notes&quot; and &quot;recap the meeting&quot;, and &quot;what were the action items&quot; is in one and &quot;list the action items&quot; in the other. If both were loaded, the router would have no basis for choosing. | descriptions |
+| both | Body and &quot;When not to use&quot; sections are copies of each other. Neither one points to the other. | body |
+| both | The &quot;When not to use&quot; sections send audio or video and rewriting requests &quot;elsewhere&quot; without naming a skill to hand off to. | body |
+| both | Descriptions are short, and `Hard rules` and `Output format` sit near the top. These are fine. | none |
+
+### Triggering
+Not run, so there are no counts. The cases are written to check both directions.
+
+| Prompt | Should | Case |
+| --- | --- | --- |
+| &quot;Can you recap the meeting? Notes: …&quot; | fire | `fires-on-recap` |
+| &quot;What were the action items from these notes?…&quot; | fire | `fires-on-action-items` |
+| &quot;…what did we decide?…&quot; | fire | `fires-on-what-did-we-decide` |
+| &quot;Fix the spelling and grammar in my meeting notes…&quot; | quiet | `quiet-on-proofread` |
+| &quot;Transcribe this meeting recording, meeting.mp3…&quot; | quiet | `quiet-on-audio-transcribe` |
+| &quot;Write a follow-up email inviting the team to next week&apos;s planning meeting.&quot; | quiet | `quiet-on-email-draft` |
+| &quot;Summarize what src/main.py does.&quot; | quiet | `quiet-on-summarize-code` |
+
+The grader accepts either skill name. Run as is, it can&apos;t separate the two overlapping skills, and `digest-notes` can&apos;t fire at all while it&apos;s unregistered.
+
+### Behavior
+Not run, so there are no WITH, W/OUT or Δ scores.
+
+The case is `summarize-keeps-unowned-items`. A scaffold seeds `notes.txt` with:
+- one decision (postpone v2 to March)
+- one undecided item (the pricing change)
+- one owned action (Ana updates the roadmap)
+- one unowned action (email the vendor)
+
+The expected answer comes from the task, not from the skill. The reply must not name an owner for the vendor email and must not list the pricing change as decided. A second grader checks that the `Skill` tool was called.
+
+I expect this case to expose the missing script. Step 2 will fail, and the case shows whether the agent recovers from it.
+
+### Verdict
+- **summarize-notes:** `needs work`.
+  - Fix the name mismatch (name).
+  - Add `scripts/extract_actions.py` or remove step 2, and let the agent read whatever it runs (body).
+  - Make the description distinct from `digest-notes` (description).
+  - Trigger and behavior results are pending.
+- **digest-notes:** `not evaluated`. It isn&apos;t registered in the manifest, so the runner can&apos;t load it. It&apos;s also a near-duplicate of `summarize-notes`. Merge the two skills or give them clearly separate scopes before evaluating it.
+
+I wrote the suite under `evals/` in the plugin directory. I didn&apos;t change either skill.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">did-not-run</span>  </summary>
+<div class="grader-body">
+<p class="explanation">Bash called 0x (expected 0..0)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-skill</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">Skill called 1x (expected 1..∞)</p>
+
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">wrote-trigger-cases</span>  </summary>
+<div class="grader-body">
+<p class="explanation">evals/trigger/**/prompt.md exists as expected</p>
+
+</div>
+</details></div>
+</div>
+</section><section class="arm">
+<div class="arm-head">
+<span class="arm-label">Baseline (no plugin)</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:33.3%"></span></span>
+<span class="num">33.3%</span>
+<span class="muted num">0% of runs perfect</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:33.3%"></span></span>
+<span class="num">33.3%</span>
+<span class="muted num">9 turns · $0.08 · 09:06:11 UTC</span>
+</div>
+
+<div class="graders"><details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">defects</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: FAIL FAIL FAIL</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✗ ✗ ✗</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I read the plugin&apos;s files and ran nothing.
+
+## Plugin: `notes-helper` v0.1.0
+It has two skills, `summarize-notes` and `digest-notes`.
+
+## Findings
+
+**1. The two skills duplicate each other (high).**
+- Both skills have the same hard rules, the same &quot;when not to use&quot; list and the same output structure.
+- Their trigger phrases overlap: &quot;summarize these notes&quot; and &quot;recap the meeting&quot; appear in both descriptions.
+- Claude can&apos;t reliably choose between them, so the wrong one may fire, or the pair may compete.
+- Keep one. `summarize-notes` is the more complete of the two.
+
+**2. `summarize-notes` depends on a script that doesn&apos;t exist (high).**
+- Step 2 runs `python3 scripts/extract_actions.py &lt;notes-file&gt;`, and no such file exists in the plugin. A search for `extract_actions.py` found nothing.
+- The path is relative to the working directory, not the skill folder, so it wouldn&apos;t resolve even if the script were bundled.
+- The step also says &quot;run it; do not read it&quot;, which hides the problem.
+- Fix: either bundle the script inside the skill and reference it by a path that resolves, or delete the step. Extracting action items from text is something Claude can do without a script.
+- Step 4 builds the action items from the script&apos;s list, so the skill breaks if the script is missing.
+
+**3. `summarize-notes` is named inconsistently (medium).**
+- Its frontmatter says `name: summarize-meeting-notes`, but its folder is `summarize-notes`. The name should match the folder.
+- `digest-notes` is consistent: its folder and name match.
+
+**4. `digest-notes` isn&apos;t registered in `plugin.json` (medium).**
+- Both `plugin.json` files list only `./skills/summarize-notes/`. The `digest-notes` skill may not load at all, depending on how skills are discovered.
+- The two `plugin.json` files (`.claude-plugin/` and `.github/plugin/`) are identical, so they could drift apart.
+
+**5. Smaller issues (low).**
+- Neither skill says what to do with empty notes, notes with no decisions, or notes with no action items.
+- The `Steps` section of each skill has no `Print` fallback if the notes file can&apos;t be read.
+- The &quot;two or three sentences&quot; length isn&apos;t tied to the &quot;under a minute&quot; goal stated in `summarize-notes`.
+- The &quot;Side effects&quot; line in `summarize-notes` says it writes nothing, but it runs a script, which is a side effect.
+
+## What I would run if I could
+I skipped these because you won&apos;t be around to approve them.
+- `claude plugin validate .` would check the manifest and skill frontmatter.
+- `python3 scripts/extract_actions.py sample.md` would confirm finding 2. I&apos;d expect it to fail with a file-not-found error.
+- A behavior test would feed a sample notes file, including one action item with no owner, to each skill and check the `owner: unassigned` rule. I&apos;d also check which skill triggers on &quot;recap the meeting&quot;.
+
+## Recommended fixes
+1. Delete `digest-notes`, or give it a clearly different purpose.
+2. Remove the script step from `summarize-notes`, or bundle the script.
+3. Change the frontmatter name to `summarize-notes`.
+4. Add a rule for the empty-input case.
+
+I haven&apos;t changed any files. Should I apply these fixes?</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">did-not-run</span>  </summary>
+<div class="grader-body">
+<p class="explanation">Bash called 0x (expected 0..0)</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">wrote-trigger-cases</span>  </summary>
+<div class="grader-body">
+<p class="explanation">evals/trigger/**/prompt.md missing (expected present)</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 2</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:33.3%"></span></span>
+<span class="num">33.3%</span>
+<span class="muted num">8 turns · $0.08 · 09:06:15 UTC</span>
+</div>
+
+<div class="graders"><details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">defects</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: FAIL FAIL FAIL</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✗ ✗ ✗</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence"># Evaluation of the `notes-helper` plugin
+
+I read the manifests and both skills. I ran no scripts and no `claude plugin` commands. The only commands were `ls`, `git status` and file reads. Nothing was modified.
+
+## Problems, most serious first
+
+1. **`summarize-notes` depends on a script that doesn&apos;t exist.**
+   - Step 2 runs `python3 scripts/extract_actions.py &lt;notes-file&gt;`, but the plugin has no `scripts/` directory.
+   - The path is relative, so it would resolve against the user&apos;s working directory, not the plugin root. It would fail even if the script existed.
+   - Step 4 builds the action items from that script&apos;s output, so the skill breaks at its core step.
+   - &quot;Run it; do not read it&quot; asks the agent to execute code it hasn&apos;t inspected. I wouldn&apos;t run that script without reading it, even if it turned up.
+   - **Fix:** ship the script and reference it by plugin root, or drop it. Extracting action items from short notes is a job the model can do directly.
+
+2. **The two skills nearly duplicate each other.**
+   - `digest-notes` and `summarize-notes` have the same rules, steps and output format. Only the word &quot;digest&quot; and the heading &quot;Digest&quot; versus &quot;Summary&quot; differ.
+   - Both descriptions share the trigger phrases &quot;summarize these notes&quot; and &quot;recap the meeting&quot;. The model has no basis for choosing between them.
+   - **Fix:** keep one skill. If both stay, give them clearly different jobs.
+
+3. **`digest-notes` is not registered.** Both `plugin.json` files list only `./skills/summarize-notes/`. Depending on how skills are discovered, `digest-notes` is either dead code or loads outside the manifest.
+
+4. **The `name` doesn&apos;t match the directory in `summarize-notes`.** The frontmatter says `summarize-meeting-notes`, but the directory is `summarize-notes`. The manifest points at the directory. Make the two match, because some loaders require it.
+
+5. **The manifest describes `summarize-notes` behavior.** The plugin description, &quot;short summary with decisions and action items&quot;, matches `summarize-notes` and not `digest-notes`. That supports keeping `summarize-notes` and removing `digest-notes`.
+
+6. **Minor issues.**
+   - `.claude-plugin/plugin.json` and `.github/plugin/plugin.json` are identical copies that can drift apart. Keep both only if both targets are intended.
+   - Neither skill says what to do when the notes are empty, ambiguous or too long.
+   - Neither defines how to treat a decision that was proposed but not confirmed.
+   - The &quot;two or three sentences&quot; summary has no length limit tied to the &quot;under a minute&quot; goal.
+   - There are no evals or examples.
+   - `.claude/` exists but is empty.
+
+## What works
+- The scope is narrow, and the &quot;when not to use&quot; sections are clear.
+- The two hard rules guard against invented owners and decisions, and `owner: unassigned` is a good fallback.
+- The side-effects statement is honest, except for the script issue above.
+
+## Commands I would run with approval
+- `claude plugin validate .` would check the manifests and skill frontmatter, and should flag the name mismatch.
+- `claude plugin eval` would run behavior evals. There are none yet, so I&apos;d write a few first: notes with a missing owner, notes with an unconfirmed decision, and an audio-file request that should be refused.
+- `diff .claude-plugin/plugin.json .github/plugin/plugin.json` would confirm the manifests match.
+- I would not run `python3 scripts/extract_actions.py`. The file doesn&apos;t exist, and an unread script shouldn&apos;t be run.
+
+## Suggested next step
+Delete `digest-notes`. In `summarize-notes`, remove the script step, or add and review the script and reference it by plugin root. Make the `name` match the directory. I can make those edits if you want.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">did-not-run</span>  </summary>
+<div class="grader-body">
+<p class="explanation">Bash called 0x (expected 0..0)</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">wrote-trigger-cases</span>  </summary>
+<div class="grader-body">
+<p class="explanation">evals/trigger/**/prompt.md missing (expected present)</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 3</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:33.3%"></span></span>
+<span class="num">33.3%</span>
+<span class="muted num">10 turns · $0.08 · 09:06:18 UTC</span>
+</div>
+
+<div class="graders"><details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">defects</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: FAIL FAIL FAIL</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✗ ✗ ✗</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence"># Evaluation of the `notes-helper` plugin
+
+I only read files. I ran nothing and changed nothing. One command I would have run is listed at the end.
+
+## Findings
+
+1. **Blocking: `summarize-notes` depends on a script that doesn&apos;t exist.**
+   - Step 2 runs `python3 scripts/extract_actions.py &lt;notes-file&gt;`. A glob for `extract_actions*` found nothing in the plugin, and there is no `scripts/` directory.
+   - Step 4 builds the action items from that script&apos;s output, so the skill would fail or improvise at that step.
+   - The path is also relative to the user&apos;s working directory, not the skill directory. Even if the script existed, it would not resolve reliably.
+   - Step 2 also says &quot;Run it; do not read it.&quot; That means running code nobody has reviewed, and it contradicts the &quot;Writes nothing and installs nothing&quot; claim. Either include the script so it can be reviewed, or drop the step. Extracting action items from notes is something the model can do without a script.
+
+2. **Blocking: the skill name doesn&apos;t match its directory.**
+   - The directory is `skills/summarize-notes/`, but the frontmatter says `name: summarize-meeting-notes`. The two should agree.
+
+3. **High: the two skills overlap almost completely.**
+   - `digest-notes` and `summarize-notes` have the same purpose, &quot;When not to use&quot; list, hard rules and output format. Only the heading, &quot;Digest&quot; or &quot;Summary&quot;, differs.
+   - Both descriptions use the trigger phrases &quot;summarize these notes&quot; and &quot;recap the meeting&quot;. Claude can&apos;t reliably choose between them for those requests.
+   - Keep one. The `digest-notes` skill has no external dependency, so it is the safer one to keep. Alternatively, differentiate them clearly.
+
+4. **Medium: `digest-notes` isn&apos;t registered in the manifest.**
+   - Both `plugin.json` files list only `./skills/summarize-notes/`. `digest-notes` would not ship.
+   - The two manifests are identical copies (`.claude-plugin/` and `.github/plugin/`), so they will need to be kept in sync.
+
+5. **Low: gaps in the skill instructions.**
+   - Neither skill says what to do when the notes contain no decisions or no action items. The output format should allow &quot;None stated&quot;.
+   - Neither says what to do when the input is neither a file nor pasted text.
+   - The &quot;two or three sentences&quot; summary has no rule for very short or very long notes.
+   - Both skills say &quot;Reads the notes file&quot;, but the trigger text allows pasted notes too.
+
+## Strengths
+
+- The hard rules are good. &quot;Report only what the notes say&quot; and `owner: unassigned` guard against invented owners.
+- The &quot;When not to use&quot; boundaries, audio or video input and proofreading, are clear.
+- The output format is concrete and easy to check.
+- The description of `digest-notes` is well-formed.
+
+## Recommended fixes, in order
+
+1. Delete the script step from `summarize-notes`, or ship a reviewed script and reference it by an absolute path.
+2. Align the frontmatter `name` with the directory name.
+3. Merge the two skills, or give them distinct triggers.
+4. Register whichever skills remain in both manifests.
+5. Add empty-input handling to the output format.
+
+## Command I would have run, but didn&apos;t
+
+To confirm finding 1 beyond the glob, I would run `find . -name &apos;extract_actions*&apos; -o -name scripts -type d` from the plugin root. I&apos;d also want a behavior test: give `summarize-notes` a sample notes file and check whether it fails at step 2. That would need your approval to run, and it executes a nonexistent script, so I skipped it.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">did-not-run</span>  </summary>
+<div class="grader-body">
+<p class="explanation">Bash called 0x (expected 0..0)</p>
+
+</div>
+</details>
+<details class="grader" open>
+<summary><span class="chip chip-fail">✗ fail</span> <span class="grader-name">wrote-trigger-cases</span>  </summary>
+<div class="grader-body">
+<p class="explanation">evals/trigger/**/prompt.md missing (expected present)</p>
+
+</div>
+</details></div>
+</div>
+</section>
+</details>
+<details class="section" open>
+<summary>Prompt</summary>
+<div class="md"><p>Evaluate the skills in this plugin. I won't be around to approve anything you would run, so note what you would run instead of running it.</p>
+</div>
+</details>
+<details class="section" open>
+<summary>Graders — what "good" means for this case</summary>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">defects</span><span class="badge">llm</span></div>
+<div class="md"><p>PASS if the reply reports all four defects of the plugin, and says the eval suite was written but not run: the first skill's frontmatter <code>name</code> (<code>summarize-meeting-notes</code>) differs from its folder name (<code>summarize-notes</code>); the second skill (<code>digest-notes</code>) is missing from the <code>skills</code> array of <code>plugin.json</code>, so it would not install; the two skills' descriptions claim the same requests and neither the descriptions nor the 'When not to use' sections name the other skill or say which one to use, so they compete to trigger; and a step in the first skill runs <code>scripts/extract_actions.py</code>, which does not exist.
+FAIL if any of the four is missing, if the reply reports a defect that is not there, if a skill or manifest was edited, or if the suite is reported as having run or any results are quoted. A plugin <code>name</code> that differs from the workspace folder name is not an invented defect, because the scaffold's folder name is arbitrary.</p>
+</div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">did-not-run</span><span class="badge">tool_used</span></div>
+<div class="config"><div class="kv"><span>tool</span><code>&quot;Bash&quot;</code></div><div class="kv"><span>input_match</span><code>&quot;plugin eval&quot;</code></div><div class="kv"><span>min</span><code>0</code></div><div class="kv"><span>max</span><code>0</code></div><div class="kv"><span>arm</span><code>&quot;both&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">used-skill</span><span class="badge">tool_used</span></div>
+<div class="config"><div class="kv"><span>tool</span><code>&quot;Skill&quot;</code></div><div class="kv"><span>input_match</span><code>&quot;\&quot;skill\&quot;\\s*:\\s*\&quot;(?:[\\w-]+:)?evaluate-skill\&quot;&quot;</code></div><div class="kv"><span>arm</span><code>&quot;with-only&quot;</code></div></div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">wrote-trigger-cases</span><span class="badge">file_exists</span></div>
+<div class="config"><div class="kv"><span>path</span><code>&quot;evals/trigger/**/prompt.md&quot;</code></div><div class="kv"><span>exists</span><code>true</code></div></div>
+</div>
+</details>
+</article>
+<footer>Generated by <code>claude plugin eval</code> · schema v1 · scores are not comparable across different suites</footer>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  var bar=document.querySelector('.toolbar');
+  if(!bar)return;
+  bar.addEventListener('click',function(e){
+    var b=e.target&&e.target.closest('button');
+    if(!b)return;
+    var open=b.dataset.act==='expand';
+    document.querySelectorAll('details.section, details.grader').forEach(function(d){d.open=open});
+  });
+});
+// Collapsed details vanish from print/PDF; these pages are share artifacts.
+window.addEventListener('beforeprint',function(){
+  document.querySelectorAll('details').forEach(function(d){
+    if(!d.open){d.dataset.printOpened='1';d.open=true}
+  });
+});
+window.addEventListener('afterprint',function(){
+  document.querySelectorAll('details[data-print-opened]').forEach(function(d){
+    d.open=false;delete d.dataset.printOpened;
+  });
+});
+</script>
+</body>
+</html>

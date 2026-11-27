@@ -1,0 +1,397 @@
+{
+  "schemaVersion": 1,
+  "claudeVersion": "2.1.329",
+  "startedAt": "2026-11-20T03:13:42.017Z",
+  "durationSeconds": 38,
+  "costUsd": 0.4285746,
+  "partial": false,
+  "suite": {
+    "root": "<local>",
+    "ablation": "with-without",
+    "modelOverride": "claude-sonnet-5-5",
+    "judgeModel": "haiku",
+    "tagFilters": [
+      "behavior"
+    ],
+    "threshold": 1,
+    "concurrency": 3,
+    "plugins": [
+      {
+        "name": "docs",
+        "version": "1.7.0",
+        "path": "<local>"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "architecture-overview-of-layered-repo",
+      "dir": "evals/behavior/architecture-overview-of-layered-repo",
+      "source": "mixed",
+      "promptMarkdown": "Write an architecture overview of this codebase: components, dependencies, entry points and the order flow.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 3600,
+      "maxTurns": 120,
+      "graders": [
+        {
+          "name": "architecture-preset",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Bash",
+            "input_match": "--preset[ =]architecture",
+            "arm": "with-only"
+          }
+        },
+        {
+          "name": "not-manual-preset",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Bash",
+            "input_match": "--preset[ =]manual",
+            "min": 0,
+            "max": 0,
+            "arm": "with-only"
+          }
+        },
+        {
+          "name": "overview",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "PASS if the reply, or the overview it says it wrote, covers the CLI and HTTP entry points, `OrderService.record`, `Store.put`, and the dependency direction from `api` to `core` to `infra`, and points to where in the source each claim comes from.\nFAIL if it delivers a questionnaire, a list of files, or a generic product manual instead of an architecture overview, or describes a call it shows no evidence for.",
+          "config": {
+            "criteria": "PASS if the reply, or the overview it says it wrote, covers the CLI and HTTP entry points, `OrderService.record`, `Store.put`, and the dependency direction from `api` to `core` to `infra`, and points to where in the source each claim comes from.\nFAIL if it delivers a questionnaire, a list of files, or a generic product manual instead of an architecture overview, or describes a call it shows no evidence for.",
+            "focus": "last_message"
+          }
+        },
+        {
+          "name": "used-skill",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?document-codebase\""
+          }
+        },
+        {
+          "name": "wrote-docs",
+          "type": "file_exists",
+          "weight": 1,
+          "config": {
+            "path": "docs/**",
+            "exists": true
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 3,
+            "costUsd": 0.07180090000000001,
+            "judgeCostUsd": 0.0011483,
+            "durationSeconds": 20,
+            "startedAt": "2026-11-20T03:13:42.055Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "architecture-preset",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Bash called 0x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "not-manual-preset",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 0x (expected 0..0)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "overview",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "# orderlog architecture overview\n\n`orderlog` is a small Python package (`src/app`, about 75 lines) with three layers. Its README describes a CLI that records orders and reports on them. The code only implements recording, and nothing is persisted yet.\n\n## Components\n\n| Layer | Module | Role |\n|---|---|---|\n| **api** | `api/cli.py` | `main()` is the CLI entry point. It builds an `OrderService` and records every argument in `sys.argv[1:]` as a SKU. |\n| | `api/http.py` | `Handler.post(body)` checks that `sku` is present, raises `ValueError` if it isn't, then records the one SKU. |\n| **core** | `core/service.py` | `OrderService.record(skus)` creates an `Order` per SKU, passes each to the store, and returns the count. Its docstring says it owns no storage. |\n| | `core/models.py` | Domain types: `Record` (base class with a `key` attribute) and `Order(Record)`, which has a `sku` and a `total()` method that returns `len(sku)`. |\n| **infra** | `infra/store.py` | `Store` keeps orders in an in-memory list (`rows`) and `put()` appends to it. |\n| | `infra/config.py` | `load()` returns `{\"path\": $ORDERLOG_PATH or \"orders.json\"}`. |\n\n## Dependencies\n\nImports point inward, and there are no cycles:\n\n```\napi/cli.py ──┐\n             ├─► core/service.py ─► core/models.py\napi/http.py ─┘          │\n                        └────────► infra/store.py ─► infra/config.py\n```\n\n- `api` imports only `core.service`.\n- `core.service` imports `core.models` and `infra.store`. This means core depends directly on infra, with no interface between them.\n- `infra.store` imports `infra.config`.\n- `core.models` and `infra.config` import nothing from the project. The only third-party dependency is `os` from the standard library.\n- `pyproject.toml` declares Python 3.9 or later and no runtime dependencies.\n\n## Entry points\n\n- **CLI:** `pyproject.toml` registers the console script `orderlog = app.api.cli:main`. `python -m app.api.cli` also works through the `__main__` guard.\n- **HTTP:** `api/http.py:Handler.post` is a handler class only. No server, router or script entry point calls it, so it is currently unreachable from outside the code.\n\n## Order flow\n\nCLI path, `orderlog SKU1 SKU2`:\n1. `cli.main()` creates `OrderService()`, which creates `Store()`. The store calls `config.load()`, so the settings are read at that point.\n2. `service.record([\"SKU1\", \"SKU2\"])` creates one `Order(sku)` for each SKU.\n3. `Store.put(order)` appends each order to `rows`.\n4. `record` returns the count, and `main` returns `0`.\n\nHTTP path, `Handler.post({\"sku\": \"X\"})`:\n1. The handler checks that `sku` is present and raises `ValueError` if not.\n2. It calls `service.record([body[\"sku\"]])`, which follows steps 2–4 above and returns the count.\n\nEach `Handler` and each CLI run builds its own `OrderService` and `Store`, so no state is shared between them.\n\n## Gaps between the code and its stated intent\n\n- **Nothing is persisted.** `Store` is memory-only, and the docstring says \"until flushed\", but no flush exists. The `path` setting is loaded and never used. When the CLI exits, the recorded orders are lost.\n- **There is no reporting.** The README says the tool \"prints them back\", but there is no read or list method on `Store` or `OrderService` and no report command. `Order.total()` has no callers.\n- **Input checking is only on the HTTP side.** The CLI passes raw `argv` straight through. The `http.py` docstring says it validates input \"before anything else sees it\", but the check covers only whether `sku` is present, not its type or value.\n- **`Record.key` is unused.** It is a class-level `0` that nothing sets or reads.\n\nI only read the source files, `README.md` and `pyproject.toml`. I did not open `.github/workflows/ci.yml`, so I can't say what CI runs."
+              },
+              {
+                "name": "used-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-docs",
+                "passed": false,
+                "weight": 1,
+                "explanation": "docs/** missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 3,
+            "costUsd": 0.0695126,
+            "judgeCostUsd": 0.0005007000000000001,
+            "durationSeconds": 16,
+            "startedAt": "2026-11-20T03:13:42.055Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "architecture-preset",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Bash called 0x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "not-manual-preset",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 0x (expected 0..0)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "overview",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "# orderlog architecture overview\n\nThe codebase is small: 75 lines of Python in `src/app`, split into three layers. The README describes it as a command-line tool for recording orders and printing them back. The tool is meant to keep order history without running a database server.\n\n## Components\n\n| Layer | Module | Role |\n|---|---|---|\n| `api` | `api/cli.py` | Command-line entry point. `main()` builds an `OrderService` and calls `record(sys.argv[1:])`, so each argument is treated as a SKU. |\n| `api` | `api/http.py` | `Handler.post(body)` checks that `sku` is present and raises `ValueError` if it isn't. It then calls `service.record([sku])`. |\n| `core` | `core/service.py` | `OrderService` is the application workflow. `record(skus)` creates an `Order` for each SKU, puts it in the store, and returns the number of SKUs. |\n| `core` | `core/models.py` | Domain types. `Order(Record)` holds a `sku`, and `total()` currently returns `len(sku)`. |\n| `infra` | `infra/store.py` | `Store` keeps orders in an in-memory list (`rows`). `put()` appends an order and returns the new row count. |\n| `infra` | `infra/config.py` | `load()` returns `{\"path\": $ORDERLOG_PATH or \"orders.json\"}`. |\n\n## Dependencies\n\n```\napi.cli ──┐\n          ├─► core.service ─► core.models\napi.http ─┘        │\n                   └─► infra.store ─► infra.config\n```\n\n- Dependencies point one way: `api` depends on `core`, and `core` depends on `infra`.\n- `core.service` imports `infra.store` directly, so `core` depends on the concrete store and not on an interface.\n- Nothing outside the standard library is used (`sys`, `os`).\n- `core.models` imports nothing.\n\n## Entry points\n\n- **CLI:** `pyproject.toml` declares `orderlog = \"app.api.cli:main\"`. `cli.py` can also be run directly through its `__main__` guard.\n- **HTTP:** `app.api.http.Handler.post` is a handler class only. Nothing in the repo starts a server or routes requests to it, so something external has to call it.\n- **CI:** `.github/workflows/ci.yml` runs `python3 -m pytest` on every push. I found no test files in the repo.\n\n## Order flow\n\n1. **Input.**\n   - From the CLI, `orderlog A B C` gives `argv[1:] = [\"A\",\"B\",\"C\"]`.\n   - From HTTP, a body like `{\"sku\": \"A\"}` is validated and becomes `[\"A\"]`.\n2. **Service.** `OrderService.record(skus)` is called. Its constructor has already created a `Store`.\n3. **Store setup.** `Store.__init__` calls `config.load()` to read the path setting, and starts with an empty `rows` list.\n4. **Per SKU.** The service builds `Order(sku)` and calls `store.put(order)`, which appends it to `rows`.\n5. **Return.** `record` returns the count of SKUs. The CLI ignores this value and `main()` returns 0. The HTTP handler passes it back to its caller.\n\n## Gaps in the current code\n\n- **Nothing is saved.** `Store` only appends to an in-memory list. The `path` setting is loaded but never used, and there is no flush or read code. The docstring says \"until flushed\", but no flush exists. Each run starts with an empty list, so orders are lost when the process exits. This conflicts with the README's goal of history that outlives a spreadsheet.\n- **No reporting.** The README says the tool \"reports on\" orders, but no code reads or prints them.\n- **Validation only on HTTP.** The CLI does no validation. The HTTP handler checks that `sku` exists but not its type or whether it's empty.\n- **Unused `Record.key`.** The base class `Record` has a `key` attribute that nothing uses.\n- **No tests.** CI runs pytest, but there are no test files, and pytest exits with an error when it collects nothing.\n\nI read all of the source files and the README, `pyproject.toml` and the CI config. I didn't run the code."
+              },
+              {
+                "name": "used-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-docs",
+                "passed": false,
+                "weight": 1,
+                "explanation": "docs/** missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 3,
+            "costUsd": 0.0729364,
+            "judgeCostUsd": 0.0008113000000000002,
+            "durationSeconds": 18,
+            "startedAt": "2026-11-20T03:13:42.055Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "architecture-preset",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Bash called 0x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "not-manual-preset",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 0x (expected 0..0)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "overview",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: PASS FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  false,
+                  false
+                ],
+                "evidence": "# orderlog architecture overview\n\norderlog is a small Python package (`src/app`, about 75 lines). It has three layers: `api`, `core` and `infra`. `pyproject.toml` declares one console script, `orderlog = app.api.cli:main`.\n\n## Components\n\n| Layer | Module | Role |\n|---|---|---|\n| api | `api/cli.py` | Command-line entry point. `main()` builds an `OrderService` and records every argument as a SKU (`cli.py:8-11`). |\n| api | `api/http.py` | `Handler.post(body)` checks that `sku` is present, then calls the service (`http.py:10-13`). |\n| core | `core/service.py` | `OrderService.record(skus)` creates an `Order` for each SKU and passes it to the store. It returns the count (`service.py:11-14`). |\n| core | `core/models.py` | Domain types: `Record` (base class with a `key` attribute) and `Order(Record)`, which holds a `sku` and has `total()`. |\n| infra | `infra/store.py` | `Store` keeps orders in an in-memory list (`rows`). `put()` appends an order and returns the new size. |\n| infra | `infra/config.py` | `load()` returns `{\"path\": $ORDERLOG_PATH or \"orders.json\"}`. |\n\n## Dependencies\n\nThe imports all point downward: `api → core → infra`.\n\n```\napi/cli.py ──┐\n             ├─> core/service.py ──> core/models.py\napi/http.py ─┘          │\n                        └─────────> infra/store.py ──> infra/config.py\n```\n\n- `OrderService` creates its own `Store` (`service.py:9`). It does not take one as a parameter, so the storage choice is fixed inside the service.\n- `core/service.py` imports `infra.store` directly. The core layer therefore depends on infrastructure, and there is no interface between them.\n- `models.py` has no imports. There are no third-party runtime dependencies.\n- CI (`.github/workflows/ci.yml`) runs `python3 -m pytest` on every push.\n\n## Entry points\n\n1. **CLI.** `orderlog <sku>...` runs `app.api.cli:main`. `python -m app.api.cli` also works. The exit code is always 0.\n2. **HTTP.** `api.http.Handler.post(body)` is an HTTP-style entry point. Nothing in the repo starts a server or routes requests to it, so only code that imports it can reach it.\n\n## Order flow\n\n1. The caller supplies SKUs. The CLI takes `sys.argv[1:]`. The HTTP handler takes `body[\"sku\"]` and raises `ValueError(\"sku is required\")` if it is missing.\n2. A new `OrderService()` is created, and it creates a `Store()`. `Store.__init__` calls `config.load()` to read the settings and starts with an empty `rows` list.\n3. `OrderService.record()` creates an `Order(sku)` for each SKU and calls `store.put(order)`.\n4. `Store.put()` appends the order to `rows`.\n5. The count of recorded SKUs goes back to the caller. The CLI discards it and exits 0. The HTTP handler returns it.\n\n## Gaps between the docs and the code\n\n- **Nothing is saved to disk.** The `Store` docstring says orders stay in memory \"until flushed\", but no flush or save method exists. `settings[\"path\"]` is read and never used. Each CLI run starts empty and loses its orders when the process exits. This conflicts with the README's goal of order history that outlives a spreadsheet.\n- **There is no reporting.** The README says the tool \"prints them back\", but there is no read, list or print path. `Order.total()` (the length of the SKU string) and `Record.key` are not used anywhere.\n- **Validation differs between entry points.** The HTTP handler checks its input, and the CLI does not. The CLI accepts empty or duplicate SKUs without complaint.\n- **No tests are in the repo**, although CI runs pytest.\n\nI read all seven source files and the config files. I didn't run anything, and I didn't run the dependency-graph tooling from the `docs:document-codebase` skill. The import graph above comes from reading the imports by hand. That is reliable at this size."
+              },
+              {
+                "name": "used-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-docs",
+                "passed": false,
+                "weight": 1,
+                "explanation": "docs/** missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 3,
+            "costUsd": 0.07294690000000001,
+            "judgeCostUsd": 0.0016486000000000005,
+            "durationSeconds": 20,
+            "startedAt": "2026-11-20T03:13:58.416Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "overview",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "# orderlog: architecture overview\n\norderlog is a small Python package (`>=3.9`) with three layers: `api`, `core` and `infra`. Its README describes it as a command-line tool that records orders and prints them back. It has no third-party dependencies.\n\n## Components\n\n| Layer | Module | Role |\n|---|---|---|\n| **api** | `api/cli.py` | `main()` builds an `OrderService` and calls `record(sys.argv[1:])`, so each CLI argument is treated as a SKU. It returns exit code 0. |\n| | `api/http.py` | `Handler.post(body)` checks that `sku` is present and raises `ValueError` if not. It then calls `service.record([body[\"sku\"]])`. Its docstring says it is the validation boundary. |\n| **core** | `core/service.py` | `OrderService` is the application workflow. `record(skus)` creates one `Order` per SKU, passes each to the store, and returns the count. |\n| | `core/models.py` | Domain types: `Record` (base class with a `key = 0` attribute) and `Order(Record)`, which holds a `sku` and has `total()` returning `len(sku)`. |\n| **infra** | `infra/store.py` | `Store` keeps orders in an in-memory list. `put(order)` appends the order and returns the new row count. |\n| | `infra/config.py` | `load()` returns `{\"path\": $ORDERLOG_PATH or \"orders.json\"}`. |\n\n## Dependencies\n\nThe arrows below show which module imports which. Dependencies point inward, toward `core`, apart from the one `core` → `infra` import.\n\n```\napi.cli ──┐\n          ├──► core.service ──► core.models\napi.http ─┘          │\n                     └──────► infra.store ──► infra.config\n```\n\n- `api` depends only on `core.service`.\n- `core.service` depends on `core.models` and on `infra.store`. This is a direct import of the concrete class, with no interface or injection, so `core` is coupled to `infra`.\n- `infra.store` depends on `infra.config`.\n- `core.models` and `infra.config` depend on nothing else in the package. They are leaves, and `config` uses only `os`.\n\n## Entry points\n\n- **CLI:** `pyproject.toml` declares the console script `orderlog = app.api.cli:main`. You can also run `python -m app.api.cli`.\n- **HTTP:** `app.api.http.Handler.post` is the only HTTP entry point. It is a plain class, not wired to any web framework or server in this repo.\n- **CI:** `.github/workflows/ci.yml` runs `python3 -m pytest` on every push.\n\n## Order flow\n\n1. **Input.**\n   - CLI: `orderlog SKU1 SKU2 ...` passes the arguments through as the list of SKUs.\n   - HTTP: `post({\"sku\": ...})` raises `ValueError` if `sku` is missing, otherwise it wraps the SKU in a one-element list.\n2. **Service.** `OrderService.record(skus)` loops over the SKUs and builds `Order(sku)` for each.\n3. **Persistence.** `Store.put(order)` appends each order to `self.rows`.\n4. **Return.** The service returns `len(skus)`. The CLI discards this and returns exit code 0. The HTTP handler returns it to its caller.\n\nEach `OrderService()` creates its own `Store()`, and the store calls `config.load()` when it is created.\n\n## Gaps between the docs and the code\n\n- **Persistence:** Orders only live in `Store.rows`, so they are lost when the process exits. The `Store` docstring says \"until flushed\", but no flush exists. `config.load()` produces a `path` (default `orders.json`) that nothing uses. This conflicts with the README's goal of order history that outlives a spreadsheet.\n- **Reporting:** The README says the tool \"reports on them\" and \"prints them back\". The code has no read, list or report path, only `record`. `Order.total()` is never called.\n- **Validation:** Only the HTTP path validates input. The CLI passes arguments through unchecked, even though the HTTP docstring says input is validated \"before anything else sees it\".\n- **Unused code:** `Record.key` is never used.\n- **Tests:** CI runs pytest, but the repo contains no tests."
+              },
+              {
+                "name": "wrote-docs",
+                "passed": false,
+                "weight": 1,
+                "explanation": "docs/** missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 4,
+            "costUsd": 0.06855960000000001,
+            "judgeCostUsd": 0.0008472000000000006,
+            "durationSeconds": 17,
+            "startedAt": "2026-11-20T03:14:00.027Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "overview",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "# orderlog architecture overview\n\norderlog is a small Python 3.9+ package (`src/app`) that records orders from the command line or an HTTP handler. The README describes it as order history that outlives a spreadsheet, without a database server. The code is currently a skeleton. Nothing is written to disk yet.\n\n## Components\n\nThe code has three layers.\n\n| Layer | Module | Role |\n|---|---|---|\n| **api** | `api/cli.py` | CLI entry point. `main()` builds an `OrderService` and passes it `sys.argv[1:]`, which it treats as SKUs. |\n| | `api/http.py` | `Handler.post(body)` checks that `sku` is present, then calls the service. It has no server or router. |\n| **core** | `core/service.py` | `OrderService.record(skus)` creates an `Order` for each SKU and puts it in the store. It returns the count. |\n| | `core/models.py` | Domain types: `Record` (base class with `key = 0`) and `Order(Record)`, which holds `sku` and has `total()` (currently `len(sku)`, a placeholder). |\n| **infra** | `infra/store.py` | `Store` keeps orders in an in-memory list (`rows`). `put()` appends an order and returns the new length. |\n| | `infra/config.py` | `load()` returns `{\"path\": $ORDERLOG_PATH or \"orders.json\"}`. |\n\n## Dependencies\n\nThe intended direction is api → core → infra, and the imports follow it:\n\n```\napi.cli ──┐\n          ├─► core.service ──► core.models\napi.http ─┘        │\n                   └────────► infra.store ──► infra.config\n```\n\n- `core` imports `infra` directly (`service.py` imports `Store`). Core is therefore not isolated from storage, even though the docstring says it \"owns no storage of its own\". It creates its own `Store`, so there is no injection or interface to swap.\n- There are no third-party runtime dependencies. CI runs `python3 -m pytest`, but the repo has no tests and no pytest declaration, so the CI job will fail or collect nothing.\n\n## Entry points\n\n- **CLI:** the `orderlog` console script, defined in `pyproject.toml` as `app.api.cli:main`. `python -m app.api.cli` also works through the `__main__` guard.\n- **HTTP:** `app.api.http.Handler.post`. It is a plain class that nothing mounts or serves.\n\n## Order flow\n\n1. **Input.**\n   - CLI: `orderlog SKU1 SKU2 …` makes `sys.argv[1:]` the SKU list.\n   - HTTP: `post({\"sku\": ...})` raises `ValueError` if `sku` is missing. It wraps the single SKU in a list.\n2. **Service.** `OrderService.record(skus)` is called. Each service instance builds its own `Store`.\n3. **Domain.** For each SKU, `Order(sku)` is constructed.\n4. **Persistence.** `Store.put(order)` appends to the in-memory `rows`. `Store.__init__` calls `config.load()`, so `settings[\"path\"]` is read but never used.\n5. **Result.** `record` returns the number of SKUs. The CLI discards that and returns exit code 0. The HTTP handler returns it.\n\n## Gaps and risks\n\n- **No persistence.** Orders disappear when the process exits. The `path` setting and the README's promise of durable history have no implementation, and there is no flush despite the \"until flushed\" docstring.\n- **Validation only on HTTP.** The CLI does no validation, so empty or arbitrary arguments are accepted.\n- **No reporting.** The README says it \"prints them back\", but there is no read or list path.\n- **Placeholder code.** `Record.key` and `Order.total()` do nothing useful yet.\n- **Layering.** Core depends directly on a concrete `Store`."
+              },
+              {
+                "name": "wrote-docs",
+                "passed": false,
+                "weight": 1,
+                "explanation": "docs/** missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 4,
+            "costUsd": 0.0728182,
+            "judgeCostUsd": 0.0014381999999999997,
+            "durationSeconds": 18,
+            "startedAt": "2026-11-20T03:14:01.681Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "overview",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "# orderlog architecture overview\n\norderlog is a small Python (≥3.9) CLI tool that records orders and prints them back. The code is a three-layer package under `src/app/`, and it has no third-party dependencies.\n\n## Components\n\n| Layer | Module | Role |\n|---|---|---|\n| **api** (boundary) | `api/cli.py` | `main()` builds an `OrderService` and calls `record(sys.argv[1:])`. Each CLI argument is treated as a SKU. |\n| | `api/http.py` | `Handler.post(body)` checks that `sku` is present, then calls `service.record([sku])`. It raises `ValueError` if `sku` is missing. |\n| **core** (domain) | `core/service.py` | `OrderService` is the application workflow. It creates an `Order` for each SKU and passes it to the store. It owns no storage. |\n| | `core/models.py` | `Record` is a base class with `key = 0`. `Order(Record)` holds a `sku`, and `total()` returns `len(sku)`. |\n| **infra** (adapters) | `infra/store.py` | `Store` keeps orders in an in-memory list and `put()` returns the new row count. |\n| | `infra/config.py` | `load()` returns `{\"path\": $ORDERLOG_PATH or \"orders.json\"}`. |\n\n## Dependencies\n\nThe imports point one way, from the boundary inward to the infrastructure:\n\n```\napi.cli ──┐\n          ├──► core.service ──► core.models\napi.http ─┘          │\n                     └──────► infra.store ──► infra.config\n```\n\n- `api` depends only on `core.service`.\n- `core.service` depends on `core.models` and on `infra.store`.\n- `infra.store` depends on `infra.config`.\n- `core.models` and `infra.config` import nothing from the app.\n- No import points back up to a higher layer.\n\nThe `core` → `infra` import is the one layering wrinkle. `OrderService` constructs a concrete `Store` itself. It doesn't receive one through an interface, so the domain layer depends on the infrastructure layer.\n\n## Entry points\n\n- **CLI:** `orderlog` is declared in `pyproject.toml` as `app.api.cli:main`. `python -m app.api.cli` also works through the `__main__` guard.\n- **HTTP:** `app.api.http.Handler.post` is the other entry. Nothing in the repo mounts it on a server or router, so a host framework would have to call it.\n- **CI:** `.github/workflows/ci.yml` runs `python3 -m pytest` on every push. The repo has no tests yet.\n\n## Order flow\n\n1. **Input.**\n   - CLI: `orderlog SKU1 SKU2 …` passes the arguments through unchanged.\n   - HTTP: `post({\"sku\": \"...\"})` is validated first, then wrapped in a one-item list.\n2. **`OrderService.record(skus)`** loops over the SKUs. For each one it builds `Order(sku)` and calls `Store.put(order)`.\n3. **`Store.put`** appends the order to `self.rows`. At construction, `Store` also reads the settings from `config.load()`.\n4. **Return.** `record` returns the number of SKUs. The CLI discards that value and exits with code 0.\n\n## Gaps worth knowing about\n\n- **Nothing is persisted.** `Store` only appends to an in-memory list. `config.load()` produces a `path`, but nothing reads or writes it, and there is no flush. Every CLI run loses its orders when the process exits. This contradicts the README's goal of order history that outlives a spreadsheet.\n- **No reporting.** The README says the tool \"prints them back\", but there is no read or list path.\n- **Validation is inconsistent.** Only the HTTP handler validates input. The CLI passes raw arguments straight through.\n- **`Order.total()` is a placeholder.** It returns the length of the SKU string, and there is no price or quantity. `Record.key` is also unused.\n- **No tests.** CI is configured but has nothing to run.\n\nI only read the source and config files for this. I didn't run the code."
+              },
+              {
+                "name": "wrote-docs",
+                "passed": false,
+                "weight": 1,
+                "explanation": "docs/** missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 0.3333333333333333,
+        "passRate": 0,
+        "scoreWithout": 0.5,
+        "passRateWithout": 0,
+        "delta": -0.16666666666666669
+      }
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 1,
+    "casesPassed": 0,
+    "overallScore": 0.3333333333333333,
+    "overallPassRate": 0,
+    "meanDelta": -0.16666666666666669
+  }
+}

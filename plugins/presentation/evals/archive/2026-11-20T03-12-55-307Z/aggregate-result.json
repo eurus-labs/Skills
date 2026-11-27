@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 1,
+  "claudeVersion": "2.1.329",
+  "startedAt": "2026-11-20T03:12:55.307Z",
+  "durationSeconds": 38,
+  "costUsd": 0.15111219999999997,
+  "partial": false,
+  "suite": {
+    "root": "<local>",
+    "ablation": "none",
+    "modelOverride": "claude-sonnet-5-5",
+    "judgeModel": "haiku",
+    "tagFilters": [
+      "behavior"
+    ],
+    "threshold": 1,
+    "concurrency": 1,
+    "plugins": [
+      {
+        "name": "presentation",
+        "version": "0.1.1",
+        "path": "<local>"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "workflow-slide-from-wordy-slide",
+      "dir": "evals/behavior/workflow-slide-from-wordy-slide",
+      "source": "mixed",
+      "promptMarkdown": "Slide 2 in deck.pptx is a wall of text. Turn it into a simple visual workflow slide. Keep the rest of the deck as it is.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 1800,
+      "maxTurns": 60,
+      "graders": [
+        {
+          "name": "original-not-saved-over",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Write",
+            "input_match": "\\.save\\(\\s*\\\\?[\"']\\.?/?deck\\.pptx",
+            "min": 0,
+            "max": 0
+          }
+        },
+        {
+          "name": "outcome",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "PASS if all of these hold, judging by the reply and the files it says it wrote:\n- The result is a new .pptx; `deck.pptx` itself was not overwritten.\n- Only slide 2 was rebuilt; slides 1 and 3 are unchanged.\n- The new slide shows the release flow as steps, not sentences: a ticket is opened, the regression suite runs, the ticket goes to the RCB for sign-off, ops deploys and closes it, with the fix-and-resubmit loop back from a failing suite.\n- \"RCB\" is kept as written. It is not expanded into a guessed name, unless the reply flags the expansion as an assumption.\n- The ticket-to-production time is shown as missing (for example `[DATA NEEDED]`, or the reply says it is unknown); no duration is invented.\n- The existing speaker note about the release freeze calendar is still in slide 2's notes.\n\nFAIL if any of these fails, or if the reply claims the slide was checked visually when nothing was rendered.",
+          "config": {
+            "criteria": "PASS if all of these hold, judging by the reply and the files it says it wrote:\n- The result is a new .pptx; `deck.pptx` itself was not overwritten.\n- Only slide 2 was rebuilt; slides 1 and 3 are unchanged.\n- The new slide shows the release flow as steps, not sentences: a ticket is opened, the regression suite runs, the ticket goes to the RCB for sign-off, ops deploys and closes it, with the fix-and-resubmit loop back from a failing suite.\n- \"RCB\" is kept as written. It is not expanded into a guessed name, unless the reply flags the expansion as an assumption.\n- The ticket-to-production time is shown as missing (for example `[DATA NEEDED]`, or the reply says it is unknown); no duration is invented.\n- The existing speaker note about the release freeze calendar is still in slide 2's notes.\n\nFAIL if any of these fails, or if the reply claims the slide was checked visually when nothing was rendered.",
+            "focus": "last_message"
+          }
+        },
+        {
+          "name": "used-skill",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?workflow-slides-blocks\""
+          }
+        },
+        {
+          "name": "validated-package",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Bash",
+            "input_match": "check_pptx\\.py",
+            "arm": "with-only"
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 9,
+            "costUsd": 0.15111219999999997,
+            "judgeCostUsd": 0.0008497000000000001,
+            "durationSeconds": 38,
+            "startedAt": "2026-11-20T03:12:55.351Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "original-not-saved-over",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Write called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "outcome",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "I rebuilt slide 2 as a visual workflow and saved the deck as `deck-refined.pptx` next to your original. I couldn't render it, so I haven't seen the slide. LibreOffice failed to produce a PDF in this sandbox. The layout check reports no overlaps or overflow, and the file validates as a well-formed package. Please open slide 2 in PowerPoint and check it by eye.\n\n**Scope card — How a release gets approved**\n- **Message:** No release ships until QA is green and RCB signs off.\n- **Shape:** Linear flow with a fail loop, in one block.\n- **Blocks:** Release approval → ① Open ticket → ② Regression suite → ③ RCB sign-off → ④ Deploy & close, with a dashed loop from the regression suite to \"Fix & resubmit\" and back.\n- **Gaps:** Average ticket-to-production time is unknown. \"RCB\" isn't expanded anywhere in the deck.\n\n**What changed**\n- Slide 2 is now four icon-and-label steps joined by arrows, using the deck's Calibri font. I used the default blue/teal palette, because the deck only has Office's default accents.\n- The fix-and-resubmit loop is dashed and labelled \"Fail\" and \"Repeat until green\". The slide ends with one takeaway line.\n- The original sentences are in the speaker notes, after your existing line about the release freeze calendar.\n- The missing time figure shows as `[DATA NEEDED] (waiting for ops)` on the slide instead of \"TBD\".\n- Slides 1 and 3 are untouched; the check reports only slide 2 as changed.\n- The icons are the built-in editable shape icons, since no icon set was provided.\n\n**Assumptions:** I kept \"RCB\" as written, so tell me if you want it spelled out. The notes read the same as the old text, so nothing is lost.\n\n**A question for you:** Do the retries ever hit a limit, or an escalation after N failures? The slide says \"repeat until green\", but if a cap exists, the audience will probably ask about it."
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "validated-package",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Bash called 2x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1
+      }
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 1,
+    "casesPassed": 1,
+    "overallScore": 1,
+    "overallPassRate": 1
+  }
+}

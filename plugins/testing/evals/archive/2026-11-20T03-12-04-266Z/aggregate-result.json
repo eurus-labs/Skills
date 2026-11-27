@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "claudeVersion": "2.1.329",
+  "startedAt": "2026-11-20T03:12:04.266Z",
+  "durationSeconds": 34,
+  "costUsd": 0.1194183,
+  "partial": false,
+  "suite": {
+    "root": "<local>",
+    "ablation": "none",
+    "modelOverride": "claude-sonnet-5-5",
+    "judgeModel": "haiku",
+    "caseFilter": "review-tests-finds-weak-suite",
+    "tagFilters": [
+      "behavior"
+    ],
+    "threshold": 1,
+    "concurrency": 1,
+    "plugins": [
+      {
+        "name": "testing",
+        "version": "0.3.6",
+        "path": "<local>"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "review-tests-finds-weak-suite",
+      "dir": "evals/behavior/review-tests-finds-weak-suite",
+      "source": "mixed",
+      "promptMarkdown": "Are the tests in tests/test_cart.py any good?",
+      "runsPerCase": 3,
+      "timeoutSeconds": 900,
+      "maxTurns": 30,
+      "graders": [
+        {
+          "name": "findings",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "PASS if the reply treats these as serious problems: `test_apply_coupon` and `test_add_calls_through` mock the very method they claim to test; and the tests share the module-level `CART`, so they depend on running in order. It must also name at least three assertions that cannot fail, such as `is not None`, `count() > 0`, `in (True, False)`, an `isinstance` check, or a test with no assertion.\nFAIL if it calls the suite adequate, misses the mocked-subject tests or the order dependency, or rewrites the tests instead of reporting.",
+          "config": {
+            "criteria": "PASS if the reply treats these as serious problems: `test_apply_coupon` and `test_add_calls_through` mock the very method they claim to test; and the tests share the module-level `CART`, so they depend on running in order. It must also name at least three assertions that cannot fail, such as `is not None`, `count() > 0`, `in (True, False)`, an `isinstance` check, or a test with no assertion.\nFAIL if it calls the suite adequate, misses the mocked-subject tests or the order dependency, or rewrites the tests instead of reporting.",
+            "focus": "last_message"
+          }
+        },
+        {
+          "name": "suite-untouched",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": {
+              "source": "file",
+              "path": "tests/test_cart.py"
+            },
+            "pattern": "assert CART.remove\\(\"gadget\"\\) in \\(True, False\\)",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "used-skill",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?review-tests\""
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 9,
+            "costUsd": 0.1194183,
+            "judgeCostUsd": 0.0007926000000000001,
+            "durationSeconds": 34,
+            "startedAt": "2026-11-20T03:12:04.333Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "findings",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "## Suite summary\n`tests/test_cart.py` has 8 tests against `cart.py` (`Cart`: `add`, `remove`, `count`, `apply_coupon`). **I did not run the suite.** pytest is declared in `pyproject.toml` but isn't installed. `pip install pytest` failed because the sandbox blocked network access to pypi.org (403). Everything below comes from reading the tests against the code. I didn't measure pass/fail counts, runtime or order-dependence. By my reading, all 8 tests pass when run in file order, and `test_cart_state_after_earlier_tests` fails if run alone or in another order.\n\n## Findings\n\n### Blocking\n1. **`tests/test_cart.py:11-13`, `test_add`** — It asserts only `result is not None`. `add` returns the new quantity, so any non-None return passes. A regression that returned the wrong quantity, or didn't store the item, would still pass. Assert `CART.add(\"widget\") == 1` on a fresh `Cart`, and that a second add of the same SKU accumulates.\n\n2. **`tests/test_cart.py:16-18`, `test_add_multiple`** — `count() > 0` passes if only 1 of the 3 units is added. It also passes because `test_add` already put an item in the shared cart, so it would pass even if `add(…, 3)` did nothing. Use a fresh cart and assert `count() == 3`.\n\n3. **`tests/test_cart.py:21-23`, `test_remove_returns_something`** — `in (True, False)` is true for any boolean. Inverting the return value (`is None` instead of `is not None`) or never removing the line would still pass. Assert `True` for a present SKU, `False` for an absent one, and that `count()` drops by that line's quantity.\n\n4. **`tests/test_cart.py:30-33`, `test_apply_coupon`** — This test patches `Cart.apply_coupon` and then asserts the patched return value, so it tests the mock and never runs the real method. If `apply_coupon` always returned `0.0`, or ignored `active`, the test would still pass. The branches are untested: valid and active, unknown code, and expired (`active=False`). Remove the patch and pass real `rates`, such as `{\"SAVE25\": (0.25, True)}`.\n\n5. **`tests/test_cart.py:36-41`, `test_add_calls_through`** — `Cart.add` is patched and the test asserts the patch was called once, which is true by construction. No production code is exercised, so it can never fail. Delete it, or replace it with a real test of `add`.\n\n6. **`tests/test_cart.py:8` and `:44-46`, shared `CART` and `test_cart_state_after_earlier_tests`** — A module-level `CART` is shared by the first four tests. `test_cart_state_after_earlier_tests` asserts `count() == 4`, which only holds if `test_add` (+1), `test_add_multiple` (+3) and the add/remove pair in `test_remove_returns_something` (net 0) ran first and in order. Running it alone, filtering with `-k`, running in parallel or reordering makes it fail. Adding any test that uses `CART` makes the earlier tests' results depend on it. Give each test its own `Cart()` through a function-scoped fixture and set up state inside the test.\n\n### Should fix\n1. **`tests/test_cart.py:26-27`, `test_count_is_an_int`** — The type check passes for any integer. A `count()` that returned `0` or `len(self._lines)` would pass. Assert exact values: empty cart gives 0, and `add(\"a\", 2)` plus `add(\"b\", 3)` gives 5.\n\n2. **`tests/test_cart.py:49-50`, `test_removing_absent_item`** — It has no assertion. The contract is that `remove` returns `False` for an absent SKU, and a regression that raised `KeyError` would only show up as a crash. Assert `Cart().remove(\"never-added\") is False`.\n\n3. **Missing error path in `cart.py:13-14`** — `add` raises `ValueError` for `quantity <= 0`, and nothing triggers it. Removing the check, or changing `<=` to `<`, would pass. Test `pytest.raises(ValueError)` for 0 and for a negative quantity, plus the boundary `quantity=1`.\n\n4. **Other missing cases** — Nothing tests adding the same SKU twice (accumulation in `add`), `remove` leaving other lines intact, or `count()` on an empty cart. An `apply_coupon` rate of `0.0` with `active=True` is also untested.\n\n### Nits\n1. **`tests/test_cart.py:11-50`** — Names like `test_add` and `test_removing_absent_item` describe the function, not the behavior. Names like `test_add_accumulates_quantity_for_same_sku` and `test_remove_returns_false_when_sku_absent` would make failures readable.\n\n2. **`tests/test_cart.py:3`** — `unittest.mock.patch` is used only for the two tests that mock the unit under test. Once those are fixed, the import is unused.\n\n## Not reviewed\n- **Execution:** the suite was not run, so there is no pass/fail result, runtime or order-dependence check. To reproduce, install pytest and run `pytest`, then `pytest tests/test_cart.py::test_cart_state_after_earlier_tests`. The second command should fail on its own.\n- **Other files:** `tests/test_cart.py` is the only test file, and `cart.py` was read only to judge the tests."
+              },
+              {
+                "name": "suite-untouched",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched assert CART.remove\\(\"gadget\"\\) in \\(True, False\\)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1
+      }
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 1,
+    "casesPassed": 1,
+    "overallScore": 1,
+    "overallPassRate": 1
+  }
+}

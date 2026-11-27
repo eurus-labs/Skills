@@ -1,0 +1,370 @@
+{
+  "schemaVersion": 1,
+  "claudeVersion": "2.1.332",
+  "startedAt": "2026-11-25T23:24:55.589Z",
+  "durationSeconds": 73,
+  "costUsd": 0.7236526000000001,
+  "partial": false,
+  "suite": {
+    "root": "<local>",
+    "ablation": "with-without",
+    "modelOverride": "claude-sonnet-5-5",
+    "judgeModel": "haiku",
+    "tagFilters": [
+      "behavior"
+    ],
+    "threshold": 1,
+    "concurrency": 3,
+    "plugins": [
+      {
+        "name": "reasoning",
+        "version": "0.4.0",
+        "path": "<local>"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "analyze-requirements-flags-planted-changes",
+      "dir": "evals/behavior/analyze-requirements-flags-planted-changes",
+      "source": "mixed",
+      "promptMarkdown": "Analyze requirements/v2.rst against requirements/v1.md, and keep the analysis in requirements/export/. I won't be around to answer questions, and the Product Owner is not reachable, so write down what you would ask instead of answering it yourself.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 1800,
+      "maxTurns": 60,
+      "graders": [
+        {
+          "name": "findings",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "The text is the `analysis.md` the run wrote for a report-export requirement, comparing `requirements/v2.rst` with `requirements/v1.md` and the code in `src/exporter.py`.\n\nPASS if it reports all five differences between the versions: the added requirement to schedule an export every night, with nothing in the code implementing it; the removed requirement that every export is recorded in the audit log; the limit changed from 50 to 100 reports per request; the new sentence that exports of large reports \"should finish quickly\", flagged as ambiguous or untestable, with a question for the Product Owner and no number invented for it; and the ownership requirement, which says a request from anyone but the owner is rejected, shown to contradict `src/exporter.py`, with a `path:line` citation of the code that lets a teammate export. Every open point is left open, and no answer is attributed to the Product Owner.\nFAIL if any of the five is missing, if the contradiction is claimed without a `src/exporter.py` line, if a requirement that did not change is reported as changed, if an open point is marked resolved or answered, or if a number or time is given for \"quickly\".",
+          "config": {
+            "criteria": "The text is the `analysis.md` the run wrote for a report-export requirement, comparing `requirements/v2.rst` with `requirements/v1.md` and the code in `src/exporter.py`.\n\nPASS if it reports all five differences between the versions: the added requirement to schedule an export every night, with nothing in the code implementing it; the removed requirement that every export is recorded in the audit log; the limit changed from 50 to 100 reports per request; the new sentence that exports of large reports \"should finish quickly\", flagged as ambiguous or untestable, with a question for the Product Owner and no number invented for it; and the ownership requirement, which says a request from anyone but the owner is rejected, shown to contradict `src/exporter.py`, with a `path:line` citation of the code that lets a teammate export. Every open point is left open, and no answer is attributed to the Product Owner.\nFAIL if any of the five is missing, if the contradiction is claimed without a `src/exporter.py` line, if a requirement that did not change is reported as changed, if an open point is marked resolved or answered, or if a number or time is given for \"quickly\".",
+            "focus": {
+              "source": "file",
+              "path": "requirements/export/analysis.md"
+            }
+          }
+        },
+        {
+          "name": "no-epics",
+          "type": "file_exists",
+          "weight": 1,
+          "config": {
+            "path": "requirements/export/epics.md",
+            "exists": false
+          }
+        },
+        {
+          "name": "used-skill",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?analyze-requirements\"",
+            "arm": "with-only"
+          }
+        },
+        {
+          "name": "wrote-analysis",
+          "type": "file_exists",
+          "weight": 1,
+          "config": {
+            "path": "requirements/export/analysis.md",
+            "exists": true
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 7,
+            "costUsd": 0.1541784,
+            "judgeCostUsd": 0.0032314,
+            "durationSeconds": 43,
+            "startedAt": "2026-11-25T23:24:55.624Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "findings",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "# Requirement analysis — export\n\nCompares `requirements/v2.rst` (current) with `requirements/v1.md` (previous). Unattended run: the PO and the user\ncould not be asked, so nothing below is a PO decision. Every question is written down as an open point.\n\n## Sources\n\n| Role | Repository | Ref | Commit | Local path | Path in repository |\n| ---- | ---------- | --- | ------ | ---------- | ------------------ |\n| Current requirement | workspace | `main` | none: the branch has no commits yet | `.` | `requirements/v2.rst` |\n| Previous requirement | workspace | `main` | none: the branch has no commits yet | `.` | `requirements/v1.md` |\n| Code | workspace | `main` | none: the branch has no commits yet | `.` | `src/exporter.py` |\n\nThe three roles are all `workspace` because the user was not available to ask (hard rule 10). Files listed in the workspace: `requirements/v1.md`, `requirements/v2.rst`, `src/exporter.py`, plus tool configuration files. See OP-007.\n\n## Changes\n\n| ID | Status | Scope | Previous (path:line) | Current (path:line) | Code impact | Note |\n| -- | ------ | ----- | -------------------- | ------------------- | ----------- | ---- |\n| R-001 | changed | in | \"A user can export at most 50 reports in one request.\" `requirements/v1.md:10` | \"A user can export at most 100 reports in one request.\" `requirements/v2.rst:13` | changes existing behavior: `src/exporter.py:8` | limit 50 to 100; the code constant is 50 and is checked at `src/exporter.py:33` |\n| R-002 | changed | in | \"Only the owner of a report can export it.\" `requirements/v1.md:15` | \"Only the owner of a report can export it; a request from anyone else is rejected with an error.\" `requirements/v2.rst:19` | changes existing behavior: `src/exporter.py:19` | the code also lets teammates export (`report.team == user.team`); the rejection error already exists at `src/exporter.py:40` |\n| R-003 | removed | out (dropped by the new version; see OP-003) | \"Every export is recorded in the audit log.\" `requirements/v1.md:16` | — | already met: `src/exporter.py:42` | v2 no longer lists it. Unclear whether this is intended |\n| R-004 | added | in | — | \"A user can schedule an export to run every night.\" `requirements/v2.rst:20` | new: no scheduling code in `src/exporter.py` | |\n| R-005 | added | in | — | \"Exports of large reports should finish quickly.\" `requirements/v2.rst:21` | new: `src/exporter.py:22-27` writes row by row with no performance measure | untestable as written, see OP-005 |\n| R-006 | unchanged | out (no change) | \"The system exports a saved report as CSV.\" `requirements/v1.md:5` | \"The system exports a saved report as CSV.\" `requirements/v2.rst:7` | already met: `src/exporter.py:9`, `src/exporter.py:22-27` | |\n| R-007 | unchanged | out (no change) | \"The system exports a saved report as PDF.\" `requirements/v1.md:6` | \"The system exports a saved report as PDF.\" `requirements/v2.rst:8` | changes existing behavior: `src/exporter.py:26` | unchanged text, but the code writes CSV text into a `.pdf` file; see OP-006 |\n| R-008 | unchanged | out (no change) | \"An export request is rejected when the report has no rows.\" `requirements/v1.md:11` | \"An export request is rejected when the report has no rows.\" `requirements/v2.rst:14` | already met: `src/exporter.py:37-38` | |\n\n## Findings\n\n- **R-001** — conflicting: the code rejects more than 50 reports (`src/exporter.py:8`, `src/exporter.py:33`). It is a plain constant change, but \"100\" has no stated scope. See OP-001.\n- **R-002** — conflicting: the requirement says \"Only the owner\", but `_may_export` also allows teammates (`src/exporter.py:17-19`, comment \"Teammates may export each other's reports.\"). Either the code was wrong against v1 or a teammate rule exists that neither version records. See OP-002. Also ambiguous: \"rejected with an error\" does not say which error or what the user sees. See OP-002.\n- **R-003** — missing: the audit-log line is gone from v2 with no stated reason, and the code still writes to the audit log (`src/exporter.py:42`). See OP-003.\n- **R-004** — ambiguous / missing: \"every night\" has no time, no time zone, no owner of the schedule, no way to cancel, no failure handling, and no statement of which format or which reports. Does the rule in R-002 and the limit in R-001 apply to scheduled runs? See OP-004.\n- **R-005** — untestable: \"finish quickly\" and \"large reports\" have no number. Non-functional gap. See OP-005.\n- **R-007** — conflicting with the code: `_write` produces comma-separated text for every format (`src/exporter.py:22-27`), so a PDF is not produced. The requirement did not change, but it is not met. See OP-006.\n\n## Open points\n\n| ID | Question for the PO | Affects | Blocks | Status | Resolved by |\n| -- | ------------------- | ------- | ------ | ------ | ----------- |\n| OP-001 | Is 100 the limit for every user, or only for some roles or plans? Is it still per request, not per day? | R-001 | no | open | — |\n| OP-002 | Do teammates keep the right to export each other's reports (the code allows it today)? Or is \"only the owner\" strict, so the team rule must go? Which error text or code is shown to a rejected user? | R-002 | yes | open | — |\n| OP-003 | Was the audit-log requirement removed on purpose? If so, may the audit-log write in the code be removed, or must it stay (for example for compliance)? Does it cover scheduled exports? | R-003 | yes | open | — |\n| OP-004 | For the nightly export: at what time and in which time zone? Who can see, change, or cancel a schedule? Which format and which reports (a fixed report or its data at run time)? What happens on failure, and is the user told? Do the limit, the owner rule, and the audit log apply to the scheduled runs? | R-004 | yes | open | — |\n| OP-005 | What does \"quickly\" mean as a number (for example, seconds for N rows), and what size is a \"large\" report? | R-005 | no | open | — |\n| OP-006 | The code writes CSV text for PDF too. Is real PDF output expected in this release? If so, is it part of this change? | R-007 | no | open | — |\n| OP-007 | (Would have been asked to the user in a run with a user.) Which repository and ref hold the code that this requirement targets? Only the workspace was analysed, and the branch has no commits, so no commit is recorded. | R-001, R-002, R-003, R-004, R-005, R-007 | no | open | — |\n\n## Assumptions\n\n| Assumption | Owner | Risk if wrong |\n| ---------- | ----- | ------------- |\n| The limit in R-001 is per request, not per day (as in v1). | PO | The check is built in the wrong place. |\n| The dropped audit-log line (R-003) may be an editing accident, so the audit-log behavior in the code is left as it is until the PO answers. | PO | Removing it breaks a compliance need; keeping it contradicts an intended removal. |\n| `src/exporter.py` in this workspace is the code the requirement targets. | User | The code impact column is about the wrong code. |\n\n## Revision history\n\n- 2026-11-25 — first analysis of `requirements/v2.rst` against `requirements/v1.md`. Unattended: no DoU, no PO answers.\n"
+              },
+              {
+                "name": "no-epics",
+                "passed": true,
+                "weight": 1,
+                "explanation": "requirements/export/epics.md absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-analysis",
+                "passed": true,
+                "weight": 1,
+                "explanation": "requirements/export/analysis.md exists as expected",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 7,
+            "costUsd": 0.16541589999999998,
+            "judgeCostUsd": 0.0045287,
+            "durationSeconds": 48,
+            "startedAt": "2026-11-25T23:24:55.624Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "findings",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "# Requirement analysis — export\n\nAnalysis of `requirements/v2.rst` against `requirements/v1.md`. Unattended run: the PO and the user could not be asked, so every question is written down as an open point and nothing is answered on the PO's behalf.\n\n## Sources\n\nUnattended run (hard rule 10): all three roles are the current workspace and nothing was cloned. The repository has no commit yet (`git rev-parse HEAD` fails), so there is no sha to record.\n\n| Role | Repository | Ref | Commit | Local path | Path in repository |\n| ---- | ---------- | --- | ------ | ---------- | ------------------ |\n| Current requirement | workspace | `main` | none: no commits yet | `.` | `requirements/v2.rst` |\n| Previous requirement | workspace | `main` | none: no commits yet | `.` | `requirements/v1.md` |\n| Code | workspace | `main` | none: no commits yet | `.` | `src/exporter.py` |\n\n## Changes\n\nThe diff reported 2 added, 1 removed, 2 changed and 7 unchanged units. Of the unchanged units, only the PDF format (R-006) is tracked, because the code contradicts it. The others are the CSV format (`requirements/v1.md:5`, `requirements/v2.rst:7`) and the empty-report rejection (`requirements/v1.md:11`, `requirements/v2.rst:14`). They match the code and are not tracked as rows.\n\n| ID | Status | Scope | Previous (path:line) | Current (path:line) | Code impact | Note |\n| -- | ------ | ----- | -------------------- | ------------------- | ----------- | ---- |\n| R-001 | changed | in | \"A user can export at most 50 reports in one request.\" `requirements/v1.md:10` | \"A user can export at most 100 reports in one request.\" `requirements/v2.rst:13` | changes existing behavior: `src/exporter.py:8` and `src/exporter.py:33` | limit 50 to 100, similarity 0.97 |\n| R-002 | changed | in | \"Only the owner of a report can export it.\" `requirements/v1.md:15` | \"Only the owner of a report can export it; a request from anyone else is rejected with an error.\" `requirements/v2.rst:19` | changes existing behavior: `src/exporter.py:19` | similarity 0.6. The error part is met by `src/exporter.py:39-40`. The owner-only part is not met, see Findings. |\n| R-003 | removed | out (dropped by the new version) | \"Every export is recorded in the audit log.\" `requirements/v1.md:16` | — | already met: `src/exporter.py:42` | The code still writes the audit entry. See OP-003. |\n| R-004 | added | in | — | \"A user can schedule an export to run every night.\" `requirements/v2.rst:20` | new: `src/exporter.py` has only `export_reports` (line 30) and no scheduling | |\n| R-005 | added | in | — | \"Exports of large reports should finish quickly.\" `requirements/v2.rst:21` | new: no timing, streaming or size handling in `src/exporter.py:22-27` | |\n| R-006 | unchanged | out (unchanged, but the code contradicts it) | \"The system exports a saved report as PDF.\" `requirements/v1.md:6` | \"The system exports a saved report as PDF.\" `requirements/v2.rst:8` | changes existing behavior: `src/exporter.py:22-27` | The code writes comma-separated text whatever `fmt` is. See OP-005. |\n\n## Findings\n\n- **R-001**: conflicting. The code rejects more than 50 reports (`src/exporter.py:8`, `src/exporter.py:33`). \"A user\" does not say whether the limit is the same for every role. See OP-001.\n- **R-002**: conflicting. `_may_export` also allows teammates (`return report.owner == user.name or report.team == user.team`, `src/exporter.py:19`), which \"Only the owner\" forbids. The code comment says \"Teammates may export each other's reports.\" (`src/exporter.py:18`). This looks like a deliberate behaviour, and the v1 wording was already stricter than the code. See OP-002. \"an error\" is also vague. The code raises `ExportError` (`src/exporter.py:40`), but the requirement names no error type or message.\n- **R-003**: ambiguous. The requirement was removed without a stated reason. It may have been dropped on purpose or by oversight. The code still audits (`src/exporter.py:42`). See OP-003.\n- **R-004**: missing and ambiguous. The requirement gives no time or time zone for \"every night\". It does not say which format, what happens when a run fails, who is told, whether a scheduled export is bound by the 100-report limit and the owner rule, or whether the user can cancel it. See OP-004.\n- **R-005**: untestable and a non-functional gap. \"quickly\" and \"large\" have no numbers. See OP-006.\n- **R-006**: conflicting. The code does not produce PDF. See OP-005.\n- **R-001 and R-002**: a failed request is not all-or-nothing. In the code, files are written for the earlier reports before a later report fails the check (`src/exporter.py:36-42`). The requirements do not say what is expected. Not raised as a separate point, because it is covered by the wider question of error behaviour. It could be added if the PO wants it.\n\n## Open points\n\n| ID | Question for the PO | Affects | Blocks | Status | Resolved by |\n| -- | ------------------- | ------- | ------ | ------ | ----------- |\n| OP-001 | Is the limit of 100 reports per request the same for every user and role? Does the per-request limit stay the only limit, or is a daily limit also wanted? | R-001 | no | open | — |\n| OP-002 | The code lets teammates export each other's reports, and the new text says only the owner can. Is owner-only the intended rule, so that teammate access is removed? Or should teammates still be allowed, and the text changed? Which error message must the user see? | R-002 | yes | open | — |\n| OP-003 | v2 no longer says that every export is recorded in the audit log. Is audit logging dropped on purpose, or must it still hold? If it holds, does it also cover scheduled exports and rejected requests? | R-003 | yes | open | — |\n| OP-004 | For the nightly export: at what time and in which time zone? Which format and which reports? What happens when a run fails, and who is told? Is a scheduled export bound by the 100-report limit and the owner rule? Can the user change or cancel the schedule? | R-004 | yes | open | — |\n| OP-005 | The PDF format is unchanged, but the code writes comma-separated text for PDF too. Is real PDF output already a known gap that is out of scope for this version, or should it be delivered now? | R-006 | no | open | — |\n| OP-006 | What does \"large\" mean (rows or size), and what does \"quickly\" mean in numbers (for example the maximum seconds at the 95th percentile)? Does it apply to scheduled exports too? | R-005 | yes | open | — |\n| OP-007 | Source question that could not be asked: which repository and refs hold the current requirement, the previous version and the code? The workspace was used for all three, and the repository has no commits. | all | no | open | — |\n\n## Assumptions\n\n| Assumption | Owner | Risk if wrong |\n| ---------- | ----- | ------------- |\n| The limit of 100 is per request, as in v1, and not per day. | PO | The limit check is built in the wrong place. |\n| `src/exporter.py` in the workspace is the current code that v2 applies to. | PO | The code impact above is wrong. |\n| The unchanged units (CSV format, empty-report rejection) still mean what they meant in v1. | PO | Requirements are missed. |\n\n## Revision history\n\n- 2026-11-25 — first analysis of `requirements/v2.rst` against `requirements/v1.md`. Unattended run, no PO answers, no DoU.\n"
+              },
+              {
+                "name": "no-epics",
+                "passed": true,
+                "weight": 1,
+                "explanation": "requirements/export/epics.md absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-analysis",
+                "passed": true,
+                "weight": 1,
+                "explanation": "requirements/export/analysis.md exists as expected",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 6,
+            "costUsd": 0.15923600000000002,
+            "judgeCostUsd": 0.005227000000000001,
+            "durationSeconds": 49,
+            "startedAt": "2026-11-25T23:24:55.624Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "findings",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "# Requirement analysis — export\n\n## Sources\n\nUnattended run (hard rule 10): the PO and the user could not be asked, so the workspace serves as all three sources and nothing was cloned. The question that would have been asked is OP-001. The workspace git repository has no commits yet, so no commit sha exists. The code listing was `src/exporter.py` only.\n\n| Role | Repository | Ref | Commit | Local path | Path in repository |\n| ---- | ---------- | --- | ------ | ---------- | ------------------ |\n| Current requirement | workspace | `main` | none (no commits yet) | `.` | `requirements/v2.rst` |\n| Previous requirement | workspace | `main` | none (no commits yet) | `.` | `requirements/v1.md` |\n| Code | workspace | `main` | none (no commits yet) | `.` | `src/exporter.py` |\n\n## Changes\n\nSummary from `diff`: 2 changed, 1 removed, 2 added, 7 unchanged units. Of the unchanged units, 3 are headings, which are not requirements. The other 4 are listed below.\n\n| ID | Status | Scope | Previous (path:line) | Current (path:line) | Code impact | Note |\n| -- | ------ | ----- | -------------------- | ------------------- | ----------- | ---- |\n| R-001 | unchanged | out (unchanged) | \"The system exports a saved report as CSV.\" `v1.md:5` | \"The system exports a saved report as CSV.\" `v2.rst:7` | already met: `src/exporter.py:9`, `src/exporter.py:26` | |\n| R-002 | unchanged | out (unchanged) | \"The system exports a saved report as PDF.\" `v1.md:6` | \"The system exports a saved report as PDF.\" `v2.rst:8` | not met in practice: `src/exporter.py:22-27` writes CSV text into a `.pdf` file | see OP-006 |\n| R-003 | changed | in | \"A user can export at most 50 reports in one request.\" `v1.md:10` | \"A user can export at most 100 reports in one request.\" `v2.rst:13` | changes existing behavior: `src/exporter.py:8`, `src/exporter.py:33` | limit 50 to 100 |\n| R-004 | unchanged | out (unchanged) | \"An export request is rejected when the report has no rows.\" `v1.md:11` | \"An export request is rejected when the report has no rows.\" `v2.rst:14` | already met: `src/exporter.py:37-38` | |\n| R-005 | changed | in | \"Only the owner of a report can export it.\" `v1.md:15` | \"Only the owner of a report can export it; a request from anyone else is rejected with an error.\" `v2.rst:19` | changes existing behavior: `src/exporter.py:19` also allows teammates; rejection with an error exists at `src/exporter.py:39-40` | similarity 0.6; the rejection clause is new |\n| R-006 | removed | out (dropped by the new version, pending OP-002) | \"Every export is recorded in the audit log.\" `v1.md:16` | — | already met: `src/exporter.py:42` | v2 does not contain it |\n| R-007 | added | in | — | \"A user can schedule an export to run every night.\" `v2.rst:20` | new: no scheduling code in `src/exporter.py` | |\n| R-008 | added | in | — | \"Exports of large reports should finish quickly.\" `v2.rst:21` | new: no performance handling; `_write` is synchronous (`src/exporter.py:22-27`) | untestable as written |\n\n## Findings\n\n- **R-003** — conflicting with code: `MAX_REPORTS_PER_REQUEST = 50` (`src/exporter.py:8`). This is a plain change, but see OP-003 for the scope of the limit.\n- **R-005** — conflicting with code: `_may_export` returns true for `report.team == user.team` (`src/exporter.py:19`). The code comment says \"Teammates may export each other's reports.\", which v2 forbids. See OP-004. The rejection is a raised `ExportError` (`src/exporter.py:40`), but the text only says \"an error\". It does not name the error type, the message or the user-facing form. See OP-005.\n- **R-005** — ambiguous about requests that mix owned and non-owned reports: the code processes reports in order, so earlier reports are already written and audited when a later one is rejected (`src/exporter.py:36-42`). See OP-005.\n- **R-006** — missing, or deliberately removed: \"Every export is recorded in the audit log.\" disappears with no replacement. Dropping an audit requirement is unusual and may be an omission. See OP-002.\n- **R-007** — missing detail: \"every night\" has no time of day or time zone, no owner of the schedule, no format or report selection, no failure handling, no way to list or cancel, and no statement of whether the 100-report limit and the ownership rule apply. See OP-007.\n- **R-007** — non-functional gap: whether scheduled exports are audited depends on OP-002.\n- **R-008** — untestable: \"finish quickly\" and \"large reports\" have no thresholds, and \"should\" is not \"must\". See OP-008.\n- **R-002** — conflicting with code, although the text is unchanged: the PDF path writes comma-separated text and only changes the extension (`src/exporter.py:22-27`). See OP-006.\n\n## Open points\n\n| ID | Question for the PO | Affects | Blocks | Status | Resolved by |\n| -- | ------------------- | ------- | ------ | ------ | ----------- |\n| OP-001 | (Would have been asked of the user.) Which repository and path hold the previous requirement, the current requirement and the code? The workspace was used for all three. | R-003, R-005, R-006 | no | open | — |\n| OP-002 | v2 no longer says \"Every export is recorded in the audit log.\" Was this removed on purpose? If yes, should the existing audit write be removed, or kept? If no, should audit also cover scheduled exports? | R-006, R-007 | yes | open | — |\n| OP-003 | Is 100 the limit for every user, or only for some roles or plans? Does it count reports per request, or per day? Does it also apply to scheduled exports? | R-003, R-007 | yes | open | — |\n| OP-004 | The code currently lets teammates export each other's reports. Does \"Only the owner\" mean teammates lose that right? Is there an admin or delegate exception? Should existing teammate access be migrated or announced? | R-005 | yes | open | — |\n| OP-005 | What does \"rejected with an error\" mean for the user: which error type, message or code? If one report in a request of several is not owned, is the whole request rejected before any file is written, or are the other reports exported? | R-005 | no | open | — |\n| OP-006 | The PDF export currently writes CSV text into a `.pdf` file. Is real PDF output expected, and is this in scope for this version? | R-002 | no | open | — |\n| OP-007 | For nightly scheduling: at what time and time zone, and who can see or cancel schedules? What happens when a run fails or the report no longer exists, and is there a retention limit? Which formats are allowed? Does the owner rule apply if ownership changes after scheduling? | R-007 | yes | open | — |\n| OP-008 | What is \"quickly\" for a \"large\" report: what row count or size is large, and what time limit applies (for example the 95th percentile)? Is it a must or a goal? | R-008 | yes | open | — |\n\n## Assumptions\n\n| Assumption | Owner | Risk if wrong |\n| ---------- | ----- | ------------- |\n| The 100-report limit applies per request, as in v1 (\"in one request\"). | PO | The check is built in the wrong place (per day or per user). |\n| R-006 is treated as dropped from the v2 scope, but the existing audit code is left untouched until OP-002 is answered. | PO | A compliance obligation could be lost, or dead code kept. |\n| R-001, R-002 and R-004 are out of scope because their text is unchanged. | PO | R-002 may need real PDF output (OP-006). |\n| Only `src/exporter.py` exists in the workspace and is the whole codebase for exports. | User | Other callers or an API layer may add checks not seen here. |\n\n## Revision history\n\n- 2026-11-25 — first analysis of `v2.rst` against `v1.md`. It was an unattended run, so no PO answers were obtained and nothing was assumed to be decided.\n"
+              },
+              {
+                "name": "no-epics",
+                "passed": true,
+                "weight": 1,
+                "explanation": "requirements/export/epics.md absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "used-skill",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-analysis",
+                "passed": true,
+                "weight": 1,
+                "explanation": "requirements/export/analysis.md exists as expected",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0.3333333333333333,
+            "passed": false,
+            "turns": 5,
+            "costUsd": 0.0837087,
+            "judgeCostUsd": 0,
+            "durationSeconds": 22,
+            "startedAt": "2026-11-25T23:25:38.218Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "findings",
+                "passed": false,
+                "weight": 1,
+                "explanation": "grader threw: case \"analyze-requirements-flags-planted-changes\" grader focus file \"requirements/export/analysis.md\": path \"requirements/export/analysis.md\" does not exist",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-epics",
+                "passed": true,
+                "weight": 1,
+                "explanation": "requirements/export/epics.md absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "wrote-analysis",
+                "passed": false,
+                "weight": 1,
+                "explanation": "requirements/export/analysis.md missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.3333333333333333,
+            "passed": false,
+            "turns": 5,
+            "costUsd": 0.08734739999999999,
+            "judgeCostUsd": 0,
+            "durationSeconds": 25,
+            "startedAt": "2026-11-25T23:25:43.132Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "findings",
+                "passed": false,
+                "weight": 1,
+                "explanation": "grader threw: case \"analyze-requirements-flags-planted-changes\" grader focus file \"requirements/export/analysis.md\": path \"requirements/export/analysis.md\" does not exist",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-epics",
+                "passed": true,
+                "weight": 1,
+                "explanation": "requirements/export/epics.md absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "wrote-analysis",
+                "passed": false,
+                "weight": 1,
+                "explanation": "requirements/export/analysis.md missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.3333333333333333,
+            "passed": false,
+            "turns": 3,
+            "costUsd": 0.07376619999999999,
+            "judgeCostUsd": 0,
+            "durationSeconds": 19,
+            "startedAt": "2026-11-25T23:25:44.388Z",
+            "error": null,
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "findings",
+                "passed": false,
+                "weight": 1,
+                "explanation": "grader threw: case \"analyze-requirements-flags-planted-changes\" grader focus file \"requirements/export/analysis.md\": path \"requirements/export/analysis.md\" does not exist",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "no-epics",
+                "passed": true,
+                "weight": 1,
+                "explanation": "requirements/export/epics.md absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "wrote-analysis",
+                "passed": false,
+                "weight": 1,
+                "explanation": "requirements/export/analysis.md missing (expected present)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1,
+        "scoreWithout": 0.3333333333333333,
+        "passRateWithout": 0,
+        "delta": 0.6666666666666667
+      }
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 1,
+    "casesPassed": 1,
+    "overallScore": 1,
+    "overallPassRate": 1,
+    "meanDelta": 0.6666666666666667
+  }
+}

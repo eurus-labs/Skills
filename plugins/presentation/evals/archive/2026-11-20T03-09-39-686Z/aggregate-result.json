@@ -1,0 +1,363 @@
+{
+  "schemaVersion": 1,
+  "claudeVersion": "2.1.329",
+  "startedAt": "2026-11-20T03:09:39.686Z",
+  "durationSeconds": 6,
+  "costUsd": 0.0037482,
+  "partial": false,
+  "suite": {
+    "root": "<local>",
+    "ablation": "with-without",
+    "modelOverride": "claude-sonnet-5-5",
+    "judgeModel": "haiku",
+    "tagFilters": [
+      "behavior"
+    ],
+    "threshold": 1,
+    "concurrency": 3,
+    "plugins": [
+      {
+        "name": "presentation",
+        "version": "0.1.1",
+        "path": "<local>"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "workflow-slide-from-wordy-slide",
+      "dir": "evals/behavior/workflow-slide-from-wordy-slide",
+      "source": "mixed",
+      "promptMarkdown": "Slide 2 in deck.pptx is a wall of text. Turn it into a simple visual workflow slide. Keep the rest of the deck as it is.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 1800,
+      "maxTurns": 60,
+      "graders": [
+        {
+          "name": "original-not-saved-over",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Write",
+            "input_match": "\\.save\\(\\s*\\\\?[\"']\\.?/?deck\\.pptx",
+            "min": 0,
+            "max": 0
+          }
+        },
+        {
+          "name": "outcome",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "PASS if all of these hold, judging by the reply and the files it says it wrote:\n- The result is a new .pptx; `deck.pptx` itself was not overwritten.\n- Only slide 2 was rebuilt; slides 1 and 3 are unchanged.\n- The new slide shows the release flow as steps, not sentences: a ticket is opened, the regression suite runs, the ticket goes to the RCB for sign-off, ops deploys and closes it, with the fix-and-resubmit loop back from a failing suite.\n- \"RCB\" is kept as written. It is not expanded into a guessed name, unless the reply flags the expansion as an assumption.\n- The ticket-to-production time is shown as missing (for example `[DATA NEEDED]`, or the reply says it is unknown); no duration is invented.\n- The existing speaker note about the release freeze calendar is still in slide 2's notes.\n\nFAIL if any of these fails, or if the reply claims the slide was checked visually when nothing was rendered.",
+          "config": {
+            "criteria": "PASS if all of these hold, judging by the reply and the files it says it wrote:\n- The result is a new .pptx; `deck.pptx` itself was not overwritten.\n- Only slide 2 was rebuilt; slides 1 and 3 are unchanged.\n- The new slide shows the release flow as steps, not sentences: a ticket is opened, the regression suite runs, the ticket goes to the RCB for sign-off, ops deploys and closes it, with the fix-and-resubmit loop back from a failing suite.\n- \"RCB\" is kept as written. It is not expanded into a guessed name, unless the reply flags the expansion as an assumption.\n- The ticket-to-production time is shown as missing (for example `[DATA NEEDED]`, or the reply says it is unknown); no duration is invented.\n- The existing speaker note about the release freeze calendar is still in slide 2's notes.\n\nFAIL if any of these fails, or if the reply claims the slide was checked visually when nothing was rendered.",
+            "focus": "last_message"
+          }
+        },
+        {
+          "name": "used-skill",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?workflow-slides-blocks\""
+          }
+        },
+        {
+          "name": "validated-package",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Bash",
+            "input_match": "check_pptx\\.py",
+            "arm": "with-only"
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 0,
+            "costUsd": 0.0007156,
+            "judgeCostUsd": 0.0007156,
+            "durationSeconds": 3,
+            "startedAt": "2026-11-20T03:09:39.732Z",
+            "error": "exit 1: A shell tool (Bash or PowerShell) was granted but this machine cannot confine it (no sandbox backend on this platform, or it is not installed), so the run was refused rather than run unconfined — drop the shell grant, or on Linux/macOS install the backend. Sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing. · stderr:  Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing   Refusing to start without a working sandbox (see sandbox.failIfUnavailable). ",
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "original-not-saved-over",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Write called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "outcome",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              },
+              {
+                "name": "used-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "validated-package",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Bash called 0x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 0,
+            "costUsd": 0.0006327,
+            "judgeCostUsd": 0.0006327,
+            "durationSeconds": 3,
+            "startedAt": "2026-11-20T03:09:39.732Z",
+            "error": "exit 1: A shell tool (Bash or PowerShell) was granted but this machine cannot confine it (no sandbox backend on this platform, or it is not installed), so the run was refused rather than run unconfined — drop the shell grant, or on Linux/macOS install the backend. Sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing. · stderr:  Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing   Refusing to start without a working sandbox (see sandbox.failIfUnavailable). ",
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "original-not-saved-over",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Write called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "outcome",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              },
+              {
+                "name": "used-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "validated-package",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Bash called 0x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 0,
+            "costUsd": 0.0005583000000000001,
+            "judgeCostUsd": 0.0005583000000000001,
+            "durationSeconds": 3,
+            "startedAt": "2026-11-20T03:09:39.732Z",
+            "error": "exit 1: A shell tool (Bash or PowerShell) was granted but this machine cannot confine it (no sandbox backend on this platform, or it is not installed), so the run was refused rather than run unconfined — drop the shell grant, or on Linux/macOS install the backend. Sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing. · stderr:  Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing   Refusing to start without a working sandbox (see sandbox.failIfUnavailable). ",
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "original-not-saved-over",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Write called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "outcome",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              },
+              {
+                "name": "used-skill",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "validated-package",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Bash called 0x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 0,
+            "costUsd": 0.0006117,
+            "judgeCostUsd": 0.0006117,
+            "durationSeconds": 3,
+            "startedAt": "2026-11-20T03:09:42.438Z",
+            "error": "exit 1: A shell tool (Bash or PowerShell) was granted but this machine cannot confine it (no sandbox backend on this platform, or it is not installed), so the run was refused rather than run unconfined — drop the shell grant, or on Linux/macOS install the backend. Sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing. · stderr:  Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing   Refusing to start without a working sandbox (see sandbox.failIfUnavailable). ",
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "original-not-saved-over",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Write called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "outcome",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 0,
+            "costUsd": 0.0005333,
+            "judgeCostUsd": 0.0005333,
+            "durationSeconds": 2,
+            "startedAt": "2026-11-20T03:09:42.666Z",
+            "error": "exit 1: A shell tool (Bash or PowerShell) was granted but this machine cannot confine it (no sandbox backend on this platform, or it is not installed), so the run was refused rather than run unconfined — drop the shell grant, or on Linux/macOS install the backend. Sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing. · stderr:  Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing   Refusing to start without a working sandbox (see sandbox.failIfUnavailable). ",
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "original-not-saved-over",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Write called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "outcome",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 0,
+            "costUsd": 0.0006965999999999999,
+            "judgeCostUsd": 0.0006965999999999999,
+            "durationSeconds": 3,
+            "startedAt": "2026-11-20T03:09:42.728Z",
+            "error": "exit 1: A shell tool (Bash or PowerShell) was granted but this machine cannot confine it (no sandbox backend on this platform, or it is not installed), so the run was refused rather than run unconfined — drop the shell grant, or on Linux/macOS install the backend. Sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing. · stderr:  Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: bubblewrap (bwrap) not installed, socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing   Refusing to start without a working sandbox (see sandbox.failIfUnavailable). ",
+            "tracePath": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "original-not-saved-over",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Write called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "outcome",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": ""
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 0.5,
+        "passRate": 0,
+        "scoreWithout": 0.5,
+        "passRateWithout": 0,
+        "delta": 0
+      }
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 1,
+    "casesPassed": 0,
+    "overallScore": 0.5,
+    "overallPassRate": 0,
+    "meanDelta": 0
+  }
+}
