@@ -10,9 +10,11 @@ description: What this repository is and how it is laid out — a plugin marketp
 
 A **plugin marketplace**. It ships plugins; each plugin bundles one or more Agent Skills.
 
-There is no application here — no build, no test suite, no runtime, no dependencies to install. Do not look
-for a `package.json` to run, and do not add a toolchain unless explicitly asked. The deliverable is always
-Markdown and JSON, plus Python that is standard library by default. A third-party import is possible but
+There is no application here — no build, no runtime, no dependencies to install. The one exception is
+`extensions/vscode/`: a plain-JavaScript VS Code extension with no dependencies and no build step, tested with
+`node --test extensions/vscode/test/`. Everywhere else, do not look for a `package.json` to run, and do not add a
+toolchain unless explicitly asked. The deliverable is Markdown and JSON, plus Python that is standard library by
+default. A third-party import is possible but
 narrow: optional, with a working stdlib fallback, and named in the allowlist in
 [`scripts.instructions.md`](../domain/scripts.instructions.md). No bundled script may *require* a package to
 be installed before it runs.
