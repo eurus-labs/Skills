@@ -2,6 +2,7 @@
 // From the engine's job snapshot to what the Eval run tray draws, and the rules for transcripts and answers.
 // No `vscode` import.
 
+const fs = require('fs');
 const path = require('path');
 
 // The same rule as tools/skill_manager.py transcript_path: a .md or .jsonl one folder below results/.
@@ -20,13 +21,18 @@ function transcriptPath(rel) {
   return clean;
 }
 
-// The absolute file to open: the repository folder plus the checked path, and only if it stays under plugins/.
+// The real file to open: the checked path under the repository, as skill_manager.py transcript_path does. Both the
+// file and plugins/ are resolved through symlinks, and the file must exist and lie inside the real plugins/ folder.
 function resolveTranscript(repo, rel) {
   const clean = transcriptPath(rel);
   if (!clean) return null;
-  const file = path.resolve(repo, clean);
-  const root = path.resolve(repo, 'plugins') + path.sep;
-  return file.indexOf(root) === 0 ? file : null;
+  try {
+    const file = fs.realpathSync(path.resolve(repo, clean));
+    const root = fs.realpathSync(path.resolve(repo, 'plugins')) + path.sep;
+    return file.indexOf(root) === 0 && fs.statSync(file).isFile() ? file : null;
+  } catch (error) {
+    return null;
+  }
 }
 
 // Every transcript the log names, tied to a case: by the case name in the file name, else by the `--case` of the

@@ -1,6 +1,8 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert');
+const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 const ev = require('../src/evalview');
@@ -147,7 +149,37 @@ test('a good transcript path resolves under plugins/ of the repository', () => {
   const rel = 'plugins/planning/evals/results/2026-11-28T00-00-00Z/case-one.md';
   assert.strictEqual(ev.transcriptPath(rel), rel);
   assert.strictEqual(ev.transcriptPath('plugins\\planning\\evals\\results\\s\\x.md'), 'plugins/planning/evals/results/s/x.md');
-  assert.strictEqual(ev.resolveTranscript('/work/Skills', rel), path.resolve('/work/Skills', rel));
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'eurus-tr-'));
+  try {
+    const dir = path.join(repo, 'plugins', 'planning', 'evals', 'results', '2026-11-28T00-00-00Z');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'case-one.md'), '# t');
+    assert.strictEqual(ev.resolveTranscript(repo, rel), fs.realpathSync(path.join(dir, 'case-one.md')));
+    assert.strictEqual(ev.resolveTranscript(repo, rel.replace('case-one', 'missing')), null, 'a file that does not exist');
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('a symlink under plugins/ that points outside it is refused', (t) => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'eurus-tr-'));
+  try {
+    const repo = path.join(tmp, 'repo');
+    const dir = path.join(repo, 'plugins', 'x', 'evals', 'results', '2026-11-28T00-00-00Z');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(tmp, 'secret.md'), 'outside');
+    try {
+      fs.symlinkSync(path.join(tmp, 'secret.md'), path.join(dir, 'link.md'));
+    } catch (error) {
+      t.skip('symlinks cannot be created here: ' + error.code);
+      return;
+    }
+    const rel = 'plugins/x/evals/results/2026-11-28T00-00-00Z/link.md';
+    assert.strictEqual(ev.transcriptPath(rel), rel, 'the name alone looks fine');
+    assert.strictEqual(ev.resolveTranscript(repo, rel), null);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
 });
 
 // --- scores, commands, dialog ---
