@@ -299,6 +299,21 @@ the page draws its badges, run forms and platform buttons from it.
 - It never passes `--trust-plugin`: if `claude plugin eval` refuses an untrusted directory, run it once in a
   terminal and answer the prompt.
 
+### Running evals from VS Code
+
+The VS Code extension in `extensions/vscode/` runs the same engine from the plugin page, so a contributor does
+not need the browser. Open this repository in VS Code, open a plugin from the Eurus Skills sidebar, and use the
+Skills tab: **Run all N cases** on the bar, **Run N cases** on a skill's chevron, or **Run** on one case. Each
+asks first, names who is billed (your Claude key with the `eurusSkills.evalMaxCostUsd` ceiling, 2 by default, or
+your Copilot plan), and shows the command. The extension starts `python3 -u tools/skill_manager.py --no-open`
+(`eurusSkills.python` changes the Python), calls its API with the token it prints, and shows progress, grading
+questions, **Stop** and transcripts in a tray under the page. It does not start the engine in a workspace you
+have not trusted. The engine runs one job at a time, so Run buttons wait for the run in progress. A finished run
+shows within about 5 seconds, because the extension reads `GET /api/catalog` while the page is visible. That
+endpoint returns the schema of `catalog.json` with the runs in `results/` as well as `archive/`. If
+`claude plugin eval` refuses an untrusted folder, run it once in a terminal; the extension never passes
+`--trust-plugin`. The browser page above stays available as **Eurus Skills: Open skill manager in browser**.
+
 ## See every skill's results
 
 ```bash
