@@ -379,6 +379,10 @@ plan adds.
     - `CHANGELOG.md` `[Unreleased]`, under `### Added`: the extension, `catalog.json` and `/api/catalog`.
     - No plugin version changes.
 
+18. **English only** (the user's choice, 2026-11-28). Every string in the extension is English, and there is no
+    language switch.
+    - Rejected: English and Vietnamese, as the browser skill manager offers.
+
 ## Scope
 
 In:
@@ -408,7 +412,7 @@ Out:
 - **Publishing to the VS Code Marketplace**, and JetBrains.
 - **Any other change to `skill_manager.py`, `build_eval_board.py` or the browser page's look.**
 - **Editing skills from the extension.**
-- **A Vietnamese UI.** See Open questions.
+- **A Vietnamese UI**, or any other language (Decision 18).
 - **Any plugin or skill.**
 
 ## Baseline
@@ -527,5 +531,4 @@ the `.vsix`, and the README lists the steps:
 
 ## Open questions
 
-1. **Should the UI also offer Vietnamese, like the browser skill manager?** Until the user answers, the UI is
-   English, with every string in one table so a second language is one more table.
+None.
