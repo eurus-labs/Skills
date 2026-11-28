@@ -19,6 +19,7 @@ from contextlib import redirect_stdout
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import archive_eval_results as ar  # noqa: E402
+import test_build_catalog as catalog_fixture  # noqa: E402
 
 def slurp(path):
     with open(path, encoding="utf-8") as fh:
@@ -423,6 +424,61 @@ class Check(Base):
         before = self.all_files()
         self.run_check()
         self.assertEqual(self.all_files(), before)
+
+
+class CatalogRebuild(unittest.TestCase):
+    """A successful archive rewrites catalog.json; a refused one leaves it alone."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.repo = catalog_fixture.make_repo(os.path.join(self.tmp, "repo"))
+        patcher = mock.patch.multiple(ar, REPO=self.repo, git_email=lambda: None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.stamp = "2026-04-01T00-00-00Z"
+        self.source = os.path.join(self.tmp, "bundle", "plugins", "alpha", "evals", "results", self.stamp)
+        os.makedirs(self.source)
+
+    def write_source(self, text):
+        with open(os.path.join(self.source, "aggregate-result.json"), "w", encoding="utf-8") as fh:
+            fh.write(text)
+
+    def run_main(self, *argv):
+        out = io.StringIO()
+        with redirect_stdout(out):
+            code = ar.main(list(argv))
+        return code, out.getvalue()
+
+    def catalog(self):
+        with open(os.path.join(self.repo, "catalog.json"), encoding="utf-8") as fh:
+            return json.load(fh)
+
+    def test_archiving_a_run_adds_it_to_the_catalog(self):
+        self.write_source(json.dumps({"schemaVersion": 1, "cases": [catalog_fixture.case_doc("two-works", 0.5)]}))
+        code, out = self.run_main(self.source)
+        self.assertEqual(code, 0, out)
+        alpha = {p["name"]: p for p in self.catalog()["plugins"]}["alpha"]
+        self.assertEqual([r["stamp"] for r in alpha["runs"]], [self.stamp])
+        self.assertEqual(alpha["skills"][1]["evals"]["hosts"]["claude"]["score"], 0.5)
+
+    def test_a_refused_archive_does_not_touch_the_catalog(self):
+        self.write_source(json.dumps({"schemaVersion": 1, "note": "sk-ant-api03-abc", "cases": []}))
+        code, out = self.run_main(self.source)
+        self.assertEqual(code, 1, out)
+        self.assertFalse(os.path.exists(os.path.join(self.repo, "catalog.json")))
+
+    def test_a_catalog_that_cannot_be_built_fails_the_command(self):
+        catalog_fixture.put_json(os.path.join(self.repo, "tools", "featured.json"), {"plugin": "no", "note": "n", "text": "t"})
+        self.write_source(json.dumps({"schemaVersion": 1, "cases": [catalog_fixture.case_doc("two-works", 0.5)]}))
+        with mock.patch("sys.stderr", io.StringIO()):
+            code, out = self.run_main(self.source)
+        self.assertEqual(code, 1)
+
+    def test_check_does_not_rebuild(self):
+        code, out = self.run_main("--check")
+        self.assertEqual(code, 0, out)
+        self.assertFalse(os.path.exists(os.path.join(self.repo, "catalog.json")))
 
 
 class Repository(unittest.TestCase):

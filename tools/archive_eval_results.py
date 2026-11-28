@@ -16,12 +16,15 @@ Transcripts (`*.jsonl`, `*.md`) are never copied.
     python3 tools/archive_eval_results.py --replace <src>  # overwrite an archived run whose content differs
     python3 tools/archive_eval_results.py --check          # verify what is already archived; writes nothing
 
+After a successful archive it rebuilds `catalog.json` (tools/build_catalog.py), so the committed catalog never
+trails the committed runs.
+
 A source is a `results/<timestamp>/` folder, an `aggregate-result.json`, or a folder that holds
 `plugins/*/evals/results/*` (an unpacked bundle). Exit 0 on success, 1 when something is refused or `--check`
 finds an offender, 2 on a usage error. A refusal names the file and the rule, never the text that matched.
 
 Standard library only. No network call. Reads `git config user.email` (read-only) to refuse that address.
-Writes only under `plugins/*/evals/archive/`.
+Writes only under `plugins/*/evals/archive/`, and `catalog.json` after a successful archive.
 """
 
 import argparse
@@ -369,6 +372,12 @@ def check(repo=REPO, email=None, out=print):
     return 1 if offenders else 0
 
 
+def rebuild_catalog(repo=REPO):
+    """Rewrite catalog.json from the archive. Returns 0, or 1 when the catalog cannot be built."""
+    import build_catalog  # a sibling script; imported here so --check and the archive path need nothing from it
+    return build_catalog.main([], repo)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("sources", nargs="*", metavar="SOURCE",
@@ -386,7 +395,8 @@ def main(argv=None):
         return check(REPO, email)
     if not args.sources:
         parser.error("give at least one source, or --check")
-    return archive(args.sources, REPO, args.replace, email)
+    code = archive(args.sources, REPO, args.replace, email)
+    return rebuild_catalog(REPO) if code == 0 else code
 
 
 if __name__ == "__main__":
