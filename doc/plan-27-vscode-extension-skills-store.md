@@ -1,6 +1,6 @@
 # Plan 27 — a VS Code extension: a skills store for everyone, eval runs for contributors
 
-Status: approved
+Status: implemented
 Date: 2026-11-28
 Branch: `feat/vscode-extension-skills-store`
 Baseline: `origin/main` at `e9d9b439280c2248ce5d5a122ac787d3e53337a8` (marketplace 0.7.0)
