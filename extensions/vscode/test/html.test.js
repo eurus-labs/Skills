@@ -8,6 +8,8 @@ const ev = require('../src/evalview');
 const { sample, installed } = require('./fixture');
 
 const EVIL = '<script>alert(1)</script>';
+const EVIL_UPPER = '<SCRIPT>alert(2)</SCRIPT>';
+const EVIL_MIXED = '<ScRiPt src=x>alert(3)</ScRiPt>';
 const OPTIONS = { nonce: 'NONCE123', cspSource: 'vscode-webview://x', theme: 'stone', highContrast: false };
 
 function state(catalog) {
@@ -24,14 +26,14 @@ function hostile() {
   doc.featured = { plugin: 'planning', note: EVIL, text: EVIL };
   doc.plugins[0].description = EVIL;
   doc.plugins[0].version = EVIL;
-  doc.plugins[0].skills.forEach((s) => { s.description = EVIL; });
-  doc.plugins[0].cases.forEach((c) => { c.description = EVIL; });
+  doc.plugins[0].skills.forEach((s, n) => { s.description = n % 2 ? EVIL_UPPER : EVIL_MIXED; });
+  doc.plugins[0].cases.forEach((c, n) => { c.description = [EVIL, EVIL_UPPER, EVIL_MIXED][n % 3]; });
   return cat.validateCatalog(doc).catalog;
 }
 
 // Everything the page script would parse as markup: whole <script>...</script> elements other than ours.
 function foreignScripts(text) {
-  return (text.match(/<script\b[^>]*>/g) || []).filter((tag) => tag !== '<script nonce="NONCE123">');
+  return (text.match(/<script\b[^>]*>/gi) || []).filter((tag) => tag.toLowerCase() !== '<script nonce="nonce123">');
 }
 
 test('esc() escapes the five characters that matter', () => {
@@ -47,7 +49,11 @@ test('catalog text holding <script> renders as text in the sidebar and the page'
   for (const doc of [side, pageText]) {
     assert.deepStrictEqual(foreignScripts(doc), []);
     assert.ok(!doc.includes(EVIL));
-    assert.ok(doc.includes('&lt;script&gt;alert(1)&lt;/script&gt;'));
+    assert.strictEqual((doc.match(/<script\b/gi) || []).length, 1, 'a raw <script in any case is only our own tag');
+    assert.strictEqual((doc.match(/<\/script\b/gi) || []).length, 1, 'and so is a raw </script');
+  }
+  for (const escaped of ['&lt;script&gt;alert(1)', '&lt;SCRIPT&gt;alert(2)', '&lt;ScRiPt src=x&gt;alert(3)']) {
+    assert.ok((side + pageText).includes(escaped), escaped + ' appears, and only escaped');
   }
 });
 
@@ -83,8 +89,8 @@ test('both pages carry a CSP with default-src none, the nonce, and no inline sty
     assert.match(csp, /script-src 'nonce-NONCE123'/);
     assert.match(csp, /style-src vscode-webview:\/\/x 'nonce-NONCE123'/);
     assert.doesNotMatch(csp, /unsafe-inline|unsafe-eval|\*/);
-    assert.strictEqual((doc.match(/<script\b/g) || []).length, 1);
-    assert.strictEqual((doc.match(/<style\b/g) || []).length, 1);
+    assert.strictEqual((doc.match(/<script\b/gi) || []).length, 1);
+    assert.strictEqual((doc.match(/<style\b/gi) || []).length, 1);
     assert.doesNotMatch(doc, /<[a-z][^>]*\sstyle=/i, 'an inline style attribute would be blocked by the CSP');
     assert.doesNotMatch(doc, /\son[a-z]+=/i, 'no inline event handler');
     assert.doesNotMatch(doc, /<(iframe|object|embed|link|img)\b/i);
