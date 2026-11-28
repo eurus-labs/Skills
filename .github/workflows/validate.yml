@@ -94,18 +94,43 @@ jobs:
           done
           exit $status
 
+  # The VS Code extension (extensions/vscode/) is plain JavaScript with no dependency and no build step, so
+  # the only thing to install is Node. Node 18 is the floor the extension's `engines.vscode` bundles; Node 22
+  # is a current release. The tests also start the real eval engine, which is stdlib-only Python.
+  extension:
+    timeout-minutes: 15
+    runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ["18", "22"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Extension tests
+        run: node --test extensions/vscode/test/
+
   # The one check the branch ruleset requires. Its name stays fixed when the matrix
   # above changes, so adding or dropping a Python version never strands the ruleset.
   # always(): without it a failed validate makes this job "skipped", and GitHub
   # counts a skipped required check as passing.
   verify:
     if: always()
-    needs: [validate]
+    needs: [validate, extension]
     runs-on: ubuntu-latest
     steps:
-      - name: Every validate job passed
+      - name: Every validate and extension job passed
         env:
-          RESULT: ${{ needs.validate.result }}
+          VALIDATE: ${{ needs.validate.result }}
+          EXTENSION: ${{ needs.extension.result }}
         run: |
-          echo "validate: $RESULT"
-          test "$RESULT" = success
+          echo "validate: $VALIDATE"
+          echo "extension: $EXTENSION"
+          test "$VALIDATE" = success
+          test "$EXTENSION" = success

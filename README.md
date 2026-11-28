@@ -59,6 +59,15 @@ claude plugin install testing@eurus-labs
 
 </details>
 
+## VS Code extension
+
+[`extensions/vscode/`](extensions/vscode/) is one extension for two audiences. Everyone gets a store: every plugin
+in a sidebar, a page per plugin with its eval score, and install, update, enable and uninstall for Copilot CLI and
+Claude Code, each through a terminal you confirm first. Contributors who open this repository also get the eval
+cases on the same page and can run them. It is not on the VS Code Marketplace: package it as described in its
+[README](extensions/vscode/README.md) and install the `.vsix`. It reads [`catalog.json`](catalog.json), which
+`python3 tools/build_catalog.py` builds from the plugins and their archived eval runs.
+
 ## Safety
 
 Skills are injected into an agent's context and are **not verified by GitHub** — review anything you install.

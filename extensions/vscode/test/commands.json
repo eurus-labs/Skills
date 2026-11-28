@@ -1,0 +1,25 @@
+{
+  "_comment": "One table for two builders: tools/test_skill_manager.py checks plugin_command against it and extensions/vscode/test/commands.test.js checks src/commands.js. <repo> stands for the repository folder. exe is the program and args its arguments; no shell parses them.",
+  "marketplace": "eurus-labs",
+  "plugin": "planning",
+  "exe": {
+    "copilot": "copilot",
+    "claude": "claude"
+  },
+  "cases": [
+    {"host": "copilot", "action": "install", "args": ["plugin", "install", "planning@eurus-labs"]},
+    {"host": "copilot", "action": "update", "args": ["plugin", "update", "planning@eurus-labs"]},
+    {"host": "copilot", "action": "uninstall", "args": ["plugin", "uninstall", "planning@eurus-labs"]},
+    {"host": "copilot", "action": "enable", "args": ["plugin", "enable", "planning"]},
+    {"host": "copilot", "action": "marketplace-add", "source": "github", "args": ["plugin", "marketplace", "add", "eurus-labs/Skills"]},
+    {"host": "copilot", "action": "marketplace-add", "source": "checkout", "args": ["plugin", "marketplace", "add", "<repo>"]},
+    {"host": "copilot", "action": "marketplace-update", "args": ["plugin", "marketplace", "update", "eurus-labs"]},
+    {"host": "claude", "action": "install", "args": ["plugin", "install", "planning@eurus-labs"]},
+    {"host": "claude", "action": "update", "args": ["plugin", "update", "planning@eurus-labs"]},
+    {"host": "claude", "action": "uninstall", "args": ["plugin", "uninstall", "planning@eurus-labs"]},
+    {"host": "claude", "action": "enable", "args": ["plugin", "enable", "planning@eurus-labs"]},
+    {"host": "claude", "action": "marketplace-add", "source": "github", "args": ["plugin", "marketplace", "add", "eurus-labs/Skills"]},
+    {"host": "claude", "action": "marketplace-add", "source": "checkout", "args": ["plugin", "marketplace", "add", "<repo>"]},
+    {"host": "claude", "action": "marketplace-update", "args": ["plugin", "marketplace", "update", "eurus-labs"]}
+  ]
+}

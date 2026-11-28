@@ -7,6 +7,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- A VS Code extension in `extensions/vscode/`: a store for every plugin (install, update, enable and uninstall for
+  Copilot CLI and Claude Code, each through a terminal you confirm first), a page per plugin with its eval score,
+  and, when this repository is open, the eval cases of each skill with Run, grading questions, Stop and
+  transcripts. Plain JavaScript with no dependency and no build step; packaged as a `.vsix`, not published to the
+  VS Code Marketplace. A new `extension` CI job runs its tests on Node 18 and 22, and `verify` needs it.
+- `catalog.json`, built by `python3 tools/build_catalog.py` from the marketplace, the plugins, their eval cases
+  and the archived runs, with `tools/featured.json` for the store's featured card. `--check` fails when it is out
+  of date, `tools/test_build_catalog.py` runs that check, and `tools/archive_eval_results.py` rebuilds it after a
+  successful archive.
+- `GET /api/catalog` in `tools/skill_manager.py`: the same schema, built from `results/` and `archive/`. No plugin
+  version changes.
+
 ## [0.7.0] — 2026-11-27
 
 Contributor tooling only: eval results can now be kept in the repository. No plugin version changes, so installed

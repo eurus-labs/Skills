@@ -1,0 +1,101 @@
+{
+  "name": "eurus-skills",
+  "displayName": "Eurus Skills",
+  "description": "A store for the eurus-labs plugins, with install and update for Copilot CLI and Claude Code, eval scores, and eval runs for contributors.",
+  "version": "0.1.0",
+  "publisher": "eurus-labs",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eurus-labs/Skills.git",
+    "directory": "extensions/vscode"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "main": "./src/extension.js",
+  "activationEvents": [],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "In an untrusted workspace the extension still shows the store and installs plugins, but it does not start the eval engine, which runs a Python script from the workspace."
+    }
+  },
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "eurusSkills",
+          "title": "Eurus Skills",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "eurusSkills": [
+        {
+          "type": "webview",
+          "id": "eurusSkills.store",
+          "name": "Store"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "eurusSkills.refresh",
+        "title": "Refresh",
+        "category": "Eurus Skills"
+      },
+      {
+        "command": "eurusSkills.openSkillManager",
+        "title": "Open skill manager in browser",
+        "category": "Eurus Skills"
+      }
+    ],
+    "configuration": {
+      "title": "Eurus Skills",
+      "properties": {
+        "eurusSkills.theme": {
+          "type": "string",
+          "enum": [
+            "stone",
+            "charcoal",
+            "black"
+          ],
+          "default": "stone",
+          "description": "The palette of the store and the plugin page. Ignored in a high-contrast VS Code theme, which uses its own colors."
+        },
+        "eurusSkills.catalogUrl": {
+          "type": "string",
+          "default": "https://raw.githubusercontent.com/eurus-labs/Skills/main/catalog.json",
+          "pattern": "^https://",
+          "scope": "machine",
+          "description": "Where the catalog is fetched from when the open folder is not a checkout of the eurus-labs marketplace. Must be an https:// URL."
+        },
+        "eurusSkills.confirmInstalls": {
+          "type": "boolean",
+          "default": true,
+          "description": "Ask before an install, update or enable command runs in a terminal. Uninstall always asks."
+        },
+        "eurusSkills.python": {
+          "type": "string",
+          "default": "python3",
+          "scope": "machine",
+          "description": "The Python 3.9 or later that runs tools/skill_manager.py, the eval engine, in a checkout of the marketplace."
+        },
+        "eurusSkills.evalMaxCostUsd": {
+          "type": "number",
+          "default": 2,
+          "minimum": 0.01,
+          "maximum": 50,
+          "description": "The cost ceiling in US dollars passed to a Claude Code eval run. Over 0 and at most 50."
+        }
+      }
+    }
+  }
+}

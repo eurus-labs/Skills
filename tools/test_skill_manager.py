@@ -24,6 +24,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import skill_manager as ebs  # noqa: E402
+import test_build_catalog as fixture  # noqa: E402
 
 REAL_WHICH = shutil.which
 
@@ -525,7 +526,65 @@ class Answers(Server):
             self.assertEqual(self.request("POST", "/api/run", body)[0], 200, "the next job can start")
 
 
+class Catalog(Server):
+    """GET /api/catalog is the schema of catalog.json plus the runs in results/, behind the usual checks."""
+
+    def setUp(self):
+        super().setUp()
+        self.repo = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.repo, True)
+        fixture.build_repo_with_runs(self.repo)
+        patcher = patch.object(ebs, "REPO", self.repo)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_it_needs_the_token_and_this_servers_host(self):
+        self.assertEqual(self.request("GET", "/api/catalog", token=None)[0], 403)
+        self.assertEqual(self.request("GET", "/api/catalog", token="wrong")[0], 403)
+        self.assertEqual(self.request("GET", "/api/catalog", host="evil.example:%d" % self.port)[0], 403)
+        self.assertEqual(self.request("GET", "/api/catalog")[0], 200)
+
+    def test_it_returns_the_schema_with_a_run_from_results(self):
+        status, before = self.request("GET", "/api/catalog")
+        self.assertEqual(status, 200)
+        self.assertEqual(before["schemaVersion"], 1)
+        self.assertEqual([p["name"] for p in before["plugins"]], ["beta", "alpha"])
+        alpha = before["plugins"][1]
+        self.assertEqual(len(alpha["runs"]), 4)
+        fixture.archive(self.repo, "2026-02-01T00-00-00Z", [fixture.case_doc("two-works", 0.2)], folder="results")
+        _, after = self.request("GET", "/api/catalog")
+        alpha = after["plugins"][1]
+        self.assertEqual(len(alpha["runs"]), 5)
+        self.assertEqual(alpha["runs"][-1]["stamp"], "2026-02-01T00-00-00Z")
+        self.assertEqual(alpha["skills"][1]["evals"]["hosts"]["claude"]["score"], 0.2)
+
+    def test_a_broken_featured_file_is_reported_not_crashed(self):
+        fixture.put_json(os.path.join(self.repo, "tools", "featured.json"), {"plugin": "nope", "note": "n", "text": "t"})
+        status, data = self.request("GET", "/api/catalog")
+        self.assertEqual(status, 500)
+        self.assertIn("nope", data["error"])
+
+
 class Install(Server):
+    def test_commands_match_the_table_the_vscode_extension_is_tested_against(self):
+        # extensions/vscode/test/commands.test.js checks src/commands.js against the same file.
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "extensions", "vscode", "test", "commands.json")
+        with open(path, encoding="utf-8") as fh:
+            table = json.load(fh)
+        self.assertEqual(table["exe"], ebs.HOSTS)
+        self.assertEqual(table["marketplace"], ebs.MARKETPLACE)
+        self.assertGreaterEqual(len(table["cases"]), 14)
+        with patch("shutil.which", side_effect=on_path("copilot", "claude")):
+            for row in table["cases"]:
+                if row["action"].startswith("marketplace"):
+                    command = ebs.plugin_command(row["host"], row["action"], source=row.get("source"))
+                else:
+                    command = ebs.plugin_command(row["host"], row["action"], table["plugin"])
+                expected = [ebs.REPO if a == "<repo>" else a for a in row["args"]]
+                self.assertEqual(command[1:], expected, row)
+                self.assertEqual(os.path.basename(command[0]), table["exe"][row["host"]])
+
     def test_commands_are_built_for_this_marketplace_only(self):
         with patch("shutil.which", side_effect=on_path("copilot", "claude")):
             self.assertEqual(ebs.plugin_command("copilot", "install", "testing")[1:],

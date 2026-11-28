@@ -23,6 +23,10 @@ and Skip, the transcripts, a tally of the answers, and the live output. It start
     python3 tools/skill_manager.py              # opens http://127.0.0.1:<port>/?token=…
     python3 tools/skill_manager.py --port 8765 --no-open
 
+The VS Code extension (extensions/vscode/) runs this headless and calls its API with the token. `GET /api/catalog`
+returns catalog.json's schema (tools/build_catalog.py) built from the runs in results/ and archive/, so a run
+finished a moment ago shows up.
+
 What it can do, and what it refuses:
 - It listens on 127.0.0.1 only, accepts only Host 127.0.0.1 or localhost, and every request needs
   the random token printed at start (in the URL for the page, in a header for the API), so another
@@ -59,6 +63,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import build_catalog  # noqa: E402
 import build_eval_board as board  # noqa: E402
 import copilot_eval  # noqa: E402
 
@@ -479,6 +484,10 @@ class Manager:
     def catalog(self):
         return board.catalog()
 
+    def api_catalog(self):
+        """catalog.json's schema, with the local runs in results/ as well as the archived ones."""
+        return build_catalog.build(REPO, include_local=True)
+
     def state(self):
         return {"plugins": self.catalog(), "results": board.load_results(board.result_files()), "hosts": board.HOSTS}
 
@@ -637,6 +646,11 @@ def make_handler(state, port_ref):
                 return self._send(200, data, "text/plain; charset=utf-8")
             if url.path == "/api/state":
                 return self._send(200, state.state())
+            if url.path == "/api/catalog":
+                try:
+                    return self._send(200, state.api_catalog())
+                except build_catalog.CatalogError as exc:
+                    return self._send(500, {"error": str(exc)})
             if url.path == "/api/results":
                 signature, count = results_signature()
                 return self._send(200, {"signature": signature, "count": count})

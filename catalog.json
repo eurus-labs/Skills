@@ -1,0 +1,2079 @@
+{
+  "featured": {
+    "note": "New in 0.6.0",
+    "plugin": "planning",
+    "text": "From a requirement to epics, with one living DoU for the Product Owner."
+  },
+  "hosts": [
+    {
+      "id": "copilot",
+      "label": "Copilot CLI"
+    },
+    {
+      "id": "claude",
+      "label": "Claude Code"
+    }
+  ],
+  "marketplace": {
+    "name": "eurus-labs",
+    "source": "eurus-labs/Skills",
+    "version": "0.7.0"
+  },
+  "plugins": [
+    {
+      "cases": [
+        {
+          "description": "fixtures/02 — the code is right and the test is wrong",
+          "kind": "behavior",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-20T03-17-01-703Z",
+              "trusted": true
+            }
+          },
+          "name": "debug-failing-test-blames-the-test",
+          "skills": [
+            "debug-failing-test"
+          ]
+        },
+        {
+          "description": "fixtures/03 — a green suite that would catch almost nothing",
+          "kind": "behavior",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-20T03-17-01-703Z",
+              "trusted": true
+            }
+          },
+          "name": "review-tests-finds-weak-suite",
+          "skills": [
+            "review-tests"
+          ]
+        },
+        {
+          "description": "fixtures/01 — the docstrings are the specification and the code breaks it in four places",
+          "kind": "behavior",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-20T03-17-01-703Z",
+              "trusted": true
+            }
+          },
+          "name": "write-tests-reports-contract-bugs",
+          "skills": [
+            "write-tests"
+          ]
+        },
+        {
+          "description": "should fire debug-failing-test and no sibling",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-17-28-728Z",
+              "trusted": true
+            }
+          },
+          "name": "debug-failing-test-ci-only",
+          "skills": [
+            "debug-failing-test",
+            "review-tests",
+            "write-tests"
+          ]
+        },
+        {
+          "description": "should fire debug-failing-test and no sibling",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-17-28-728Z",
+              "trusted": true
+            }
+          },
+          "name": "debug-failing-test-intermittent",
+          "skills": [
+            "debug-failing-test",
+            "review-tests",
+            "write-tests"
+          ]
+        },
+        {
+          "description": "should fire debug-failing-test and no sibling",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-17-28-728Z",
+              "trusted": true
+            }
+          },
+          "name": "debug-failing-test-red-after-change",
+          "skills": [
+            "debug-failing-test",
+            "review-tests",
+            "write-tests"
+          ]
+        },
+        {
+          "description": "should fire no skill in this plugin",
+          "kind": "quiet",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-17-28-728Z",
+              "trusted": true
+            }
+          },
+          "name": "none-compile-error",
+          "skills": [
+            "debug-failing-test",
+            "review-tests",
+            "write-tests"
+          ]
+        },
+        {
+          "description": "should fire no skill in this plugin",
+          "kind": "quiet",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-17-28-728Z",
+              "trusted": true
+            }
+          },
+          "name": "none-implement-feature",
+          "skills": [
+            "debug-failing-test",
+            "review-tests",
+            "write-tests"
+          ]
+        },
+        {
+          "description": "should fire no skill in this plugin",
+          "kind": "quiet",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-17-28-728Z",
+              "trusted": true
+            }
+          },
+          "name": "none-measure-coverage",
+          "skills": [
+            "debug-failing-test",
+            "review-tests",
+            "write-tests"
+          ]
+        },
+        {
+          "description": "should fire review-tests and no sibling",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-17-28-728Z",
+              "trusted": true
+            }
+          },
+          "name": "review-tests-coverage-high-bugs-ship",
+          "skills": [
+            "debug-failing-test",
+            "review-tests",
+            "write-tests"
+          ]
+        },
+        {
+          "description": "should fire review-tests and no sibling",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-17-28-728Z",
+              "trusted": true
+            }
+          },
+          "name": "review-tests-testing-the-mocks",
+          "skills": [
+            "debug-failing-test",
+            "review-tests",
+            "write-tests"
+          ]
+        },
+        {
+          "description": "should fire review-tests and no sibling",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-17-28-728Z",
+              "trusted": true
+            }
+          },
+          "name": "review-tests-why-not-caught",
+          "skills": [
+            "debug-failing-test",
+            "review-tests",
+            "write-tests"
+          ]
+        },
+        {
+          "description": "should fire write-tests and no sibling",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-17-28-728Z",
+              "trusted": true
+            }
+          },
+          "name": "write-tests-low-coverage",
+          "skills": [
+            "debug-failing-test",
+            "review-tests",
+            "write-tests"
+          ]
+        },
+        {
+          "description": "should fire write-tests and no sibling",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-17-28-728Z",
+              "trusted": true
+            }
+          },
+          "name": "write-tests-no-tests-yet",
+          "skills": [
+            "debug-failing-test",
+            "review-tests",
+            "write-tests"
+          ]
+        },
+        {
+          "description": "should fire write-tests and no sibling",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-17-28-728Z",
+              "trusted": true
+            }
+          },
+          "name": "write-tests-which-cases",
+          "skills": [
+            "debug-failing-test",
+            "review-tests",
+            "write-tests"
+          ]
+        }
+      ],
+      "description": "Write, review, and debug automated tests in whatever framework a repository already uses. Detects the stack at runtime rather than imposing a framework. With your agreement, it installs the project's own test runner when it is missing, and review-tests may run the project's documented setup — never anything else, and never unattended.",
+      "name": "testing",
+      "runs": [
+        {
+          "cases": 12,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-19T23-17-28-728Z"
+        },
+        {
+          "cases": 3,
+          "host": "claude",
+          "score": 0.5,
+          "stamp": "2026-11-20T03-09-36-225Z"
+        },
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-20T03-12-04-266Z"
+        },
+        {
+          "cases": 3,
+          "host": "claude",
+          "score": 0.78,
+          "stamp": "2026-11-20T03-13-44-580Z"
+        },
+        {
+          "cases": 3,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-20T03-17-01-703Z"
+        }
+      ],
+      "skills": [
+        {
+          "description": "Write automated tests for code that already exists.",
+          "evals": {
+            "cases": 13,
+            "hosts": {
+              "claude": {
+                "cases": 13,
+                "latest": "2026-11-20T03-17-01-703Z",
+                "score": 1.0
+              }
+            }
+          },
+          "name": "write-tests"
+        },
+        {
+          "description": "Audit a whole test suite for systemic weakness.",
+          "evals": {
+            "cases": 13,
+            "hosts": {
+              "claude": {
+                "cases": 13,
+                "latest": "2026-11-20T03-17-01-703Z",
+                "score": 1.0
+              }
+            }
+          },
+          "name": "review-tests"
+        },
+        {
+          "description": "Diagnose one failing or intermittently failing test, deciding whether the code, the test, the environment or an unresolved cause is at fault before editing anything.",
+          "evals": {
+            "cases": 13,
+            "hosts": {
+              "claude": {
+                "cases": 13,
+                "latest": "2026-11-20T03-17-01-703Z",
+                "score": 1.0
+              }
+            }
+          },
+          "name": "debug-failing-test"
+        }
+      ],
+      "version": "0.3.6"
+    },
+    {
+      "cases": [
+        {
+          "description": "fixtures/04 — four planted vulnerabilities among correct code",
+          "kind": "behavior",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-25T09-35-09-151Z",
+              "trusted": true
+            }
+          },
+          "name": "review-code-finds-planted-vulnerabilities",
+          "skills": [
+            "review-code"
+          ]
+        },
+        {
+          "description": "fixtures/05 — two independent packages, and local patterns that are not policy",
+          "kind": "behavior",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-23T09-03-49-209Z",
+              "trusted": true
+            }
+          },
+          "name": "setup-review-rules-scopes-per-package",
+          "skills": [
+            "setup-review-rules"
+          ]
+        },
+        {
+          "description": "should fire review-code",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-23T09-01-42-124Z",
+              "trusted": true
+            }
+          },
+          "name": "review-code-before-merge",
+          "skills": [
+            "review-code"
+          ]
+        },
+        {
+          "description": "should not fire review-code",
+          "kind": "quiet",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-23T09-01-42-124Z",
+              "trusted": true
+            }
+          },
+          "name": "review-code-quiet-test-suite",
+          "skills": [
+            "review-code"
+          ]
+        },
+        {
+          "description": "should fire review-code",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-23T09-01-42-124Z",
+              "trusted": true
+            }
+          },
+          "name": "review-code-security-pass",
+          "skills": [
+            "review-code"
+          ]
+        },
+        {
+          "description": "should fire review-ui",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-23T09-01-42-124Z",
+              "trusted": true
+            }
+          },
+          "name": "review-ui-a11y-check",
+          "skills": [
+            "review-ui"
+          ]
+        },
+        {
+          "description": "should fire review-ui",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-23T09-01-42-124Z",
+              "trusted": true
+            }
+          },
+          "name": "review-ui-compare-screenshots",
+          "skills": [
+            "review-ui"
+          ]
+        },
+        {
+          "description": "should not fire review-ui",
+          "kind": "quiet",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-23T09-01-42-124Z",
+              "trusted": true
+            }
+          },
+          "name": "review-ui-quiet-code-review",
+          "skills": [
+            "review-ui"
+          ]
+        },
+        {
+          "description": "should fire setup-review-rules",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-23T09-01-42-124Z",
+              "trusted": true
+            }
+          },
+          "name": "setup-review-rules-agents-md",
+          "skills": [
+            "setup-review-rules"
+          ]
+        },
+        {
+          "description": "should fire setup-review-rules",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-23T09-01-42-124Z",
+              "trusted": true
+            }
+          },
+          "name": "setup-review-rules-checklist",
+          "skills": [
+            "setup-review-rules"
+          ]
+        },
+        {
+          "description": "should not fire setup-review-rules",
+          "kind": "quiet",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-23T09-01-42-124Z",
+              "trusted": true
+            }
+          },
+          "name": "setup-review-rules-quiet-review",
+          "skills": [
+            "setup-review-rules"
+          ]
+        }
+      ],
+      "description": "Review code against Google's Standard of Code Review and the repository's own rules files and review checklist, reporting findings with Conventional Comments labels and CWE-named security categories. Also generates those rules files and the checklist the review reads. It also reviews the interface a change produces, from screenshots, DOM and styles, for WCAG 2.1 AA accessibility, consistency, clarity and unintended visual change.",
+      "name": "review",
+      "runs": [
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-17T07-26-31-419Z"
+        },
+        {
+          "cases": 3,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-17T07-28-29-023Z"
+        },
+        {
+          "cases": 9,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-23T09-01-42-124Z"
+        },
+        {
+          "cases": 2,
+          "host": "claude",
+          "score": 0.75,
+          "stamp": "2026-11-23T09-03-49-209Z"
+        },
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-23T09-25-27-933Z"
+        },
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-25T09-35-09-151Z"
+        }
+      ],
+      "skills": [
+        {
+          "description": "Review production code.",
+          "evals": {
+            "cases": 4,
+            "hosts": {
+              "claude": {
+                "cases": 4,
+                "latest": "2026-11-25T09-35-09-151Z",
+                "score": 1.0
+              }
+            }
+          },
+          "name": "review-code"
+        },
+        {
+          "description": "Review the user interface a change produces.",
+          "evals": {
+            "cases": 3,
+            "hosts": {
+              "claude": {
+                "cases": 3,
+                "latest": "2026-11-23T09-01-42-124Z",
+                "score": 1.0
+              }
+            }
+          },
+          "name": "review-ui"
+        },
+        {
+          "description": "Generate a repository's agent and review rules files.",
+          "evals": {
+            "cases": 4,
+            "hosts": {
+              "claude": {
+                "cases": 4,
+                "latest": "2026-11-23T09-03-49-209Z",
+                "score": 1.0
+              }
+            }
+          },
+          "name": "setup-review-rules"
+        }
+      ],
+      "version": "0.3.0"
+    },
+    {
+      "cases": [
+        {
+          "description": "tests/contracts/layered-repo — an unattended architecture request must get a reviewed architecture draft, left for the user's final answer",
+          "kind": "behavior",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 0.87,
+              "stamp": "2026-11-20T07-24-07-123Z",
+              "trusted": true
+            }
+          },
+          "name": "architecture-overview-of-layered-repo",
+          "skills": [
+            "document-codebase"
+          ]
+        },
+        {
+          "description": "should fire document-codebase",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-16-48-336Z",
+              "trusted": true
+            }
+          },
+          "name": "document-codebase-architecture-docs",
+          "skills": [
+            "document-codebase"
+          ]
+        },
+        {
+          "description": "should fire document-codebase",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-16-48-336Z",
+              "trusted": true
+            }
+          },
+          "name": "document-codebase-fill-template",
+          "skills": [
+            "document-codebase"
+          ]
+        },
+        {
+          "description": "should fire document-codebase",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-16-48-336Z",
+              "trusted": true
+            }
+          },
+          "name": "document-codebase-user-manual",
+          "skills": [
+            "document-codebase"
+          ]
+        },
+        {
+          "description": "should not fire document-codebase",
+          "kind": "quiet",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-16-48-336Z",
+              "trusted": true
+            }
+          },
+          "name": "none-api-reference",
+          "skills": [
+            "document-codebase"
+          ]
+        },
+        {
+          "description": "should not fire document-codebase",
+          "kind": "quiet",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-16-48-336Z",
+              "trusted": true
+            }
+          },
+          "name": "none-chat-question",
+          "skills": [
+            "document-codebase"
+          ]
+        },
+        {
+          "description": "should not fire document-codebase",
+          "kind": "quiet",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-16-48-336Z",
+              "trusted": true
+            }
+          },
+          "name": "none-one-docstring",
+          "skills": [
+            "document-codebase"
+          ]
+        }
+      ],
+      "description": "Write architecture documentation, a product manual, or a document following your own template from repository source, verified dependency and call evidence, and reviewed prose — you choose the outline, none is mandatory — and check existing docs against a template. Produces multi-page docs with file:line citations and a human checkpoint for the final readings.",
+      "name": "docs",
+      "runs": [
+        {
+          "cases": 6,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-19T23-16-48-336Z"
+        },
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 0.0,
+          "stamp": "2026-11-20T03-09-33-479Z"
+        },
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 0.33,
+          "stamp": "2026-11-20T03-13-42-017Z"
+        },
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 0.0,
+          "stamp": "2026-11-20T04-14-05-086Z"
+        },
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-20T07-12-24-930Z"
+        },
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-20T07-14-52-463Z"
+        },
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 0.89,
+          "stamp": "2026-11-20T07-19-10-002Z"
+        },
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-20T07-21-25-904Z"
+        },
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 0.87,
+          "stamp": "2026-11-20T07-24-07-123Z"
+        }
+      ],
+      "skills": [
+        {
+          "description": "Write multi-page documentation for a repository.",
+          "evals": {
+            "cases": 7,
+            "hosts": {
+              "claude": {
+                "cases": 7,
+                "latest": "2026-11-20T07-24-07-123Z",
+                "score": 0.98
+              }
+            }
+          },
+          "name": "document-codebase"
+        }
+      ],
+      "version": "1.9.0"
+    },
+    {
+      "cases": [
+        {
+          "description": "should fire implement",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 0,
+              "stamp": "2026-11-17T07-29-21-821Z",
+              "trusted": true
+            }
+          },
+          "name": "implement-approved-plan",
+          "skills": [
+            "implement"
+          ]
+        }
+      ],
+      "description": "Implement a feature, bug fix, or refactor and verify it against the original request — acceptance criteria fixed before coding, design patterns used only for a concrete problem, and evidence reported for every check. Builds from a supplied design or an approved plan, working on the plan's own branch.",
+      "name": "development",
+      "runs": [
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 0.33,
+          "stamp": "2026-11-17T07-28-18-472Z"
+        },
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 0.0,
+          "stamp": "2026-11-17T07-29-21-821Z"
+        }
+      ],
+      "skills": [
+        {
+          "description": "Implement features, fix bugs, or refactor code when the user asks for the code change to be made.",
+          "evals": {
+            "cases": 1,
+            "hosts": {
+              "claude": {
+                "cases": 1,
+                "latest": "2026-11-17T07-29-21-821Z",
+                "score": 0.0
+              }
+            }
+          },
+          "name": "implement"
+        }
+      ],
+      "version": "0.5.2"
+    },
+    {
+      "cases": [
+        {
+          "description": "fixtures/17 - a requirement in two versions, its DoD and the module it describes, analysed unattended",
+          "kind": "behavior",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 0.9,
+              "stamp": "2026-11-26T07-06-53-161Z",
+              "trusted": true
+            }
+          },
+          "name": "analyze-requirements-flags-planted-changes",
+          "skills": [
+            "analyze-requirements"
+          ]
+        },
+        {
+          "description": "fixtures/18, final variant - a final analysis with every DoU point closed, derived into software requirements unattended",
+          "kind": "behavior",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-26T22-52-09-970Z",
+              "trusted": true
+            }
+          },
+          "name": "derive-software-requirements-from-final-analysis",
+          "skills": [
+            "derive-software-requirements"
+          ]
+        },
+        {
+          "description": "fixtures/18, blocked variant - a draft analysis with one blocking DoU point open, asked for software requirements unattended",
+          "kind": "behavior",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-26T06-58-55-832Z",
+              "trusted": true
+            }
+          },
+          "name": "derive-software-requirements-refuses-while-blocked",
+          "skills": [
+            "derive-software-requirements"
+          ]
+        },
+        {
+          "description": "fixtures/18, with-software-requirements variant - five software requirements grouped into epics unattended",
+          "kind": "behavior",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 0.94,
+              "stamp": "2026-11-26T07-09-50-605Z",
+              "trusted": true
+            }
+          },
+          "name": "group-epics-from-software-requirements",
+          "skills": [
+            "group-epics"
+          ]
+        },
+        {
+          "description": "should fire analyze-requirements",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-26T06-55-42-435Z",
+              "trusted": true
+            }
+          },
+          "name": "analyze-requirements-compare-versions",
+          "skills": [
+            "analyze-requirements"
+          ]
+        },
+        {
+          "description": "should not fire analyze-requirements",
+          "kind": "quiet",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-26T06-55-42-435Z",
+              "trusted": true
+            }
+          },
+          "name": "analyze-requirements-quiet-design-export",
+          "skills": [
+            "analyze-requirements"
+          ]
+        },
+        {
+          "description": "should fire analyze-requirements",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-26T06-55-42-435Z",
+              "trusted": true
+            }
+          },
+          "name": "analyze-requirements-update-from-dou",
+          "skills": [
+            "analyze-requirements"
+          ]
+        },
+        {
+          "description": "should fire derive-software-requirements",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-26T06-55-42-435Z",
+              "trusted": true
+            }
+          },
+          "name": "derive-software-requirements-derive-from-analysis",
+          "skills": [
+            "derive-software-requirements"
+          ]
+        },
+        {
+          "description": "should not fire derive-software-requirements",
+          "kind": "quiet",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-26T06-55-42-435Z",
+              "trusted": true
+            }
+          },
+          "name": "derive-software-requirements-quiet-split-epics",
+          "skills": [
+            "derive-software-requirements"
+          ]
+        },
+        {
+          "description": "should fire derive-software-requirements",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-26T06-55-42-435Z",
+              "trusted": true
+            }
+          },
+          "name": "derive-software-requirements-suy-ra-swr",
+          "skills": [
+            "derive-software-requirements"
+          ]
+        },
+        {
+          "description": "should not fire group-epics",
+          "kind": "quiet",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-26T06-55-42-435Z",
+              "trusted": true
+            }
+          },
+          "name": "group-epics-quiet-derive-software-requirements",
+          "skills": [
+            "group-epics"
+          ]
+        },
+        {
+          "description": "should fire group-epics",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-26T06-55-42-435Z",
+              "trusted": true
+            }
+          },
+          "name": "group-epics-split-software-requirements",
+          "skills": [
+            "group-epics"
+          ]
+        },
+        {
+          "description": "should fire group-epics",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-26T06-55-42-435Z",
+              "trusted": true
+            }
+          },
+          "name": "group-epics-tach-epic",
+          "skills": [
+            "group-epics"
+          ]
+        }
+      ],
+      "description": "Turn a requirement into work in three steps that share one ID scheme and one check script: analyze-requirements compares a requirement with its previous version and the code, checks it against the DoD, and settles every unclear point with the PO through one DoU file, giving system requirements; derive-software-requirements derives testable software requirements from the final analysis; group-epics groups them into epics. Reads files and writes Markdown in a topic folder; never changes code.",
+      "name": "planning",
+      "runs": [
+        {
+          "cases": 9,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-26T06-55-42-435Z"
+        },
+        {
+          "cases": 4,
+          "host": "claude",
+          "score": 0.69,
+          "stamp": "2026-11-26T06-58-55-832Z"
+        },
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 0.9,
+          "stamp": "2026-11-26T07-06-53-161Z"
+        },
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 0.8,
+          "stamp": "2026-11-26T07-08-27-296Z"
+        },
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 0.94,
+          "stamp": "2026-11-26T07-09-50-605Z"
+        },
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-26T22-52-09-970Z"
+        }
+      ],
+      "skills": [
+        {
+          "description": "Analyze a requirement into system requirements.",
+          "evals": {
+            "cases": 4,
+            "hosts": {
+              "claude": {
+                "cases": 4,
+                "latest": "2026-11-26T07-06-53-161Z",
+                "score": 0.98
+              }
+            }
+          },
+          "name": "analyze-requirements"
+        },
+        {
+          "description": "Derive software requirements.",
+          "evals": {
+            "cases": 5,
+            "hosts": {
+              "claude": {
+                "cases": 5,
+                "latest": "2026-11-26T22-52-09-970Z",
+                "score": 1.0
+              }
+            }
+          },
+          "name": "derive-software-requirements"
+        },
+        {
+          "description": "Group a settled set of requirements into epics.",
+          "evals": {
+            "cases": 4,
+            "hosts": {
+              "claude": {
+                "cases": 4,
+                "latest": "2026-11-26T07-09-50-605Z",
+                "score": 0.99
+              }
+            }
+          },
+          "name": "group-epics"
+        }
+      ],
+      "version": "0.1.0"
+    },
+    {
+      "cases": [
+        {
+          "description": "should fire coder-handoff",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-26T06-57-02-270Z",
+              "trusted": true
+            }
+          },
+          "name": "coder-handoff-approved-giao-coder",
+          "skills": [
+            "coder-handoff"
+          ]
+        },
+        {
+          "description": "should not fire coder-handoff",
+          "kind": "quiet",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-26T06-57-02-270Z",
+              "trusted": true
+            }
+          },
+          "name": "coder-handoff-quiet-write-file",
+          "skills": [
+            "coder-handoff"
+          ]
+        },
+        {
+          "description": "should fire coder-handoff",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-26T06-57-02-270Z",
+              "trusted": true
+            }
+          },
+          "name": "coder-handoff-review-branch",
+          "skills": [
+            "coder-handoff"
+          ]
+        },
+        {
+          "description": "should fire design-solution",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-26T06-57-02-270Z",
+              "trusted": true
+            }
+          },
+          "name": "design-solution-how-would-you-fix",
+          "skills": [
+            "design-solution"
+          ]
+        },
+        {
+          "description": "should not fire design-solution",
+          "kind": "quiet",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-26T06-57-02-270Z",
+              "trusted": true
+            }
+          },
+          "name": "design-solution-quiet-write-plan",
+          "skills": [
+            "design-solution"
+          ]
+        },
+        {
+          "description": "should fire write-plan",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-26T06-57-02-270Z",
+              "trusted": true
+            }
+          },
+          "name": "write-plan-hand-off",
+          "skills": [
+            "write-plan"
+          ]
+        },
+        {
+          "description": "should not fire write-plan",
+          "kind": "quiet",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-26T06-57-02-270Z",
+              "trusted": true
+            }
+          },
+          "name": "write-plan-quiet-chat-advice",
+          "skills": [
+            "write-plan"
+          ]
+        },
+        {
+          "description": "should fire write-plan",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-26T06-57-02-270Z",
+              "trusted": true
+            }
+          },
+          "name": "write-plan-save-to-file",
+          "skills": [
+            "write-plan"
+          ]
+        }
+      ],
+      "description": "Plan a change for review and hand-off, without touching code: design-solution answers advice and comparison questions in the conversation, write-plan saves a plan on its own branch, and coder-handoff dispatches the approved plan to a coder subagent, reviews the branch, and opens the pull request. Requirement analysis, software requirements and epics are in the planning plugin. Meant for sessions on a high-tier model.",
+      "name": "reasoning",
+      "runs": [
+        {
+          "cases": 8,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-17T07-26-44-325Z"
+        },
+        {
+          "cases": 11,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-25T23-13-26-146Z"
+        },
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 0.89,
+          "stamp": "2026-11-25T23-15-37-136Z"
+        },
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-25T23-18-59-890Z"
+        },
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-25T23-24-55-589Z"
+        },
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-25T23-42-32-885Z"
+        },
+        {
+          "cases": 8,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-26T06-57-02-270Z"
+        }
+      ],
+      "skills": [
+        {
+          "description": "Design a software solution when the user wants advice, a design, or a comparison as the deliverable rather than code changes, answered in the conversation.",
+          "evals": {
+            "cases": 2,
+            "hosts": {
+              "claude": {
+                "cases": 2,
+                "latest": "2026-11-26T06-57-02-270Z",
+                "score": 1.0
+              }
+            }
+          },
+          "name": "design-solution"
+        },
+        {
+          "description": "Write a plan to a file in the repository, without changing any code.",
+          "evals": {
+            "cases": 3,
+            "hosts": {
+              "claude": {
+                "cases": 3,
+                "latest": "2026-11-26T06-57-02-270Z",
+                "score": 1.0
+              }
+            }
+          },
+          "name": "write-plan"
+        },
+        {
+          "description": "After the user approves a plan written by write-plan, dispatch it to a coder subagent on a lower-tier model than the planner, review the branch it returns against the…",
+          "evals": {
+            "cases": 3,
+            "hosts": {
+              "claude": {
+                "cases": 3,
+                "latest": "2026-11-26T06-57-02-270Z",
+                "score": 1.0
+              }
+            }
+          },
+          "name": "coder-handoff"
+        }
+      ],
+      "version": "0.5.0"
+    },
+    {
+      "cases": [
+        {
+          "description": "fixtures/08 — a passing test asserts behavior the docs say is wrong",
+          "kind": "behavior",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 0.75,
+              "stamp": "2026-11-20T03-13-47-269Z",
+              "trusted": true
+            }
+          },
+          "name": "setup-verification-reports-codified-bug",
+          "skills": [
+            "setup-verification"
+          ]
+        },
+        {
+          "description": "fixtures/13 — CI commands with pipes, and a test that already fails on main",
+          "kind": "behavior",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 0.89,
+              "stamp": "2026-11-20T03-13-47-269Z",
+              "trusted": true
+            }
+          },
+          "name": "setup-verification-runs-every-ci-check",
+          "skills": [
+            "setup-verification"
+          ]
+        },
+        {
+          "description": "fixtures/07 — green tests, new tests that fail on main, and a goal the change does not meet",
+          "kind": "behavior",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-20T03-13-47-269Z",
+              "trusted": true
+            }
+          },
+          "name": "verify-change-catches-unwired-expiry",
+          "skills": [
+            "verify-change"
+          ]
+        },
+        {
+          "description": "fixtures/15 — a change to a helper two areas share, a green suite, and an area the issue does not name",
+          "kind": "behavior",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 0.93,
+              "stamp": "2026-11-20T03-13-47-269Z",
+              "trusted": true
+            }
+          },
+          "name": "verify-change-follows-shared-code",
+          "skills": [
+            "verify-change"
+          ]
+        },
+        {
+          "description": "fixtures/12 — a correct change, and a required check that already fails on main",
+          "kind": "behavior",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 0.92,
+              "stamp": "2026-11-20T03-13-47-269Z",
+              "trusted": true
+            }
+          },
+          "name": "verify-change-proves-pre-existing-failure",
+          "skills": [
+            "verify-change"
+          ]
+        },
+        {
+          "description": "fixtures/10 — a correct change whose required contract check cannot run here",
+          "kind": "behavior",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-20T03-13-47-269Z",
+              "trusted": true
+            }
+          },
+          "name": "verify-change-reports-blocked-required-check",
+          "skills": [
+            "verify-change"
+          ]
+        },
+        {
+          "description": "fixtures/11 — the fast suite is green because the tests that catch the bug are skipped",
+          "kind": "behavior",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-20T03-13-47-269Z",
+              "trusted": true
+            }
+          },
+          "name": "verify-change-runs-skipped-tests",
+          "skills": [
+            "verify-change"
+          ]
+        },
+        {
+          "description": "should fire no skill in this plugin: making a change is implement's",
+          "kind": "quiet",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-18-58-046Z",
+              "trusted": true
+            }
+          },
+          "name": "none-implement-feature",
+          "skills": [
+            "setup-verification",
+            "verify-change"
+          ]
+        },
+        {
+          "description": "should fire no skill in this plugin: one failing test is debug-failing-test's",
+          "kind": "quiet",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-18-58-046Z",
+              "trusted": true
+            }
+          },
+          "name": "none-one-failing-test",
+          "skills": [
+            "setup-verification",
+            "verify-change"
+          ]
+        },
+        {
+          "description": "should fire no skill in this plugin: judging code is review-code's",
+          "kind": "quiet",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-18-58-046Z",
+              "trusted": true
+            }
+          },
+          "name": "none-review-code",
+          "skills": [
+            "setup-verification",
+            "verify-change"
+          ]
+        },
+        {
+          "description": "should fire no skill in this plugin: writing tests is write-tests'",
+          "kind": "quiet",
+          "latest": {
+            "claude": {
+              "runs": 1,
+              "score": 1,
+              "stamp": "2026-11-20T03-23-56-091Z",
+              "trusted": true
+            }
+          },
+          "name": "none-write-tests",
+          "skills": [
+            "setup-verification",
+            "verify-change"
+          ]
+        },
+        {
+          "description": "should fire setup-verification and not verify-change",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-18-58-046Z",
+              "trusted": true
+            }
+          },
+          "name": "setup-verification-feature-map",
+          "skills": [
+            "setup-verification",
+            "verify-change"
+          ]
+        },
+        {
+          "description": "should fire setup-verification and not verify-change",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-18-58-046Z",
+              "trusted": true
+            }
+          },
+          "name": "setup-verification-onboard-repo",
+          "skills": [
+            "setup-verification",
+            "verify-change"
+          ]
+        },
+        {
+          "description": "should fire setup-verification and not verify-change",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-18-58-046Z",
+              "trusted": true
+            }
+          },
+          "name": "setup-verification-stale-skill",
+          "skills": [
+            "setup-verification",
+            "verify-change"
+          ]
+        },
+        {
+          "description": "should fire verify-change and not setup-verification",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-18-58-046Z",
+              "trusted": true
+            }
+          },
+          "name": "verify-change-colleagues-branch",
+          "skills": [
+            "setup-verification",
+            "verify-change"
+          ]
+        },
+        {
+          "description": "should fire verify-change and not setup-verification",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-18-58-046Z",
+              "trusted": true
+            }
+          },
+          "name": "verify-change-pr-vs-issue",
+          "skills": [
+            "setup-verification",
+            "verify-change"
+          ]
+        },
+        {
+          "description": "should fire verify-change even though the repository has its own verify skill",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-18-58-046Z",
+              "trusted": true
+            }
+          },
+          "name": "verify-change-with-local-verify-skill",
+          "skills": [
+            "setup-verification",
+            "verify-change"
+          ]
+        },
+        {
+          "description": "should fire verify-change and not setup-verification",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-18-58-046Z",
+              "trusted": true
+            }
+          },
+          "name": "verify-change-working-tree",
+          "skills": [
+            "setup-verification",
+            "verify-change"
+          ]
+        }
+      ],
+      "description": "Set up a repository's own verification — its build, lint, static analysis, and test checks with pass/fail criteria, a feature map, and evidence capture — and verify any existing change against its goal, with evidence for every check and criterion and one honest verdict.",
+      "name": "verification",
+      "runs": [
+        {
+          "cases": 11,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-19T23-18-58-046Z"
+        },
+        {
+          "cases": 3,
+          "host": "claude",
+          "score": 0.48,
+          "stamp": "2026-11-20T03-09-53-475Z"
+        },
+        {
+          "cases": 7,
+          "host": "claude",
+          "score": 0.93,
+          "stamp": "2026-11-20T03-13-47-269Z"
+        },
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-20T03-23-56-091Z"
+        }
+      ],
+      "skills": [
+        {
+          "description": "Create or update a repository's own verification skill.",
+          "evals": {
+            "cases": 13,
+            "hosts": {
+              "claude": {
+                "cases": 13,
+                "latest": "2026-11-20T03-23-56-091Z",
+                "score": 0.97
+              }
+            }
+          },
+          "name": "setup-verification"
+        },
+        {
+          "description": "Verify a change that already exists.",
+          "evals": {
+            "cases": 16,
+            "hosts": {
+              "claude": {
+                "cases": 16,
+                "latest": "2026-11-20T03-23-56-091Z",
+                "score": 0.99
+              }
+            }
+          },
+          "name": "verify-change"
+        }
+      ],
+      "version": "0.3.2"
+    },
+    {
+      "cases": [
+        {
+          "description": "fixtures/16 — a two-skill plugin with four planted defects, evaluated unattended",
+          "kind": "behavior",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-23T09-05-33-603Z",
+              "trusted": true
+            }
+          },
+          "name": "evaluate-skill-finds-planted-defects",
+          "skills": [
+            "evaluate-skill"
+          ]
+        },
+        {
+          "description": "should not fire evaluate-skill",
+          "kind": "quiet",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-23T09-03-20-443Z",
+              "trusted": true
+            }
+          },
+          "name": "evaluate-skill-quiet-verify",
+          "skills": [
+            "evaluate-skill"
+          ]
+        },
+        {
+          "description": "should fire evaluate-skill",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-23T09-03-20-443Z",
+              "trusted": true
+            }
+          },
+          "name": "evaluate-skill-will-it-trigger",
+          "skills": [
+            "evaluate-skill"
+          ]
+        },
+        {
+          "description": "should fire evaluate-skill",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-23T09-03-20-443Z",
+              "trusted": true
+            }
+          },
+          "name": "evaluate-skill-write-evals",
+          "skills": [
+            "evaluate-skill"
+          ]
+        }
+      ],
+      "description": "Evaluate Agent Skills on three levels — static structure and scope, whether they trigger on the right requests and stay quiet on the wrong ones, and whether they lead an agent to the right outcome compared with no skill — by writing eval suites for `claude plugin eval` and reporting what each failure means.",
+      "name": "skill-authoring",
+      "runs": [
+        {
+          "cases": 3,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-23T09-03-20-443Z"
+        },
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-23T09-05-33-603Z"
+        }
+      ],
+      "skills": [
+        {
+          "description": "Evaluate an Agent Skill or a plugin's skills on three levels.",
+          "evals": {
+            "cases": 4,
+            "hosts": {
+              "claude": {
+                "cases": 4,
+                "latest": "2026-11-23T09-05-33-603Z",
+                "score": 1.0
+              }
+            }
+          },
+          "name": "evaluate-skill"
+        }
+      ],
+      "version": "0.1.2"
+    },
+    {
+      "cases": [
+        {
+          "description": "fixtures/09 — rebuild one wordy slide as a workflow without losing or inventing anything",
+          "kind": "behavior",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-20T03-14-20-281Z",
+              "trusted": true
+            }
+          },
+          "name": "workflow-slide-from-wordy-slide",
+          "skills": [
+            "workflow-slides-blocks"
+          ]
+        },
+        {
+          "description": "should fire workflow-slides-blocks",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-20-38-903Z",
+              "trusted": true
+            }
+          },
+          "name": "fires-process-from-description",
+          "skills": [
+            "workflow-slides-blocks"
+          ]
+        },
+        {
+          "description": "should fire workflow-slides-blocks",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-20-38-903Z",
+              "trusted": true
+            }
+          },
+          "name": "fires-refine-wordy-slide",
+          "skills": [
+            "workflow-slides-blocks"
+          ]
+        },
+        {
+          "description": "should fire workflow-slides-blocks",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-20-38-903Z",
+              "trusted": true
+            }
+          },
+          "name": "fires-smartart-redraw",
+          "skills": [
+            "workflow-slides-blocks"
+          ]
+        },
+        {
+          "description": "should fire workflow-slides-blocks (Vietnamese request)",
+          "kind": "fires",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-20-38-903Z",
+              "trusted": true
+            }
+          },
+          "name": "fires-vietnamese-template",
+          "skills": [
+            "workflow-slides-blocks"
+          ]
+        },
+        {
+          "description": "must not fire: documentation of a codebase",
+          "kind": "quiet",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-20-38-903Z",
+              "trusted": true
+            }
+          },
+          "name": "none-architecture-docs",
+          "skills": [
+            "workflow-slides-blocks"
+          ]
+        },
+        {
+          "description": "must not fire: editing text in place",
+          "kind": "quiet",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-20-38-903Z",
+              "trusted": true
+            }
+          },
+          "name": "none-fix-typo",
+          "skills": [
+            "workflow-slides-blocks"
+          ]
+        },
+        {
+          "description": "must not fire: a data chart on its own",
+          "kind": "quiet",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-20-38-903Z",
+              "trusted": true
+            }
+          },
+          "name": "none-revenue-chart",
+          "skills": [
+            "workflow-slides-blocks"
+          ]
+        },
+        {
+          "description": "must not fire: a whole deck of content slides",
+          "kind": "quiet",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-20-38-903Z",
+              "trusted": true
+            }
+          },
+          "name": "none-whole-pitch-deck",
+          "skills": [
+            "workflow-slides-blocks"
+          ]
+        },
+        {
+          "description": "must not fire: document conversion",
+          "kind": "quiet",
+          "latest": {
+            "claude": {
+              "runs": 3,
+              "score": 1,
+              "stamp": "2026-11-19T23-20-38-903Z",
+              "trusted": true
+            }
+          },
+          "name": "none-word-to-pdf",
+          "skills": [
+            "workflow-slides-blocks"
+          ]
+        }
+      ],
+      "description": "Make or refine simple, visual PowerPoint slides: workflows, processes, before/after and operating models drawn as framed blocks of icon-and-label nodes in 2–3 colours, built on the user's own .pptx with its theme kept. Requires python-pptx and Pillow, which it never installs.",
+      "name": "presentation",
+      "runs": [
+        {
+          "cases": 9,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-19T23-20-38-903Z"
+        },
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 0.5,
+          "stamp": "2026-11-20T03-09-39-686Z"
+        },
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 0.5,
+          "stamp": "2026-11-20T03-10-27-115Z"
+        },
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-20T03-12-55-307Z"
+        },
+        {
+          "cases": 1,
+          "host": "claude",
+          "score": 1.0,
+          "stamp": "2026-11-20T03-14-20-281Z"
+        }
+      ],
+      "skills": [
+        {
+          "description": "Make or refine a simple, visual PowerPoint slide that shows a workflow, process, before/after comparison, problem and solution, or operating model, drawn as 1–4 framed…",
+          "evals": {
+            "cases": 10,
+            "hosts": {
+              "claude": {
+                "cases": 10,
+                "latest": "2026-11-20T03-14-20-281Z",
+                "score": 1.0
+              }
+            }
+          },
+          "name": "workflow-slides-blocks"
+        }
+      ],
+      "version": "0.1.1"
+    }
+  ],
+  "schemaVersion": 1
+}
